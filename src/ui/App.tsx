@@ -5,12 +5,14 @@ import { About } from "./About";
 import { Designs } from "./Designs";
 import { Workspace, SUB_TABS, type SubTab } from "./Workspace";
 import { loadCurrent, storeCurrent } from "./storage";
+import { PROGRAMS, StartScreen, logoUrl } from "./StartScreen";
 
-type Tab = "estes" | "water" | "designs" | "about";
+type Tab = "inicio" | "estes" | "water" | "designs" | "about";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "estes", label: "Cohete Estes" },
-  { id: "water", label: "Cohete de agua" },
+const TABS: { id: Tab; label: string; logo?: Design["type"] }[] = [
+  { id: "inicio", label: "Inicio" },
+  { id: "estes", label: PROGRAMS.estes.name, logo: "estes" },
+  { id: "water", label: PROGRAMS.water.name, logo: "water" },
   { id: "designs", label: "Mis diseños" },
   { id: "about", label: "Acerca de" },
 ];
@@ -25,11 +27,25 @@ export function normalize(d: Design): Design {
   return merged as unknown as Design;
 }
 
+function ProgramBanner({ type, onHome }: { type: Design["type"]; onHome: () => void }) {
+  const p = PROGRAMS[type];
+  return (
+    <div className={`program-banner ${type}`}>
+      <img src={logoUrl(type)} alt={`Logotipo de ${p.name}`} />
+      <div>
+        <span className="program-fuel">{p.fuel}</span>
+        <h2>{p.name}</h2>
+      </div>
+      <button type="button" className="btn small no-print" onClick={onHome}>Cambiar combustible</button>
+    </div>
+  );
+}
+
 /** Location hash: "#estes/graficas" → tab and sub-tab. */
 function parseHash(): { tab: Tab; sub: SubTab } {
   const [t, s] = location.hash.slice(1).split("/");
   return {
-    tab: TABS.some((x) => x.id === t) ? (t as Tab) : "estes",
+    tab: TABS.some((x) => x.id === t) ? (t as Tab) : "inicio",
     sub: SUB_TABS.includes(s as SubTab) ? (s as SubTab) : "cohete",
   };
 }
@@ -75,12 +91,17 @@ export function App() {
           </div>
           <nav className="tabs" role="tablist">
             {TABS.map((t) => (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}</button>
+              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
+                {t.logo && <img className="tab-logo" src={logoUrl(t.logo)} alt="" />}
+                {t.label}
+              </button>
             ))}
           </nav>
         </div>
       </header>
       <main>
+        {tab === "inicio" && <StartScreen onPick={(type) => setRoute({ tab: type, sub: "cohete" })} />}
+        {(tab === "estes" || tab === "water") && <ProgramBanner type={tab} onHome={() => setTab("inicio")} />}
         {tab === "estes" && (
           <Workspace
             design={estes}

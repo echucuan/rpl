@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PROGRAMS } from "./StartScreen";
 import type { Design } from "../model";
 import { deleteDesign, downloadDesign, listDesigns, readDesignFile, saveDesign } from "./storage";
 
@@ -34,7 +35,7 @@ export function Designs({ onOpen }: { onOpen: (d: Design, id?: string) => void }
           <div className="design-row panel" style={{ padding: "10px 14px" }} key={s.id}>
             <div className="meta">
               <b>{s.design.name}</b>
-              <small>{s.design.type === "water" ? "Cohete de agua" : "Cohete Estes"} · {new Date(s.savedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}</small>
+              <small>{PROGRAMS[s.design.type].name} · {PROGRAMS[s.design.type].fuel.toLowerCase()} · {new Date(s.savedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}</small>
             </div>
             <div className="btn-row">
               <button type="button" className="btn small primary" onClick={() => onOpen(s.design, s.id)}>Abrir</button>
