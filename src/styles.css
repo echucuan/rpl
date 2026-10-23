@@ -145,7 +145,8 @@ details.panel > summary small { color: var(--muted); font-weight: 400; margin-le
 .alert.warning { background: var(--warn-soft); border-color: var(--warn); }
 .alert.info { background: var(--tec-blue-soft); border-color: var(--tec-blue); }
 
-.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .charts { grid-template-columns: 1fr; } }
 .chart-box { position: relative; height: 240px; }
 
 table.summary { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
@@ -226,7 +227,7 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0 
 .chart-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; color: var(--ink); }
 .chart-card { display: flex; flex-direction: column; gap: 6px; }
 .chart-card .link { align-self: flex-end; }
-.charts.three { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+
 .phase { padding: 1px 7px; border-radius: 4px; color: var(--ink); }
 .phase.thrust { background: rgba(224,112,27,0.2); }
 .phase.coast { background: rgba(0,57,166,0.12); }
@@ -249,13 +250,20 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0 
 .chip.fisica, .stage-fisica .stage-n { background: #fde6d4; color: #9a4a0b; }
 .chip.matematicas, .stage-matematicas .stage-n { background: #dfe7f8; color: var(--tec-blue); }
 .chip.computacion, .stage-computacion .stage-n { background: #dcf1e3; color: var(--ok); }
-.lesson-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
-@media (max-width: 1100px) { .lesson-grid { grid-template-columns: 1fr; } }
+/* Física, Matemáticas y Computación una debajo de otra, como renglones */
+.lesson-grid { display: flex; flex-direction: column; gap: 16px; }
+.stage { display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+.stage > header { flex-direction: column; align-items: flex-start; border-bottom: 0; border-right: 1px solid var(--line); }
+.stage-body { padding: 12px 18px 16px; }
+@media (max-width: 800px) {
+  .stage { grid-template-columns: 1fr; }
+  .stage > header { flex-direction: row; align-items: center; border-right: 0; border-bottom: 1px solid var(--line); }
+}
 .stage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; min-width: 0; }
 .stage > header { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
-.stage-fisica > header { border-top: 4px solid #e0701b; }
-.stage-matematicas > header { border-top: 4px solid var(--tec-blue); }
-.stage-computacion > header { border-top: 4px solid var(--ok); }
+.stage-fisica { border-left: 5px solid #e0701b; }
+.stage-matematicas { border-left: 5px solid var(--tec-blue); }
+.stage-computacion { border-left: 5px solid var(--ok); }
 .stage-n { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-weight: 700; font-size: 1.1rem; flex: none; }
 .stage h3 { font-size: 1.05rem; }
 .stage header p { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
@@ -346,3 +354,9 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0 
 .code-block .code { margin: 0; border-top-left-radius: 0; }
 .matlab-cta { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-left: 4px solid #e16b1a; }
 .matlab-cta h2 { margin-bottom: 4px; }
+
+table.summary td.val { text-align: right; }
+.code-head { display: flex; justify-content: space-between; align-items: flex-end; }
+.copy-btn { border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 6px; padding: 3px 10px; font-size: 0.78rem; font-weight: 700; cursor: pointer; margin-bottom: 4px; }
+.copy-btn:hover { border-color: var(--tec-blue); color: var(--tec-blue); }
+.copy-btn.done { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
