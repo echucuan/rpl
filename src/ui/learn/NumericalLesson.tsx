@@ -4,6 +4,7 @@ import { simulate, type FlightResult } from "../../physics/simulate";
 import { format } from "../fields";
 import { LineChart, type Series } from "../LineChart";
 import { series } from "../phases";
+import { downloadMatlab, matlabFileName } from "../matlab";
 import { Code, Eq, LessonHeader, StageBlock, Think, YourRocket, n } from "./common";
 
 const r = String.raw;
@@ -42,7 +43,7 @@ export function NumericalLesson({ design: d, result: ref }: { design: Design; re
   return (
     <div className="lesson">
       <LessonHeader
-        title="6. Método numérico: cómo resuelve la computadora"
+        title="Método numérico: cómo resuelve la computadora"
         intro={<>Las ecuaciones del vuelo no tienen solución con fórmula: el arrastre depende de <Eq tex="v^2" />, la masa cambia y el empuje es una tabla. La computadora las resuelve <b>paso a paso</b>. Aquí puedes comparar dos métodos y ver cómo el tamaño del paso cambia el resultado.</>}
       />
       <div className="lesson-grid">
@@ -112,17 +113,39 @@ export function NumericalLesson({ design: d, result: ref }: { design: Design; re
             y 10 ms con paracaídas. Así es preciso sin hacer cálculos de más.
           </p>
           <Code>{`
-// Un paso de Runge-Kutta 4 para el estado y = [h, v, ...]
-function pasoRK4(t, y, dt) {
-  const k1 = derivadas(t, y);
-  const k2 = derivadas(t + dt / 2, suma(y, k1, dt / 2));
-  const k3 = derivadas(t + dt / 2, suma(y, k2, dt / 2));
-  const k4 = derivadas(t + dt, suma(y, k3, dt));
-  return y.map((yi, i) => yi + dt / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
-}
-// suma(y, k, h) = y + h·k  (componente por componente)
+function y_nuevo = paso_euler(f, t, y, dt, p)
+    y_nuevo = y + dt*f(t, y, p);              % una sola pendiente
+end
+
+function y_nuevo = paso_rk4(f, t, y, dt, p)
+    k1 = f(t,        y,             p);
+    k2 = f(t + dt/2, y + dt/2*k1,   p);
+    k3 = f(t + dt/2, y + dt/2*k2,   p);
+    k4 = f(t + dt,   y + dt*k3,     p);
+    y_nuevo = y + dt/6*(k1 + 2*k2 + 2*k3 + k4);
+end
+          `}</Code>
+          <Code title="MATLAB · estudio de convergencia">{`
+pasos = [${steps.join(" ")}];
+for i = 1:numel(pasos)
+    rE = simular(p, @paso_euler, pasos(i), true);   % solo el ascenso
+    rR = simular(p, @paso_rk4,   pasos(i), true);
+    hE(i) = rE.h_apogeo;  hR(i) = rR.h_apogeo;
+end
+ref = simular(p, @paso_rk4, [], true);           % RK4 con paso variable
+loglog(pasos, abs(hE - ref.h_apogeo), 'o-', pasos, abs(hR - ref.h_apogeo), 's-');
+xlabel('\Delta t (s)'); ylabel('error en h_{max} (m)');
+legend('Euler (pendiente 1)', 'RK4 (pendiente 4)');
           `}</Code>
         </StageBlock>
+      </div>
+
+      <div className="card matlab-cta">
+        <div>
+          <h2>Hazlo tú en MATLAB</h2>
+          <p className="hint">Descarga un script con los datos de tu cohete: simula el vuelo con RK4, grafica las cuatro fases y compara Euler contra RK4. Al inicio indica los resultados que debes obtener.</p>
+        </div>
+        <button type="button" className="btn primary" onClick={() => downloadMatlab(d, ref)}>Descargar {matlabFileName(d.name)}</button>
       </div>
 
       <div className="card">
