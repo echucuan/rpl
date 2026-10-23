@@ -94,11 +94,15 @@ export function structureItems(d: Design): MassItem[] {
   const l = layout(d);
   const nose = noseProperties(d.nose.shape, d.nose.length, d.nose.diameter);
   const items: MassItem[] = [
-    { name: "Nariz", mass: d.nose.mass, x: nose.surfaceCentroid },
-    { name: d.type === "water" ? "Piezas del cuerpo" : "Tubo", mass: d.body.mass, x: (l.bodyStart + l.bodyEnd) / 2 },
-    { name: "Aletas", mass: d.fins.mass, x: l.finLeading + finCentroid(d.fins) },
+    { name: d.type === "estes" ? "Nariz (PLA)" : "Nariz", mass: d.nose.mass, x: nose.surfaceCentroid },
+    { name: d.type === "water" ? "Piezas del cuerpo" : "Cuerpo de opalina", mass: d.body.mass, x: (l.bodyStart + l.bodyEnd) / 2 },
+    { name: d.type === "estes" ? "Aletas (PLA)" : "Aletas", mass: d.fins.mass, x: l.finLeading + finCentroid(d.fins) },
   ];
-  if (d.recovery.kind === "parachute") items.push({ name: "Paracaídas", mass: d.recovery.mass, x: d.recovery.position });
+  if (d.recovery.kind === "parachute") items.push({ name: d.type === "estes" ? "Paracaídas Estes 24\"" : "Paracaídas", mass: d.recovery.mass, x: d.recovery.position });
+  if (d.type === "estes") {
+    items.push({ name: "Porta motor (PLA)", mass: d.motorMount.mass, x: l.bodyEnd - 25 });
+    if (d.altimeter.included) items.push({ name: "Altímetro Estes", mass: d.altimeter.mass, x: d.altimeter.position });
+  }
   for (const e of d.extras) items.push({ name: e.name || "Masa extra", mass: e.mass, x: e.position });
   if (d.type === "water") {
     // Empty bottle: wall area of the cylinder and the shoulder, each at its own centroid.

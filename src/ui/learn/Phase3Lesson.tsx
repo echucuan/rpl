@@ -62,7 +62,7 @@ export function Phase3Lesson({ design: d, result: res, onPhase }: { design: Desi
             <li>No es la "caída libre" ideal de los libros (solo peso): aquí el aire sí importa.</li>
           </ul>
           {d.type === "estes" && ph.exists && (
-            <p>En un cohete Estes esta fase dura lo que el retardo excede al tiempo ideal: {d.motor.delay} s − {format(res.idealDelay ?? 0, 1)} s = <b>{format(tf, 1)} s</b>.</p>
+            <p>En un cohete Estes esta fase dura lo que el retardo excede al tiempo ideal: 3 s − {format(res.idealDelay ?? 0, 1)} s = <b>{format(tf, 1)} s</b>.</p>
           )}
         </StageBlock>
 

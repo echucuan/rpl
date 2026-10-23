@@ -27,20 +27,6 @@ export function normalize(d: Design): Design {
   return merged as unknown as Design;
 }
 
-function ProgramBanner({ type, onHome }: { type: Design["type"]; onHome: () => void }) {
-  const p = PROGRAMS[type];
-  return (
-    <div className={`program-banner ${type}`}>
-      <img src={logoUrl(type)} alt={`Logotipo de ${p.name}`} />
-      <div>
-        <span className="program-fuel">{p.fuel}</span>
-        <h2>{p.name}</h2>
-      </div>
-      <button type="button" className="btn small no-print" onClick={onHome}>Cambiar combustible</button>
-    </div>
-  );
-}
-
 /** Location hash: "#estes/graficas" → tab and sub-tab. */
 function parseHash(): { tab: Tab; sub: SubTab } {
   const [t, s] = location.hash.slice(1).split("/");
@@ -101,17 +87,16 @@ export function App() {
       </header>
       <main>
         {tab === "inicio" && <StartScreen onPick={(type) => setRoute({ tab: type, sub: "cohete" })} />}
-        {(tab === "estes" || tab === "water") && <ProgramBanner type={tab} onHome={() => setTab("inicio")} />}
         {tab === "estes" && (
           <Workspace
             design={estes}
             onChange={(d) => setEstes(d as EstesDesign)}
             sub={sub}
             onSub={setSub}
-            onLoadKit={(d) => { setEstes(d); setSavedIds((s) => ({ ...s, estes: undefined })); }}
             savedId={savedIds.estes}
             onSaved={(id) => setSavedIds((s) => ({ ...s, estes: id }))}
             onNew={() => { setEstes(newEstesDesign()); setSavedIds((s) => ({ ...s, estes: undefined })); }}
+            onHome={() => setTab("inicio")}
           />
         )}
         {tab === "water" && (
@@ -123,13 +108,14 @@ export function App() {
             savedId={savedIds.water}
             onSaved={(id) => setSavedIds((s) => ({ ...s, water: id }))}
             onNew={() => { setWater(newWaterDesign()); setSavedIds((s) => ({ ...s, water: undefined })); }}
+            onHome={() => setTab("inicio")}
           />
         )}
         {tab === "designs" && <Designs onOpen={open} />}
         {tab === "about" && <About />}
       </main>
       <footer>
-        Rocket Physics Lab · Tecnológico de Monterrey, Campus Sinaloa · Software libre (GPL-3.0). Datos de motores y piezas Estes tomados de OpenRocket.
+        Rocket Physics Lab · Tecnológico de Monterrey, Campus Sinaloa · Software libre (GPL-3.0). Especificaciones de productos: Estes Industries.
       </footer>
     </>
   );

@@ -1,12 +1,11 @@
 import type { Design, EstesDesign, FinProfile, NoseShape, WaterDesign } from "../model";
-import { KITS, MAX_PRESSURE_PSI } from "../model";
-import {
-  MOTORS, MOUNT_DIAMETERS, bodyTubeMass, impulseClass, motorById, noseConeMass, noseShapeOf, parachuteMass, partLabel, partsOf, type Part,
-} from "../catalog";
+import { LETTER, MAX_PRESSURE_PSI, sheetLength, sheetMass, sheetWrap } from "../model";
+import { A10_SPECS, a10Motor, impulseClass } from "../motor";
 import { finArea, layout, noseProperties } from "../physics/geometry";
 import { NumField, Section, Segmented, SelectField, TextField, format } from "./fields";
 
 type Update = (fn: (d: Design) => Design) => void;
+type Setter = <K extends keyof Design>(key: K, patch: Partial<Design[K]>) => void;
 
 const SHAPES: { value: NoseShape; label: string }[] = [
   { value: "ogive", label: "Ojival" },
@@ -21,83 +20,38 @@ const PROFILES: { value: FinProfile; label: string }[] = [
   { value: "airfoil", label: "Perfil aerodinámico" },
 ];
 
-const NOSES = partsOf("noseCone").sort((a, b) => (a.outsideDiameter ?? 0) - (b.outsideDiameter ?? 0));
-const TUBES = partsOf("bodyTube").sort((a, b) => (a.outsideDiameter ?? 0) - (b.outsideDiameter ?? 0) || (a.length ?? 0) - (b.length ?? 0));
-const CHUTES = partsOf("parachute").sort((a, b) => (a.diameter ?? 0) - (b.diameter ?? 0));
+const round = (v: number) => Math.round(v * 10) / 10;
 
-function CatalogPicker({ label, parts, current, describe, onPick }: {
-  label: string;
-  parts: Part[];
-  current?: string;
-  describe: (p: Part) => string;
-  onPick: (p: Part | null) => void;
-}) {
-  const index = parts.findIndex((p) => p.description === current);
-  return (
-    <SelectField
-      className="full"
-      label={label}
-      value={index >= 0 ? String(index) : current ? "kit" : "own"}
-      options={[
-        { value: "own", label: "Pieza propia o impresa (escribe medidas y peso)" },
-        ...(current && index < 0 ? [{ value: "kit", label: current }] : []),
-        ...parts.map((p, i) => ({ value: String(i), label: describe(p) })),
-      ]}
-      onChange={(v) => {
-        if (v === "kit") return;
-        onPick(v === "own" ? null : parts[Number(v)]);
-      }}
-    />
-  );
-}
-
-const mm = (v?: number) => `Ø ${format(v ?? 0, 1)} mm`;
-
-export function DesignForm({ design: d, update, onLoadKit }: { design: Design; update: Update; onLoadKit?: (d: EstesDesign) => void }) {
+export function DesignForm({ design: d, update }: { design: Design; update: Update }) {
   const l = layout(d);
-  const set = <K extends keyof Design>(key: K, patch: Partial<Design[K]>) =>
-    update((p) => ({ ...p, [key]: { ...(p[key] as object), ...patch } }) as Design);
+  const set: Setter = (key, patch) => update((p) => ({ ...p, [key]: { ...(p[key] as object), ...patch } }) as Design);
   const isWater = d.type === "water";
+  const pla = isWater ? "" : " (PLA)";
 
   return (
     <div className="form">
       <Section title="Diseño">
         <TextField className="full" label="Nombre del cohete" value={d.name} onChange={(name) => update((p) => ({ ...p, name }))} />
-        {!isWater && onLoadKit && (
-          <SelectField
-            className="full"
-            label="Empezar desde un kit Estes"
-            value=""
-            options={[{ value: "", label: "Elegir kit…" }, ...KITS.map((k, i) => ({ value: String(i), label: k.name }))]}
-            onChange={(v) => v !== "" && onLoadKit(KITS[Number(v)].design())}
-          />
-        )}
         <p className="hint full">
           Largo total: <b>{format(l.length / 10, 1)} cm</b>. Las posiciones se miden desde la punta de la nariz, en milímetros.
         </p>
       </Section>
 
-      <Section title="Nariz" summary={`${format(d.nose.mass, 1)} g`}>
-        <CatalogPicker
-          label="Origen"
-          parts={NOSES}
-          current={d.nose.catalog}
-          describe={(p) => `${partLabel(p)} · ${mm(p.outsideDiameter)}`}
-          onPick={(p) => set("nose", p
-            ? { catalog: p.description, shape: noseShapeOf(p), length: p.length ?? d.nose.length, diameter: p.outsideDiameter ?? d.nose.diameter, mass: round(noseConeMass(p)) }
-            : { catalog: undefined })}
-        />
+      <Section title={`Nariz${pla}`} summary={`${format(d.nose.mass, 1)} g`}>
         <SelectField label="Forma" value={d.nose.shape} options={SHAPES} onChange={(shape) => set("nose", { shape })} />
         <NumField label="Largo (sin hombro)" unit="mm" min={5} value={d.nose.length} onChange={(length) => set("nose", { length })} />
         <NumField label="Diámetro" unit="mm" min={5} value={d.nose.diameter} onChange={(diameter) => set("nose", { diameter })} />
         <NumField label="Masa" unit="g" min={0} value={d.nose.mass} onChange={(mass) => set("nose", { mass })} />
-        {!d.nose.catalog && <p className="hint full">Superficie exterior: {format(noseProperties(d.nose.shape, d.nose.length, d.nose.diameter).surface / 100, 0)} cm². Pesa la pieza impresa en la báscula.</p>}
-        {Math.abs(d.nose.diameter - d.body.diameter) > 0.5 && <p className="hint full">⚠ La nariz ({format(d.nose.diameter)} mm) y el {isWater ? "cuerpo" : "tubo"} ({format(d.body.diameter)} mm) no tienen el mismo diámetro.</p>}
+        <p className="hint full">
+          Superficie exterior: {format(noseProperties(d.nose.shape, d.nose.length, d.nose.diameter).surface / 100, 0)} cm². Pesa la pieza impresa en la báscula{isWater ? "" : " (sin el altímetro)"}.
+        </p>
+        {Math.abs(d.nose.diameter - d.body.diameter) > 0.5 && <p className="hint full">⚠ La nariz ({format(d.nose.diameter)} mm) y el cuerpo ({format(d.body.diameter)} mm) no tienen el mismo diámetro.</p>}
       </Section>
 
-      {d.type === "estes" ? <TubeSection d={d} set={set} /> : <BottleSection d={d} update={update} />}
+      {d.type === "estes" && <AltimeterSection d={d} update={update} />}
+      {d.type === "estes" ? <PaperSection d={d} update={update} /> : <BottleSection d={d} update={update} />}
 
-      <Section title="Aletas" summary={`${d.fins.count} · ${format(d.fins.mass, 1)} g`}>
+      <Section title={`Aletas${pla}`} summary={`${d.fins.count} · ${format(d.fins.mass, 1)} g`}>
         <NumField label="Número de aletas" min={1} max={8} digits={0} value={d.fins.count} onChange={(count) => set("fins", { count: Math.round(count) })} />
         <SelectField label="Borde" value={d.fins.profile} options={PROFILES} onChange={(profile) => set("fins", { profile })} />
         <NumField label="Cuerda en la raíz" unit="mm" min={1} value={d.fins.rootChord} onChange={(rootChord) => set("fins", { rootChord })} title="Largo de la aleta pegada al cuerpo" />
@@ -105,35 +59,34 @@ export function DesignForm({ design: d, update, onLoadKit }: { design: Design; u
         <NumField label="Altura (envergadura)" unit="mm" min={1} value={d.fins.span} onChange={(span) => set("fins", { span })} />
         <NumField label="Barrido" unit="mm" value={d.fins.sweep} onChange={(sweep) => set("fins", { sweep })} title="Distancia del borde de ataque en la raíz al de la punta" />
         <NumField label="Grosor" unit="mm" min={0.1} value={d.fins.thickness} onChange={(thickness) => set("fins", { thickness })} />
-        <NumField label="Separación de la cola" unit="mm" value={d.fins.offsetFromAft} onChange={(offsetFromAft) => set("fins", { offsetFromAft })} title={isWater ? "Del inicio del hombro de la botella al borde de salida; negativo si la aleta baja sobre el hombro" : "Del extremo del tubo al borde de salida de la aleta"} />
+        <NumField
+          label="Separación de la cola"
+          unit="mm"
+          value={d.fins.offsetFromAft}
+          onChange={(offsetFromAft) => set("fins", { offsetFromAft })}
+          title={isWater ? "Del inicio del hombro de la botella al borde de salida; negativo si la aleta baja sobre el hombro" : "Del extremo del cuerpo al borde de salida de la aleta"}
+        />
         <NumField label="Masa del juego completo" unit="g" min={0} value={d.fins.mass} onChange={(mass) => set("fins", { mass })} />
         <p className="hint full">Volumen del juego: {format((d.fins.count * finArea(d.fins) * d.fins.thickness) / 1000, 1)} cm³. Si aún no las imprimes, multiplica por la densidad de tu PLA Aero; después pésalas.</p>
       </Section>
 
       {d.type === "estes" ? <MotorSection d={d} update={update} /> : <WaterSection d={d} update={update} />}
 
-      <Section title="Recuperación" summary={d.recovery.kind === "parachute" ? `${format(d.recovery.diameter / 10, 0)} cm` : "sin paracaídas"}>
-        <div className="full">
-          <Segmented
-            value={d.recovery.kind}
-            options={[{ value: "parachute", label: "Paracaídas" }, { value: "none", label: "Sin paracaídas" }]}
-            onChange={(kind) => set("recovery", { kind })}
-          />
-        </div>
-        {d.recovery.kind === "parachute" && (
-          <>
-            <CatalogPicker
-              label="Paracaídas"
-              parts={CHUTES}
-              current={d.recovery.catalog}
-              describe={(p) => partLabel(p)}
-              onPick={(p) => set("recovery", p ? { catalog: p.description, diameter: p.diameter ?? d.recovery.diameter, mass: round(parachuteMass(p)) } : { catalog: undefined })}
+      {d.type === "estes" ? <EstesChuteSection d={d} set={set} /> : (
+        <Section title="Recuperación" summary={d.recovery.kind === "parachute" ? `${format(d.recovery.diameter / 10, 0)} cm` : "sin paracaídas"}>
+          <div className="full">
+            <Segmented
+              value={d.recovery.kind}
+              options={[{ value: "parachute", label: "Paracaídas" }, { value: "none", label: "Sin paracaídas" }]}
+              onChange={(kind) => set("recovery", { kind })}
             />
-            <NumField label="Diámetro" unit="mm" min={10} value={d.recovery.diameter} onChange={(diameter) => set("recovery", { diameter })} />
-            <NumField label="Coef. de arrastre" min={0.1} max={2.5} value={d.recovery.cd} onChange={(cd) => set("recovery", { cd })} title="0.8 para paracaídas de plástico Estes" />
-            <NumField label="Masa" unit="g" min={0} value={d.recovery.mass} onChange={(mass) => set("recovery", { mass })} />
-            <NumField label="Posición" unit="mm" min={0} value={d.recovery.position} onChange={(position) => set("recovery", { position })} />
-            {isWater ? (
+          </div>
+          {d.recovery.kind === "parachute" && (
+            <>
+              <NumField label="Diámetro" unit="mm" min={10} value={d.recovery.diameter} onChange={(diameter) => set("recovery", { diameter })} />
+              <NumField label="Coef. de arrastre" min={0.1} max={2.5} value={d.recovery.cd} onChange={(cd) => set("recovery", { cd })} title="Entre 0.75 y 0.8 para paracaídas de plástico" />
+              <NumField label="Masa" unit="g" min={0} value={d.recovery.mass} onChange={(mass) => set("recovery", { mass })} />
+              <NumField label="Posición" unit="mm" min={0} value={d.recovery.position} onChange={(position) => set("recovery", { position })} />
               <SelectField
                 className="full"
                 label="Se abre"
@@ -141,12 +94,10 @@ export function DesignForm({ design: d, update, onLoadKit }: { design: Design; u
                 options={[{ value: "apogee", label: "En el punto más alto (apogeo)" }, { value: "none", label: "No se abre (prueba balística)" }]}
                 onChange={(deployment) => set("recovery", { deployment })}
               />
-            ) : (
-              <p className="hint full">Se abre con la carga de eyección del motor, al terminar el retardo.</p>
-            )}
-          </>
-        )}
-      </Section>
+            </>
+          )}
+        </Section>
+      )}
 
       <Section title="Masas adicionales" summary={`${d.extras.length}`} open={d.extras.length > 0}>
         {d.extras.map((e, i) => (
@@ -158,11 +109,15 @@ export function DesignForm({ design: d, update, onLoadKit }: { design: Design; u
           </div>
         ))}
         <div className="full">
-          <button type="button" className="btn small" onClick={() => update((p) => ({ ...p, extras: [...p.extras, { name: isWater ? "Lastre" : "Altímetro", mass: 10, position: Math.round(l.bodyStart + 20) }] }))}>
+          <button
+            type="button"
+            className="btn small"
+            onClick={() => update((p) => ({ ...p, extras: [...p.extras, { name: isWater ? "Lastre" : "Cuerda elástica y algodón", mass: isWater ? 10 : 3, position: Math.round(l.bodyStart + 20) }] }))}
+          >
             + Agregar masa
           </button>
         </div>
-        <p className="hint full">Altímetro, lastre, cuerda elástica, algodón, soporte del motor… Cualquier cosa que viaje en el cohete.</p>
+        <p className="hint full">{isWater ? "Lastre, coples, cinta…" : "Cuerda elástica, algodón protector, pegamento, cinta…"} Cualquier cosa que viaje en el cohete.</p>
       </Section>
 
       <Section title="Lanzamiento" open={false}>
@@ -183,32 +138,106 @@ export function DesignForm({ design: d, update, onLoadKit }: { design: Design; u
   );
 }
 
-const round = (v: number) => Math.round(v * 10) / 10;
-
-function TubeSection({ d, set }: { d: EstesDesign; set: <K extends keyof Design>(key: K, patch: Partial<Design[K]>) => void }) {
+function AltimeterSection({ d, update }: { d: EstesDesign; update: Update }) {
+  const set = (patch: Partial<EstesDesign["altimeter"]>) => update((p) => ({ ...(p as EstesDesign), altimeter: { ...(p as EstesDesign).altimeter, ...patch } }));
   return (
-    <Section title="Tubo del cuerpo" summary={`${format(d.body.mass, 1)} g`}>
-      <CatalogPicker
-        label="Origen"
-        parts={TUBES}
-        current={d.body.catalog}
-        describe={(p) => `${partLabel(p)} · ${mm(p.outsideDiameter)}`}
-        onPick={(p) => {
-          if (!p) return set("body", { catalog: undefined, massPerMm: undefined });
-          const mass = bodyTubeMass(p);
-          set("body", { catalog: p.description, length: p.length ?? d.body.length, diameter: p.outsideDiameter ?? d.body.diameter, mass: round(mass), massPerMm: mass / (p.length ?? 1) });
-        }}
+    <Section title="Altímetro Estes (dentro de la nariz)" summary={d.altimeter.included ? `${format(d.altimeter.mass, 1)} g` : "sin altímetro"}>
+      <div className="full">
+        <Segmented
+          value={d.altimeter.included ? "yes" : "no"}
+          options={[{ value: "yes", label: "Con altímetro" }, { value: "no", label: "Sin altímetro" }]}
+          onChange={(v) => set({ included: v === "yes" })}
+        />
+      </div>
+      {d.altimeter.included && (
+        <>
+          <NumField label="Masa" unit="g" min={0} value={d.altimeter.mass} onChange={(mass) => set({ mass })} />
+          <NumField label="Posición de su centro" unit="mm" min={0} value={d.altimeter.position} onChange={(position) => set({ position })} />
+          <p className="hint full">
+            Estes no publica su peso: pésalo con su batería. Va dentro de la nariz, así que su centro queda entre {format(d.nose.length * 0.4, 0)} y{" "}
+            {format(d.nose.length, 0)} mm de la punta. Mide hasta 3,000 m (9,999 ft) y guarda la altura máxima de 10 vuelos.
+          </p>
+        </>
+      )}
+    </Section>
+  );
+}
+
+function PaperSection({ d, update }: { d: EstesDesign; update: Update }) {
+  const setE = (fn: (p: EstesDesign) => EstesDesign) => update((p) => fn(p as EstesDesign));
+  // Changing the sheet recomputes the body's length and mass; the mass can then be replaced by a weighed value.
+  const setSheet = (patch: Partial<EstesDesign["sheet"]>) =>
+    setE((p) => {
+      const sheet = { ...p.sheet, ...patch };
+      return { ...p, sheet, body: { ...p.body, length: sheetLength(sheet), mass: round(sheetMass(sheet)) } };
+    });
+  const wraps = sheetWrap(d.sheet) / (Math.PI * d.body.diameter);
+  return (
+    <Section title="Cuerpo de opalina" summary={`${format(d.body.length / 10, 1)} cm · ${format(d.body.mass, 1)} g`}>
+      <SelectField
+        className="full"
+        label="Cómo se enrolla la hoja carta (21.6 × 27.9 cm)"
+        value={d.sheet.orientation}
+        options={[
+          { value: "long", label: `Tubo de ${format(LETTER.length / 10, 1)} cm de largo (se enrolla el lado de ${format(LETTER.width / 10, 1)} cm)` },
+          { value: "short", label: `Tubo de ${format(LETTER.width / 10, 1)} cm de largo (se enrolla el lado de ${format(LETTER.length / 10, 1)} cm)` },
+        ]}
+        onChange={(orientation) => setSheet({ orientation })}
       />
+      <NumField label="Diámetro exterior del tubo" unit="mm" min={14} max={68} value={d.body.diameter} onChange={(diameter) => setE((p) => ({ ...p, body: { ...p.body, diameter } }))} />
+      <NumField label="Gramaje de la opalina" unit="g/m²" min={60} max={400} digits={0} value={d.sheet.gsm} onChange={(gsm) => setSheet({ gsm })} />
       <NumField
-        label="Largo"
-        unit="mm"
-        min={10}
-        value={d.body.length}
-        onChange={(length) => set("body", d.body.massPerMm ? { length, mass: round(d.body.massPerMm * length) } : { length })}
-        title={d.body.massPerMm ? "Si cortas el tubo, la masa se ajusta sola" : undefined}
+        className="full"
+        label="Masa del tubo"
+        unit="g"
+        min={0}
+        value={d.body.mass}
+        onChange={(mass) => setE((p) => ({ ...p, body: { ...p.body, mass } }))}
+        title="Se calcula con el gramaje; si pesas el tubo terminado, escribe aquí su masa"
       />
-      <NumField label="Diámetro exterior" unit="mm" min={5} value={d.body.diameter} onChange={(diameter) => set("body", { diameter })} />
-      <NumField label="Masa" unit="g" min={0} value={d.body.mass} onChange={(mass) => set("body", { mass, massPerMm: undefined })} />
+      <p className="hint full">
+        La hoja da <b>{format(wraps, 1)} vueltas</b> alrededor del tubo{wraps < 1.15 ? " ⚠ casi no traslapa: usa un diámetro menor" : ""}. Hoja completa:{" "}
+        {format(sheetMass(d.sheet), 1)} g con {d.sheet.gsm} g/m². Si le pones pegamento o cinta, pesa el tubo terminado y escribe su masa.
+      </p>
+    </Section>
+  );
+}
+
+function MotorSection({ d, update }: { d: EstesDesign; update: Update }) {
+  const motor = a10Motor(d.motor.mass, d.motor.propellant);
+  const setE = (fn: (p: EstesDesign) => EstesDesign) => update((p) => fn(p as EstesDesign));
+  return (
+    <Section title="Motor Estes A10-3T y porta motor" summary={`A10-3T · ${format(d.motor.mass + d.motorMount.mass, 1)} g`}>
+      <NumField label="Masa del motor" unit="g" min={1} max={20} value={d.motor.mass} onChange={(mass) => setE((p) => ({ ...p, motor: { ...p.motor, mass } }))} title={`Estes: ${A10_SPECS.mass} g`} />
+      <NumField
+        label="Masa de propelente"
+        unit="g"
+        min={0.5}
+        max={10}
+        value={d.motor.propellant}
+        onChange={(propellant) => setE((p) => ({ ...p, motor: { ...p.motor, propellant } }))}
+        title={`Estes: ${A10_SPECS.propellant} g`}
+      />
+      <NumField className="full" label="Porta motor impreso (PLA)" unit="g" min={0} value={d.motorMount.mass} onChange={(mass) => setE((p) => ({ ...p, motorMount: { mass } }))} />
+      <p className="hint full">
+        13 × 45 mm · clase {impulseClass(motor.totalImpulse)} · retardo de {A10_SPECS.delay} s. Curva de empuje medida en la prueba de certificación: impulso{" "}
+        {format(motor.totalImpulse, 2)} N·s, empuje máximo {format(motor.maxThrust, 1)} N, {format(motor.burnTime, 2)} s. Estes publica valores nominales de{" "}
+        {A10_SPECS.ratedImpulse} N·s, {A10_SPECS.ratedMaxThrust} N y {A10_SPECS.ratedBurnTime} s, y un máximo de {A10_SPECS.maxLiftoffMass} g de cohete al despegar.
+      </p>
+    </Section>
+  );
+}
+
+function EstesChuteSection({ d, set }: { d: EstesDesign; set: Setter }) {
+  return (
+    <Section title={'Paracaídas Estes 24" impreso'} summary={`61 cm · ${format(d.recovery.mass, 1)} g`}>
+      <NumField label="Masa (con cordones)" unit="g" min={0} value={d.recovery.mass} onChange={(mass) => set("recovery", { mass })} />
+      <NumField label="Posición" unit="mm" min={0} value={d.recovery.position} onChange={(position) => set("recovery", { position })} />
+      <NumField label="Coef. de arrastre" min={0.3} max={1.5} value={d.recovery.cd} onChange={(cd) => set("recovery", { cd })} title="Entre 0.75 y 0.8 para paracaídas planos de plástico" />
+      <p className="hint full">
+        61 cm de diámetro, plástico LDPE con cordones ya unidos. Estes no publica su peso: pésalo. Se abre con la carga de eyección del motor, {A10_SPECS.delay} s después de que
+        termina el empuje.
+      </p>
     </Section>
   );
 }
@@ -225,51 +254,6 @@ function BottleSection({ d, update }: { d: WaterDesign; update: Update }) {
       <NumField label="Diámetro del cuello" unit="mm" min={5} value={d.tail.aftDiameter} onChange={(aftDiameter) => setW((p) => ({ ...p, tail: { ...p.tail, aftDiameter } }))} />
       <NumField className="full" label="Piezas impresas sobre la botella (coples, porta-paracaídas)" unit="g" min={0} value={d.body.mass} onChange={(mass) => setW((p) => ({ ...p, body: { ...p.body, mass } }))} />
       <p className="hint full">Las medidas de la botella son aproximadas: mide una botella real y corrígelas.</p>
-    </Section>
-  );
-}
-
-function MotorSection({ d, update }: { d: EstesDesign; update: Update }) {
-  const motor = motorById(d.motor.id);
-  const available = MOTORS.filter((m) => m.diameter === d.motor.mountDiameter);
-  const setMotor = (patch: Partial<EstesDesign["motor"]>) => update((p) => ({ ...(p as EstesDesign), motor: { ...(p as EstesDesign).motor, ...patch } }));
-  const pickMotor = (id: string) => {
-    const m = motorById(id);
-    if (!m) return;
-    const delay = m.delays.includes(d.motor.delay) ? d.motor.delay : (m.delays.find((x) => x > 0) ?? m.delays[0] ?? 0);
-    setMotor({ id, delay });
-  };
-  return (
-    <Section title="Motor Estes" summary={motor ? `${motor.name}-${d.motor.delay}` : "sin motor"}>
-      <SelectField
-        label="Soporte de motor"
-        value={String(d.motor.mountDiameter)}
-        options={MOUNT_DIAMETERS.map((m) => ({ value: String(m), label: `${m} mm` }))}
-        onChange={(v) => {
-          const mountDiameter = Number(v);
-          const first = MOTORS.find((m) => m.diameter === mountDiameter)!;
-          setMotor({ mountDiameter, id: first.id, delay: first.delays.find((x) => x > 0) ?? first.delays[0] ?? 0 });
-        }}
-      />
-      <SelectField
-        label="Motor"
-        value={d.motor.id}
-        options={available.map((m) => ({ value: m.id, label: `${m.name} · ${format(m.totalImpulse, 1)} N·s` }))}
-        onChange={pickMotor}
-      />
-      <SelectField
-        label="Retardo de eyección"
-        value={String(d.motor.delay)}
-        options={(motor?.delays ?? [0]).map((x) => ({ value: String(x), label: x === 0 ? "0 s (sin eyección, primera etapa)" : `${x} s` }))}
-        onChange={(v) => setMotor({ delay: Number(v) })}
-      />
-      {motor && (
-        <p className="hint full">
-          Clase {impulseClass(motor.totalImpulse)} · impulso total {format(motor.totalImpulse, 1)} N·s · empuje promedio {format(motor.averageThrust, 1)} N
-          · empuje máximo {format(motor.maxThrust, 1)} N · combustión {format(motor.burnTime, 2)} s · masa {format(motor.mass[0], 1)} g
-          ({format(motor.mass[0] - motor.mass[motor.mass.length - 1], 1)} g de propelente). {motor.diameter}×{motor.length} mm.
-        </p>
-      )}
     </Section>
   );
 }

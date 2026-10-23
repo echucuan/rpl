@@ -1,4 +1,4 @@
-import type { Design, EstesDesign } from "../model";
+import type { Design } from "../model";
 import type { FlightResult } from "../physics/simulate";
 import type { MassItem } from "../physics/geometry";
 import { DesignForm } from "./DesignForm";
@@ -13,15 +13,14 @@ interface Props {
   shown: Design; // deferred, matching `result`
   result: FlightResult | string;
   onChange: (d: Design) => void;
-  onLoadKit?: (d: EstesDesign) => void;
   onGo: (s: SubTab) => void;
 }
 
-export function RocketTab({ design, shown, result, onChange, onLoadKit, onGo }: Props) {
+export function RocketTab({ design, shown, result, onChange, onGo }: Props) {
   const r = typeof result === "string" ? null : result;
   return (
     <div className="designer">
-      <DesignForm design={design} update={(fn) => onChange(fn(design))} onLoadKit={onLoadKit} />
+      <DesignForm design={design} update={(fn) => onChange(fn(design))} />
       <div className="results">
         {!r && <div className="card"><div className="alert error">{result as string}</div></div>}
         {r && (
@@ -30,7 +29,7 @@ export function RocketTab({ design, shown, result, onChange, onLoadKit, onGo }: 
               <div className="card-head">
                 <div>
                   <h2>{shown.name}</h2>
-                  <p className="hint">{shown.type === "water" ? "Cohete de agua · botella de " + format(shown.water.bottleVolume, 1) + " L" : "Cohete Estes"} · {format(r.liftoffMass, 1)} g al despegar</p>
+                  <p className="hint">{shown.type === "water" ? "Cohete de agua · botella de " + format(shown.water.bottleVolume, 1) + " L" : "Rocket Tec · motor Estes A10-3T"} · {format(r.liftoffMass, 1)} g al despegar</p>
                 </div>
                 <button type="button" className="btn primary" onClick={() => onGo("graficas")}>Ver gráficas del vuelo →</button>
               </div>

@@ -1,5 +1,5 @@
 // Thrust sources: Estes motor thrust curves and the compressed-air water rocket.
-import type { Motor } from "../catalog";
+import type { Motor } from "../motor";
 import type { WaterDesign } from "../model";
 import { MAX_PRESSURE_PSI, PSI } from "../model";
 import { GAMMA, R_AIR } from "./atmosphere";

@@ -1,5 +1,5 @@
 import type { Design } from "../model";
-import { motorById } from "../catalog";
+import { a10Motor } from "../motor";
 import { layout, noseRadius, waterFill } from "../physics/geometry";
 import type { Stability } from "../physics/geometry";
 import { format } from "./fields";
@@ -34,7 +34,7 @@ export function RocketView({ design: d, loaded, empty }: { design: Design; loade
     [le, rb], [le + f.sweep, rb + f.span], [le + f.sweep + f.tipChord, rb + f.span], [le + f.rootChord, rb],
   ].map(([x, y]) => `${X(x).toFixed(1)},${Y(sign * y).toFixed(1)}`).join(" ");
 
-  const motor = d.type === "estes" ? motorById(d.motor.id) : undefined;
+  const motor = d.type === "estes" ? a10Motor(d.motor.mass, d.motor.propellant) : undefined;
   const water = d.type === "water" && d.water.waterVolume > 0 ? waterFill(d, d.water.waterVolume) : null;
 
   return (
@@ -53,12 +53,15 @@ export function RocketView({ design: d, loaded, empty }: { design: Design; loade
         {motor && (
           <rect x={X(l.bodyEnd - motor.length)} y={Y(motor.diameter / 2)} width={motor.length * scale} height={motor.diameter * scale} fill="#a35f2a" opacity={0.55} stroke="#6b3a14" strokeDasharray="4 3" />
         )}
+        {d.type === "estes" && d.altimeter.included && (
+          <rect x={X(d.altimeter.position) - 9} y={cy - 5} width={18} height={10} rx={2} fill="#1a1a1a" opacity={0.75} />
+        )}
         {d.recovery.kind === "parachute" && (
           <circle cx={X(d.recovery.position)} cy={cy} r={Math.max(Math.min(rb * scale * 0.55, 14), 4)} fill="#e0701b" opacity={0.75} />
         )}
         <g fontSize={16} fill="#5b6270" textAnchor="middle">
           <text x={X(d.nose.length * 0.55)} y={Y(d.nose.diameter / 2) - 8}>Nariz</text>
-          <text x={X((l.bodyStart + Math.min(l.bodyEnd, l.finLeading)) / 2)} y={Y(rb) - 8}>{d.type === "water" ? "Botella" : "Tubo"}</text>
+          <text x={X((l.bodyStart + Math.min(l.bodyEnd, l.finLeading)) / 2)} y={Y(rb) - 8}>{d.type === "water" ? "Botella" : "Cuerpo de opalina"}</text>
           {f.count > 0 && <text x={X(le + f.sweep + f.tipChord / 2)} y={Y(rb + f.span) - 8}>Aletas</text>}
           {motor && <text x={X(l.bodyEnd - motor.length / 2)} y={Y(-rb) + 20}>Motor {motor.name}</text>}
           {water && <text x={X((water.surface + l.length) / 2)} y={Y(-rb) + 20}>Agua</text>}
@@ -75,6 +78,7 @@ export function RocketView({ design: d, loaded, empty }: { design: Design; loade
         <span><Swatch kind="cp" /> Centro de presión <b>{format(loaded.cp / 10, 1)} cm</b></span>
         {d.recovery.kind === "parachute" && <span><span style={{ color: "#e0701b" }}>●</span> Paracaídas</span>}
         {water && <span><span style={{ color: "#7fb4e6" }}>■</span> Agua</span>}
+        {d.type === "estes" && d.altimeter.included && <span><span style={{ color: "#1a1a1a" }}>■</span> Altímetro</span>}
       </div>
     </div>
   );

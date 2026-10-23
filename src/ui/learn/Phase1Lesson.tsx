@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Design, EstesDesign, WaterDesign } from "../../model";
 import { PSI } from "../../model";
-import { impulseClass, motorById, type Motor } from "../../catalog";
+import { a10Motor, impulseClass, type Motor } from "../../motor";
 import { G } from "../../physics/atmosphere";
 import type { FlightResult } from "../../physics/simulate";
 import { format } from "../fields";
@@ -119,7 +119,7 @@ end
 // ---------------------------------------------------------------- Estes motor
 
 function MotorPhysics({ design }: { design: EstesDesign }) {
-  const m = motorById(design.motor.id)!;
+  const m = a10Motor(design.motor.mass, design.motor.propellant);
   return (
     <>
       <p>
@@ -127,15 +127,16 @@ function MotorPhysics({ design }: { design: EstesDesign }) {
         empuja al cohete hacia arriba. El empuje de un motor Estes no se calcula: se <b>mide</b> en un banco de pruebas.
       </p>
       <p>
-        <b>{m.name}-{design.motor.delay}</b>: clase de impulso <b>{impulseClass(m.totalImpulse)}</b>, empuje promedio de unos{" "}
-        <b>{m.name.match(/[A-G](\d+)/)?.[1] ?? "–"} N</b> y <b>{design.motor.delay} s</b> de retardo hasta la eyección del paracaídas.
+        <b>{m.name}</b>: la <b>A</b> es la clase de impulso (clase {impulseClass(m.totalImpulse)}: hasta 2.5 N·s), el <b>10</b> es el empuje promedio nominal en
+        newtons, el <b>3</b> son los segundos de retardo hasta la eyección del paracaídas y la <b>T</b> indica un motor corto de 13 mm. En la curva medida casi todo el
+        impulso llega en el pico de los primeros 0.2 s ({format(m.maxThrust, 1)} N); después queda un empuje de 1 N hasta los {format(m.burnTime, 2)} s.
       </p>
     </>
   );
 }
 
 function MotorMath({ design }: { design: EstesDesign }) {
-  const m = motorById(design.motor.id)!;
+  const m = a10Motor(design.motor.mass, design.motor.propellant);
   const end = m.time[m.time.length - 1];
   const impulse = trapezoid(m.time, m.thrust);
   const propellant = (m.mass[0] - m.mass[m.mass.length - 1]) / 1000;
@@ -151,7 +152,7 @@ function MotorMath({ design }: { design: EstesDesign }) {
 }
 
 function MotorComputation({ design }: { design: EstesDesign }) {
-  const m = motorById(design.motor.id) as Motor;
+  const m: Motor = a10Motor(design.motor.mass, design.motor.propellant);
   const end = m.time[m.time.length - 1];
   const [t, setT] = useState(() => Math.min(0.3, end / 2));
   const i = Math.max(0, m.time.findIndex((x, k) => k + 1 < m.time.length && x <= t && m.time[k + 1] > t));
