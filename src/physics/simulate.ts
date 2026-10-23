@@ -15,6 +15,21 @@ export interface Sample {
   thrust: number; // N
   drag: number; // N
   mass: number; // kg
+  cd: number; // drag coefficient of the rocket body (without parachute)
+  density: number; // kg/m³ of the air at that height
+  pressure?: number; // psi gauge inside the bottle (water rockets)
+  water?: number; // L left in the bottle (water rockets)
+}
+
+/** Integration settings; the defaults are what the app uses. The teaching tabs vary them. */
+export interface SimulationOptions {
+  method?: "rk4" | "euler";
+  /** Fixed time step (s). By default the step adapts to the flight phase. */
+  dt?: number;
+  /** Turns air resistance off (rocket and parachute), for comparison. */
+  noDrag?: boolean;
+  /** Stops at apogee (comparisons only need the ascent). */
+  untilApogee?: boolean;
 }
 
 export interface FlightPoint {
@@ -47,6 +62,8 @@ export interface FlightResult {
   idealDelay: number | null;
   stabilityLoaded: Stability;
   stabilityEmpty: Stability;
+  /** Every mass at liftoff (structure plus loaded motor or water), for the mass budget. */
+  massItems: MassItem[];
   warnings: Warning[];
 }
 
@@ -91,7 +108,8 @@ function setup(d: Design, groundPressure: number, groundTemperature: number): Se
   };
 }
 
-export function simulate(d: Design): FlightResult | string {
+export function simulate(d: Design, options: SimulationOptions = {}): FlightResult | string {
+  const { method = "rk4", noDrag = false } = options;
   if (d.type === "water") {
     if (d.water.pressure > MAX_PRESSURE_PSI) return `La presión máxima permitida es ${MAX_PRESSURE_PSI} psi.`;
     if (d.water.waterVolume >= d.water.bottleVolume) return "El agua no puede llenar toda la botella: debe quedar aire para empujarla.";
@@ -113,11 +131,22 @@ export function simulate(d: Design): FlightResult | string {
     const mass = s.dryMass + p.mass;
     const speed = Math.abs(v);
     const mach = speed / atm.soundSpeed;
-    const cdA = drag.cd(speed, mach, atm.kinematicViscosity, p.active) * drag.refArea + (deployed ? chuteCdA : 0);
+    const cd = noDrag ? 0 : drag.cd(speed, mach, atm.kinematicViscosity, p.active);
+    const cdA = cd * drag.refArea + (deployed && !noDrag ? chuteCdA : 0);
     const dragForce = 0.5 * atm.density * v * v * cdA * Math.sign(v);
     let a = (p.thrust - dragForce) / mass - G;
     if (h <= 0 && v <= 0 && a < 0) a = 0; // resting on the pad
-    return { dy: [v, a, ...p.derivative], a, thrust: p.thrust, drag: dragForce, mass, active: p.active, mach };
+    return { dy: [v, a, ...p.derivative], a, thrust: p.thrust, drag: dragForce, mass, active: p.active, mach, cd, density: atm.density, p };
+  };
+
+  // One integration step from (t, y) of size dt.
+  const step = (t: number, y: number[], dt: number): number[] => {
+    const k1 = derivatives(t, y).dy;
+    if (method === "euler") return y.map((v, i) => v + dt * k1[i]);
+    const k2 = derivatives(t + dt / 2, y.map((v, i) => v + (dt / 2) * k1[i])).dy;
+    const k3 = derivatives(t + dt / 2, y.map((v, i) => v + (dt / 2) * k2[i])).dy;
+    const k4 = derivatives(t + dt, y.map((v, i) => v + dt * k3[i])).dy;
+    return y.map((v, i) => v + (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
   };
 
   const samples: Sample[] = [];
@@ -137,16 +166,15 @@ export function simulate(d: Design): FlightResult | string {
   const ejectionTime = s.motor && s.delay && s.delay > 0 && d.recovery.deployment === "ejection" ? s.motor.time[s.motor.time.length - 1] + s.delay : null;
 
   const record = (t: number, y: number[], k: ReturnType<typeof derivatives>) =>
-    samples.push({ t, h: Math.max(y[0], 0), v: y[1], a: k.a, thrust: k.thrust, drag: k.drag, mass: k.mass });
+    samples.push({
+      t, h: Math.max(y[0], 0), v: y[1], a: k.a, thrust: k.thrust, drag: k.drag, mass: k.mass, cd: k.cd, density: k.density,
+      pressure: k.p.gaugePressure, water: k.p.waterVolume,
+    });
   record(0, y, first);
 
   while (t < 600) {
-    const dt = first.active ? (d.type === "water" ? 5e-5 : 5e-4) : deployed ? 0.01 : 2e-3;
-    const k1 = derivatives(t, y).dy;
-    const k2 = derivatives(t + dt / 2, y.map((v, i) => v + (dt / 2) * k1[i])).dy;
-    const k3 = derivatives(t + dt / 2, y.map((v, i) => v + (dt / 2) * k2[i])).dy;
-    const k4 = derivatives(t + dt, y.map((v, i) => v + dt * k3[i])).dy;
-    const next = y.map((v, i) => v + (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+    const dt = options.dt ?? (first.active ? (d.type === "water" ? 5e-5 : 5e-4) : deployed ? 0.01 : 2e-3);
+    const next = step(t, y, dt);
     const prev = y;
     t += dt;
     y = next;
@@ -170,7 +198,8 @@ export function simulate(d: Design): FlightResult | string {
       deployed = d.recovery.kind === "parachute";
     }
     const interval = first.active ? 0.002 : 0.02;
-    if (t - lastSample >= interval) { record(t, y, first); lastSample = t; }
+    if (t - lastSample >= interval || (options.dt ?? 0) >= interval) { record(t, y, first); lastSample = t; }
+    if (apogee && options.untilApogee) break;
     if (lifted && y[0] <= 0 && y[1] < 0) {
       landing = { t, h: 0, v: y[1] };
       if (t > lastSample) record(t, y, first);
@@ -196,6 +225,7 @@ export function simulate(d: Design): FlightResult | string {
     idealDelay: s.motor && burnout && apogee ? apogee.t - burnout.t : null,
     stabilityLoaded: s.stabilityLoaded,
     stabilityEmpty: s.stabilityEmpty,
+    massItems: s.items,
     warnings: [],
   };
   result.warnings = warnings(d, result, lifted);

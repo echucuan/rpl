@@ -9,6 +9,8 @@ export interface PropulsionState {
   mass: number; // kg of the propulsion system (motor, or water + air)
   active: boolean;
   derivative: number[]; // d/dt of the extra state
+  gaugePressure?: number; // psi above ambient inside the bottle
+  waterVolume?: number; // L left in the bottle
 }
 
 export interface Propulsion {
@@ -76,13 +78,14 @@ export function waterPropulsion(d: WaterDesign, ambientPressure: number, ambient
       const rho = Math.max(airMass, 0) / airVolume;
       const p = p0 * Math.pow(rho / rho0, GAMMA);
       const mass = water * WATER_DENSITY + Math.max(airMass, 0);
-      const none = { thrust: 0, mass, active: false, derivative: [0, 0] };
+      const info = { gaugePressure: Math.max(p - pa, 0) / PSI, waterVolume: water * 1000 };
+      const none = { thrust: 0, mass, active: false, derivative: [0, 0], ...info };
       if (p <= pa * 1.0005) return none;
 
       if (water > 0) {
         const u = Math.sqrt((2 * (p - pa)) / (WATER_DENSITY * areaFactor));
         const flow = NOZZLE_DISCHARGE * nozzleArea * u; // m³/s
-        return { thrust: WATER_DENSITY * flow * u, mass, active: true, derivative: [-flow, 0] };
+        return { thrust: WATER_DENSITY * flow * u, mass, active: true, derivative: [-flow, 0], ...info };
       }
 
       const temperature = p / (rho * R_AIR);
@@ -99,7 +102,7 @@ export function waterPropulsion(d: WaterDesign, ambientPressure: number, ambient
         massFlow = NOZZLE_DISCHARGE * nozzleArea * (pa / (R_AIR * exitT)) * exitU;
         thrust = massFlow * exitU;
       }
-      return { thrust, mass, active: true, derivative: [0, -massFlow] };
+      return { thrust, mass, active: true, derivative: [0, -massFlow], ...info };
     },
   };
 }

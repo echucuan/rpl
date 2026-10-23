@@ -150,7 +150,7 @@ details.panel > summary small { color: var(--muted); font-weight: 400; margin-le
 
 table.summary { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 table.summary td, table.summary th { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: left; }
-table.summary td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.summary td.num, table.summary th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .empty { color: var(--muted); text-align: center; padding: 30px 10px; }
@@ -174,3 +174,111 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0 
   .print-only { display: block !important; }
 }
 .print-only { display: none; }
+
+/* ---------- workspace sub-tabs ---------- */
+.workspace-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  margin-bottom: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.subtabs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.subtabs button {
+  border: 1px solid transparent;
+  background: none;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.subtabs button:hover { background: var(--tec-blue-soft); color: var(--tec-blue); }
+.subtabs button[aria-selected="true"] { background: var(--tec-blue); color: #fff; }
+.subtabs.lessons { border-left: 1px solid var(--line); padding-left: 14px; }
+.subtabs-label { font-size: 0.8rem; color: var(--muted); margin-right: 4px; }
+.lesson-n {
+  display: inline-grid; place-items: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--tec-blue-soft); color: var(--tec-blue); font-size: 0.75rem;
+}
+.subtabs button[aria-selected="true"] .lesson-n { background: #fff; color: var(--tec-blue); }
+.workspace-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+@media (max-width: 900px) {
+  .subtabs.lessons { border-left: 0; padding-left: 0; flex-wrap: nowrap; overflow-x: auto; width: 100%; padding-bottom: 4px; }
+  .subtabs.lessons button { white-space: nowrap; }
+  .subtabs-label { white-space: nowrap; }
+  .workspace-actions { margin-left: 0; }
+}
+
+.link { border: 0; background: none; color: var(--tec-blue); cursor: pointer; padding: 0; font-weight: 700; font-size: 0.88rem; }
+.link:hover { text-decoration: underline; }
+.results.wide { max-width: 1280px; }
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.rocket-card .card-head p { margin: 2px 0 0; }
+.chart-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; color: var(--ink); }
+.chart-card { display: flex; flex-direction: column; gap: 6px; }
+.chart-card .link { align-self: flex-end; }
+.charts.three { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.phase { padding: 1px 7px; border-radius: 4px; color: var(--ink); }
+.phase.thrust { background: rgba(224,112,27,0.2); }
+.phase.coast { background: rgba(0,57,166,0.12); }
+.phase.fall { background: rgba(91,98,112,0.18); }
+.phase.chute { background: rgba(29,122,62,0.16); }
+
+/* stability gauge and mass budget */
+.gauge { width: 100%; height: auto; display: block; }
+.mass-bar { display: flex; height: 18px; border-radius: 6px; overflow: hidden; margin-bottom: 10px; background: var(--page); }
+.mass-bar span { display: block; height: 100%; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: 0; }
+
+/* ---------- lessons (Física → Matemáticas → Computación) ---------- */
+.lesson { display: flex; flex-direction: column; gap: 16px; }
+.lesson-head h2 { font-size: 1.35rem; color: var(--tec-blue); margin: 10px 0 6px; }
+.lesson-head p { margin: 0; max-width: 900px; }
+.method-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.method-strip .arrow { color: var(--muted); }
+.chip { padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+.chip.fisica, .stage-fisica .stage-n { background: #fde6d4; color: #9a4a0b; }
+.chip.matematicas, .stage-matematicas .stage-n { background: #dfe7f8; color: var(--tec-blue); }
+.chip.computacion, .stage-computacion .stage-n { background: #dcf1e3; color: var(--ok); }
+.lesson-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .lesson-grid { grid-template-columns: 1fr; } }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; min-width: 0; }
+.stage > header { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.stage-fisica > header { border-top: 4px solid #e0701b; }
+.stage-matematicas > header { border-top: 4px solid var(--tec-blue); }
+.stage-computacion > header { border-top: 4px solid var(--ok); }
+.stage-n { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-weight: 700; font-size: 1.1rem; flex: none; }
+.stage h3 { font-size: 1.05rem; }
+.stage header p { margin: 2px 0 0; color: var(--muted); font-size: 0.85rem; }
+.stage-body { padding: 4px 14px 14px; font-size: 0.93rem; }
+.stage-body ul, .stage-body ol { padding-left: 20px; }
+.stage-body li { margin-bottom: 6px; }
+.eq { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+.eq .katex-display { margin: 6px 0; }
+.your-rocket { background: var(--tec-blue-soft); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+.your-rocket-title { font-size: 0.78rem; font-weight: 700; color: var(--tec-blue); text-transform: uppercase; letter-spacing: 0.04em; }
+.code { background: #0f1b33; color: #e6ecf7; border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 0.8rem; line-height: 1.5; }
+.code code { font-family: "Cascadia Code", Consolas, "SFMono-Regular", monospace; }
+.think { background: #fff8e8; border: 1px solid #f0dcaa; border-radius: var(--radius); padding: 12px 16px; }
+.think b { color: var(--warn); }
+.think ul { margin: 6px 0 0; padding-left: 20px; }
+.interactive { border: 1px dashed var(--tec-blue); border-radius: 8px; padding: 10px 12px; margin: 10px 0; background: #fbfcff; }
+.slider-label { display: block; font-size: 0.9rem; }
+.slider-label input[type="range"] { display: block; width: 100%; margin-top: 6px; accent-color: var(--tec-blue); }
+.fbd-row { display: grid; grid-template-columns: 170px 1fr; gap: 10px; align-items: center; }
+.fbd { width: 170px; height: auto; }
+.cd-bars { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; font-size: 0.85rem; }
+.cd-row { display: grid; grid-template-columns: 1fr 1fr 50px; gap: 8px; align-items: center; }
+.cd-track { background: var(--page); border-radius: 4px; height: 10px; overflow: hidden; }
+.cd-track span { display: block; height: 100%; }
+.cd-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.lesson-nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
