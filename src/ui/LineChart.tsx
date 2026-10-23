@@ -83,6 +83,20 @@ const phasesPlugin: Plugin<"line"> = {
   },
 };
 
+/** Axis limits rounded outward to a 1–2–2.5–5 step that gives about six divisions. */
+export function niceRange(min: number, max: number): { min: number; max: number; step: number } {
+  const span = Math.max(max - min, 1e-9);
+  const raw = span / 6;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const f = raw / mag;
+  const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag;
+  const lo = Math.floor(min / step + 1e-9) * step;
+  return { min: min >= 0 ? Math.max(lo, 0) : lo, max: Math.ceil(max / step - 1e-9) * step, step };
+}
+
+const inRange = (x: number | undefined, r: { min: number; max: number }) => x !== undefined && x >= r.min && x <= r.max;
+const dataMax = (series: Series[]) => Math.max(0, ...series.flatMap((s) => s.points.map((p) => p.x)));
+
 export function LineChart({ title, xLabel, yLabel, series, spans = [], markers = [], xMin, xMax, height = 240 }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const chart = useRef<Chart<"line"> | null>(null);
@@ -122,9 +136,13 @@ export function LineChart({ title, xLabel, yLabel, series, spans = [], markers =
   useEffect(() => {
     const c = chart.current;
     if (!c) return;
+    // A zoomed axis ends on round numbers with even divisions, and only the visible points are
+    // passed so the vertical axis rescales to them.
+    const range = xMin !== undefined || xMax !== undefined ? niceRange(xMin ?? 0, xMax ?? dataMax(series)) : null;
+    const visible = (pts: Series["points"]) => (range ? pts.filter((p, i) => inRange(p.x, range) || inRange(pts[i - 1]?.x, range) || inRange(pts[i + 1]?.x, range)) : pts);
     c.data.datasets = series.map((s) => ({
       label: s.label,
-      data: s.points,
+      data: visible(s.points),
       borderColor: s.color,
       backgroundColor: s.fill ? `${s.color}33` : s.color,
       borderDash: s.dashed ? [6, 4] : [],
@@ -133,8 +151,10 @@ export function LineChart({ title, xLabel, yLabel, series, spans = [], markers =
       stepped: s.stepped ?? false,
     }));
     (c.options.plugins as unknown as { phases: unknown }).phases = { spans, markers };
-    c.options.scales!.x!.min = xMin;
-    c.options.scales!.x!.max = xMax;
+    const x = c.options.scales!.x! as { min?: number; max?: number; ticks: { stepSize?: number } };
+    x.min = range?.min;
+    x.max = range?.max;
+    x.ticks.stepSize = range?.step;
     c.update();
   }, [series, spans, markers, xMin, xMax]);
 

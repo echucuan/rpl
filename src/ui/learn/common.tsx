@@ -1,5 +1,5 @@
 import katex from "katex";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 /** LaTeX equation rendered with KaTeX. */
 export function Eq({ tex, block = false }: { tex: string; block?: boolean }) {
@@ -63,12 +63,36 @@ export function YourRocket({ children }: { children: ReactNode }) {
   );
 }
 
-/** MATLAB code shown in the Computación stage. */
+/** MATLAB code shown in the Computación stage, with a button to copy it. */
 export function Code({ children, title = "MATLAB" }: { children: string; title?: string }) {
+  const code = children.trim();
+  const [copied, setCopied] = useState<"" | "ok" | "error">("");
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied("ok");
+    } catch {
+      // Older browsers or blocked clipboard permission: copy through a hidden text area.
+      const area = document.createElement("textarea");
+      area.value = code;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      setCopied(document.execCommand("copy") ? "ok" : "error");
+      area.remove();
+    }
+    setTimeout(() => setCopied(""), 2000);
+  };
   return (
     <figure className="code-block">
-      <figcaption>{title}</figcaption>
-      <pre className="code"><code>{children.trim()}</code></pre>
+      <div className="code-head">
+        <figcaption>{title}</figcaption>
+        <button type="button" className={`copy-btn ${copied === "ok" ? "done" : ""}`} onClick={copy}>
+          {copied === "ok" ? "✓ Copiado" : copied === "error" ? "No se pudo copiar" : "Copiar código"}
+        </button>
+      </div>
+      <pre className="code"><code>{code}</code></pre>
     </figure>
   );
 }

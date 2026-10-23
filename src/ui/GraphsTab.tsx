@@ -43,7 +43,7 @@ interface Props {
 export function GraphsTab({ design: d, result: r, comparison, onComparison, onLesson }: Props) {
   const [csvError, setCsvError] = useState("");
   const [range, setRange] = useState<"ascent" | "all">("ascent");
-  const xMax = range === "ascent" ? Math.min(r.apogee.t * 1.6 + 0.5, r.samples[r.samples.length - 1].t) : undefined;
+  const xMax = range === "ascent" ? Math.min(r.apogee.t * 1.25 + 0.2, r.samples[r.samples.length - 1].t) : undefined;
   const { csv } = comparison;
   const simLiftoff = r.samples.find((s) => s.h > 0.5)?.t ?? 0;
   const real = useMemo(() => (csv ? realSeries(csv.table, csv.timeCol, csv.altCol, csv.accelCol, csv.altUnit, simLiftoff) : null), [csv, simLiftoff]);
@@ -193,17 +193,17 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
         <h2>Resumen del diseño</h2>
         <table className="summary">
           <tbody>
-            <tr><td>Largo total</td><td className="num">{format(l.length / 10, 1)} cm</td></tr>
-            <tr><td>Diámetro</td><td className="num">{format(l.refDiameter, 1)} mm</td></tr>
-            <tr><td>Nariz</td><td className="num">{d.nose.catalog ?? "propia"} · {format(d.nose.length)} mm · {format(d.nose.mass, 1)} g</td></tr>
+            <tr><td>Largo total</td><td className="val">{format(l.length / 10, 1)} cm</td></tr>
+            <tr><td>Diámetro</td><td className="val">{format(l.refDiameter, 1)} mm</td></tr>
+            <tr><td>Nariz</td><td className="val">{d.nose.catalog ?? "propia"} · {format(d.nose.length)} mm · {format(d.nose.mass, 1)} g</td></tr>
             {d.type === "estes"
-              ? <tr><td>Tubo</td><td className="num">{d.body.catalog ?? "propio"} · {format(d.body.length)} mm · {format(d.body.mass, 1)} g</td></tr>
-              : <tr><td>Botella</td><td className="num">{format(d.water.bottleVolume, 2)} L · {format(d.water.bottleMass, 0)} g · {format(d.water.waterVolume, 2)} L de agua a {format(d.water.pressure, 0)} psi</td></tr>}
-            <tr><td>Aletas</td><td className="num">{d.fins.count} · raíz {format(d.fins.rootChord)} / punta {format(d.fins.tipChord)} / altura {format(d.fins.span)} mm · {format(d.fins.mass, 1)} g</td></tr>
-            {motor && d.type === "estes" && <tr><td>Motor</td><td className="num">{motor.name}-{d.motor.delay} · {format(motor.totalImpulse, 1)} N·s</td></tr>}
-            <tr><td>Paracaídas</td><td className="num">{d.recovery.kind === "parachute" ? `${format(d.recovery.diameter / 10, 0)} cm · ${format(d.recovery.mass, 1)} g` : "ninguno"}</td></tr>
-            {d.extras.map((e, i) => <tr key={i}><td>{e.name}</td><td className="num">{format(e.mass, 1)} g a {format(e.position)} mm</td></tr>)}
-            <tr><td>Sitio</td><td className="num">{format(d.launch.altitude, 0)} m s.n.m. · {format(d.launch.temperature, 0)} °C · guía {format(d.launch.guideLength, 2)} m</td></tr>
+              ? <tr><td>Tubo</td><td className="val">{d.body.catalog ?? "propio"} · {format(d.body.length)} mm · {format(d.body.mass, 1)} g</td></tr>
+              : <tr><td>Botella</td><td className="val">{format(d.water.bottleVolume, 2)} L · {format(d.water.bottleMass, 0)} g · {format(d.water.waterVolume, 2)} L de agua a {format(d.water.pressure, 0)} psi</td></tr>}
+            <tr><td>Aletas</td><td className="val">{d.fins.count} · raíz {format(d.fins.rootChord)} / punta {format(d.fins.tipChord)} / altura {format(d.fins.span)} mm · {format(d.fins.mass, 1)} g</td></tr>
+            {motor && d.type === "estes" && <tr><td>Motor</td><td className="val">{motor.name}-{d.motor.delay} · {format(motor.totalImpulse, 1)} N·s</td></tr>}
+            <tr><td>Paracaídas</td><td className="val">{d.recovery.kind === "parachute" ? `${format(d.recovery.diameter / 10, 0)} cm · ${format(d.recovery.mass, 1)} g` : "ninguno"}</td></tr>
+            {d.extras.map((e, i) => <tr key={i}><td>{e.name}</td><td className="val">{format(e.mass, 1)} g a {format(e.position)} mm</td></tr>)}
+            <tr><td>Sitio</td><td className="val">{format(d.launch.altitude, 0)} m s.n.m. · {format(d.launch.temperature, 0)} °C · guía {format(d.launch.guideLength, 2)} m</td></tr>
           </tbody>
         </table>
       </div>

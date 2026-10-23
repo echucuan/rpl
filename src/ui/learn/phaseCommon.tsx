@@ -79,7 +79,7 @@ export function PhaseCharts({ result, id, extra }: { result: FlightResult; id: P
   return (
     <div className="card">
       <h2>Gráficas de la fase {id}</h2>
-      <div className="charts three">
+      <div className="charts">
         <LineChart title="Aceleración a(t)" xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={[{ label: "a", points: series(shown, (s) => s.a), color }]} spans={spans} markers={markers} xMin={xMin} xMax={xMax} />
         <LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={[{ label: "v", points: series(shown, (s) => s.v), color }]} spans={spans} markers={markers} xMin={xMin} xMax={xMax} />
         <LineChart title="Altura h(t)" xLabel="Tiempo (s)" yLabel="Altura (m)" series={[{ label: "h", points: series(shown, (s) => s.h), color }]} spans={spans} markers={markers} xMin={xMin} xMax={xMax} />
