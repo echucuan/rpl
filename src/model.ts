@@ -1,5 +1,3 @@
-import { A10_SPECS } from "./motor";
-
 // Design model shared by the UI and the physics. Lengths in millimetres, masses in grams,
 // pressures in psi (the unit of the lab's compressor gauge). Physics converts to SI.
 
@@ -115,9 +113,12 @@ export const PSI = 6894.757; // Pa
 
 export const CULIACAN: LaunchSite = { altitude: 55, temperature: 30, guideLength: 0.9 };
 
+/** Masses weighed in the Campus Sinaloa lab (g). */
+export const WEIGHED = { altimeter: 12, parachute: 4, motorLoaded: 8, motorBurnt: 5 };
+
 // Rocket Tec defaults: PLA nose, fins and motor mount, rolled opalina body, A10-3T motor,
-// Estes 24" printed parachute and Estes altimeter in the nose. Masses are estimates to be
-// replaced by what each team weighs.
+// Estes 24" printed parachute and Estes altimeter in the nose. The motor, parachute and
+// altimeter masses were weighed in the lab; the printed parts are estimates for each team to replace.
 export function newEstesDesign(): EstesDesign {
   const sheet: PaperSheet = { orientation: "long", gsm: 225, thickness: 0.25 };
   return {
@@ -128,11 +129,11 @@ export function newEstesDesign(): EstesDesign {
     sheet,
     fins: { count: 3, rootChord: 60, tipChord: 25, span: 40, sweep: 35, thickness: 2, profile: "rounded", offsetFromAft: 0, mass: 8 },
     motorMount: { mass: 4 },
-    recovery: { kind: "parachute", diameter: 610, cd: 0.75, mass: 9, position: 130, deployment: "ejection" },
-    altimeter: { included: true, mass: 5, position: 55 },
+    recovery: { kind: "parachute", diameter: 610, cd: 0.75, mass: WEIGHED.parachute, position: 130, deployment: "ejection" },
+    altimeter: { included: true, mass: WEIGHED.altimeter, position: 55 },
     extras: [],
     launch: { ...CULIACAN },
-    motor: { mass: A10_SPECS.mass, propellant: A10_SPECS.propellant },
+    motor: { mass: WEIGHED.motorLoaded, propellant: WEIGHED.motorLoaded - WEIGHED.motorBurnt },
   };
 }
 

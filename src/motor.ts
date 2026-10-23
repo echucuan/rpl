@@ -1,8 +1,8 @@
 // The only solid motor used in Rocket Tec: Estes A10-3T (13 mm × 45 mm, 3 s delay).
 //
 // Thrust curve: NAR certification static test (published on ThrustCurve.org), 30 points.
-// Masses: Estes product specifications (estesrockets.com) — 8.2 g loaded, 3.5 g of propellant —
-// editable in the design because a scale can confirm them.
+// Masses: Estes publishes 8.2 g loaded and 3.5 g of propellant; the designs default to the masses
+// weighed in the lab (see WEIGHED in model.ts), and both stay editable.
 
 export interface Motor {
   name: string;

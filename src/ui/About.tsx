@@ -27,7 +27,7 @@ export function About() {
       <ul>
         <li>No hay viento ni lanzamiento inclinado: la altura real casi siempre sale un poco menor que la simulada.</li>
         <li>La posición del centro de gravedad de la nariz y las aletas se calcula con su forma; si pesas tus piezas, la masa es exacta, pero conviene medir el CG real del cohete armado colgándolo de un hilo.</li>
-        <li>Estes no publica el peso del paracaídas ni del altímetro, y la botella Topo Chico tiene medidas aproximadas: pesa y mide las tuyas.</li>
+        <li>El motor, el paracaídas y el altímetro se pesaron en el laboratorio; las piezas impresas y la botella Topo Chico tienen valores aproximados: pesa y mide las tuyas.</li>
         <li>El paracaídas se abre instantáneamente en el modelo; en la realidad tarda unas décimas de segundo en inflarse.</li>
       </ul>
 
