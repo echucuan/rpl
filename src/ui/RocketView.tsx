@@ -12,8 +12,8 @@ export function RocketView({ design: d, loaded, empty }: { design: Design; loade
   const halfHeight = Math.max(r, d.body.diameter / 2 + f.span) + 6;
   const width = 1000;
   const scale = (width - 40) / l.length;
-  const height = Math.max(2 * halfHeight * scale + 70, 150);
-  const cy = height / 2 - 14;
+  const height = Math.max(2 * halfHeight * scale + 110, 190);
+  const cy = height / 2 - 6;
   const X = (x: number) => 20 + x * scale;
   const Y = (y: number) => cy - y * scale;
 
@@ -56,6 +56,13 @@ export function RocketView({ design: d, loaded, empty }: { design: Design; loade
         {d.recovery.kind === "parachute" && (
           <circle cx={X(d.recovery.position)} cy={cy} r={Math.max(Math.min(rb * scale * 0.55, 14), 4)} fill="#e0701b" opacity={0.75} />
         )}
+        <g fontSize={16} fill="#5b6270" textAnchor="middle">
+          <text x={X(d.nose.length * 0.55)} y={Y(d.nose.diameter / 2) - 8}>Nariz</text>
+          <text x={X((l.bodyStart + Math.min(l.bodyEnd, l.finLeading)) / 2)} y={Y(rb) - 8}>{d.type === "water" ? "Botella" : "Tubo"}</text>
+          {f.count > 0 && <text x={X(le + f.sweep + f.tipChord / 2)} y={Y(rb + f.span) - 8}>Aletas</text>}
+          {motor && <text x={X(l.bodyEnd - motor.length / 2)} y={Y(-rb) + 20}>Motor {motor.name}</text>}
+          {water && <text x={X((water.surface + l.length) / 2)} y={Y(-rb) + 20}>Agua</text>}
+        </g>
         <Marker x={X(loaded.cg)} y={cy} kind="cg" />
         {Math.abs(empty.cg - loaded.cg) > 1 && <Marker x={X(empty.cg)} y={cy} kind="cg-empty" />}
         <Marker x={X(loaded.cp)} y={cy} kind="cp" />

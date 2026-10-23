@@ -9,10 +9,22 @@ const ROUGHNESS = 60e-6;
 /** Pressure drag of the fin edges per unit frontal area (leading + trailing edge). */
 const FIN_EDGE_CD: Record<FinProfile, number> = { square: 0.97, rounded: 0.18, airfoil: 0.03 };
 
+export interface DragBreakdown {
+  reynolds: number;
+  cf: number; // skin-friction coefficient
+  friction: number;
+  nose: number;
+  fins: number;
+  base: number;
+  total: number;
+}
+
 export interface DragModel {
   refArea: number; // m²
   /** Drag coefficient at the given speed (m/s), Mach number and kinematic viscosity (m²/s). */
   cd(speed: number, mach: number, viscosity: number, thrusting: boolean): number;
+  /** The same coefficient split into its components (ignores the fixed-Cd override). */
+  breakdown(speed: number, mach: number, viscosity: number, thrusting: boolean): DragBreakdown;
 }
 
 export function dragModel(d: Design, motorDiameterMm = 0): DragModel {
@@ -40,18 +52,23 @@ export function dragModel(d: Design, motorDiameterMm = 0): DragModel {
   const aftArea = (Math.PI / 4) * (l.aftDiameter / 1000) ** 2;
   const motorArea = (Math.PI / 4) * (motorDiameterMm / 1000) ** 2;
 
+  const breakdown = (speed: number, mach: number, viscosity: number, thrusting: boolean): DragBreakdown => {
+    const reynolds = Math.max(speed, 0.1) * length / viscosity;
+    const turbulentCf = reynolds < 1e4 ? 1.48e-2 : 1 / (1.5 * Math.log(reynolds) - 5.6) ** 2;
+    const cf = Math.max(turbulentCf, roughCf) * (1 - 0.1 * mach * mach);
+    const friction = (cf * (bodyFactor + finFactor)) / refArea;
+    // The exhaust fills the motor's nozzle area while thrusting, which removes that part of the base drag.
+    const baseArea = Math.max(aftArea - (thrusting ? motorArea : 0), 0);
+    const base = ((0.12 + 0.13 * mach * mach) * baseArea) / refArea;
+    return { reynolds, cf, friction, nose: nosePressure, fins: finPressure, base, total: friction + nosePressure + finPressure + base };
+  };
+
   return {
     refArea,
+    breakdown,
     cd(speed, mach, viscosity, thrusting) {
       if (d.cdOverride !== undefined && d.cdOverride > 0) return d.cdOverride;
-      const re = Math.max(speed, 0.1) * length / viscosity;
-      const turbulentCf = re < 1e4 ? 1.48e-2 : 1 / (1.5 * Math.log(re) - 5.6) ** 2;
-      const cf = Math.max(turbulentCf, roughCf) * (1 - 0.1 * mach * mach);
-      const friction = (cf * (bodyFactor + finFactor)) / refArea;
-      // The exhaust fills the motor's nozzle area while thrusting, which removes that part of the base drag.
-      const baseArea = Math.max(aftArea - (thrusting ? motorArea : 0), 0);
-      const base = ((0.12 + 0.13 * mach * mach) * baseArea) / refArea;
-      return friction + nosePressure + finPressure + base;
+      return breakdown(speed, mach, viscosity, thrusting).total;
     },
   };
 }

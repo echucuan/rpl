@@ -150,17 +150,23 @@ export function centreOfMass(items: MassItem[]): { mass: number; x: number } {
   return { mass, x: mass > 0 ? items.reduce((s, i) => s + i.mass * i.x, 0) / mass : 0 };
 }
 
-/** Barrowman centre of pressure (subsonic, small angle of attack). */
-export function centreOfPressure(d: Design): number {
+export interface PressureTerm {
+  name: string;
+  cn: number; // normal-force coefficient slope C_Nα (per radian)
+  x: number; // mm from nose tip
+}
+
+/** Barrowman terms of each component (subsonic, small angle of attack). */
+export function pressureTerms(d: Design): PressureTerm[] {
   const l = layout(d);
   const ref = l.refDiameter;
-  const terms: [number, number][] = [[2 * (d.nose.diameter / ref) ** 2, NOSE_CP[d.nose.shape] * d.nose.length]];
+  const terms: PressureTerm[] = [{ name: "Nariz", cn: 2 * (d.nose.diameter / ref) ** 2, x: NOSE_CP[d.nose.shape] * d.nose.length }];
   if (d.type === "water" && d.tail.length > 0) {
     const df = d.body.diameter, da = d.tail.aftDiameter;
     const cn = 2 * ((da / ref) ** 2 - (df / ref) ** 2); // negative for a boattail
     const ratio = df / da;
     const x = l.bodyEnd + (d.tail.length / 3) * (1 + (1 - ratio) / (1 - ratio * ratio));
-    terms.push([cn, x]);
+    terms.push({ name: "Hombro de la botella", cn, x });
   }
   const f = d.fins;
   if (f.count > 0 && f.span > 0) {
@@ -171,10 +177,16 @@ export function centreOfPressure(d: Design): number {
     const sum = f.rootChord + f.tipChord;
     const x = l.finLeading + (f.sweep * (f.rootChord + 2 * f.tipChord)) / (3 * sum) + (sum - (f.rootChord * f.tipChord) / sum) / 6;
     // Barrowman's fin term is derived for 3 or 4 fins; scale its 4N factor down beyond that.
-    terms.push([f.count > 4 ? cn * 0.75 : cn, x]);
+    terms.push({ name: "Aletas", cn: f.count > 4 ? cn * 0.75 : cn, x });
   }
-  const cnTotal = terms.reduce((s, [cn]) => s + cn, 0);
-  return terms.reduce((s, [cn, x]) => s + cn * x, 0) / cnTotal;
+  return terms;
+}
+
+/** Barrowman centre of pressure: the C_Nα-weighted average of the component locations. */
+export function centreOfPressure(d: Design): number {
+  const terms = pressureTerms(d);
+  const cnTotal = terms.reduce((s, t) => s + t.cn, 0);
+  return terms.reduce((s, t) => s + t.cn * t.x, 0) / cnTotal;
 }
 
 export function stability(d: Design, items: MassItem[]): Stability {
