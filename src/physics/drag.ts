@@ -1,4 +1,4 @@
-// Drag coefficient build-up (subsonic), following the component method used by OpenRocket:
+// Drag coefficient build-up (subsonic), by components (Barrowman-style):
 // skin friction + nose and fin pressure drag + base drag, referenced to the body cross-section.
 import type { Design, FinProfile } from "../model";
 import { layout, wettedAreas } from "./geometry";

@@ -1,6 +1,5 @@
 import type { Design } from "../model";
 import { MAX_PRESSURE_PSI } from "../model";
-import { MOTORS } from "../catalog";
 
 export const PROGRAMS: Record<Design["type"], { name: string; fuel: string; logo: string }> = {
   estes: { name: "Rocket Tec", fuel: "Combustible sólido", logo: "brand/rocket-tec.png" },
@@ -11,7 +10,6 @@ export const logoUrl = (type: Design["type"]) => `${import.meta.env.BASE_URL}${P
 
 /** First screen: the student picks the propulsion, which decides the whole workspace. */
 export function StartScreen({ onPick }: { onPick: (type: Design["type"]) => void }) {
-  const smallest = MOTORS[0].name, largest = MOTORS[MOTORS.length - 1].name;
   return (
     <div className="start">
       <div className="start-head">
@@ -24,11 +22,11 @@ export function StartScreen({ onPick }: { onPick: (type: Design["type"]) => void
           <span className="program-fuel">Combustible sólido</span>
           <span className="program-name">Rocket Tec</span>
           <ul>
-            <li>Motores Estes de pólvora negra, de {smallest} a {largest}</li>
-            <li>Piezas del catálogo Estes o impresas en PLA Aero</li>
-            <li>Paracaídas con carga de eyección</li>
+            <li>Motor Estes A10-3T de pólvora negra</li>
+            <li>Nariz, aletas y porta motor de PLA; cuerpo de opalina enrollada</li>
+            <li>Paracaídas Estes de 24" y altímetro Estes en la nariz</li>
           </ul>
-          <span className="program-go">Diseñar con motor Estes →</span>
+          <span className="program-go">Diseñar con motor A10-3T →</span>
         </button>
         <button type="button" className="program-card water" onClick={() => onPick("water")}>
           <img src={logoUrl("water")} alt="Logotipo de Rocket Challenge Sinaloa 2026" />

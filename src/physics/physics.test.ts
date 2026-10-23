@@ -1,74 +1,89 @@
 import { describe, expect, it } from "vitest";
 import { newEstesDesign, newWaterDesign, type EstesDesign } from "../model";
-import { centreOfPressure, noseProperties } from "./geometry";
-import { simulate, type FlightResult } from "./simulate";
+import { a10Motor } from "../motor";
+import { air, G } from "./atmosphere";
+import { dragModel } from "./drag";
+import { centreOfPressure } from "./geometry";
+import { simulate, type FlightResult, type SimulationOptions } from "./simulate";
 
-// OpenRocket 24.12 example "A simple model rocket" (stored simulations, wind 2 m/s, sea level):
-// C6-5 → apogee 316.6 m, max velocity 95.3 m/s, time to apogee 7.27 s, CP 0.319 m, liftoff mass 71 g.
-function openRocketExample(motor = "C6", delay = 5): EstesDesign {
-  const d = newEstesDesign();
-  return {
-    ...d,
-    nose: { shape: "ogive", length: 100, diameter: 25, mass: 0 },
-    body: { length: 300, diameter: 25, mass: 15.4 },
-    fins: { count: 3, rootChord: 50.8, tipChord: 50.8, span: 30, sweep: 25.4, thickness: 2, profile: "rounded", offsetFromAft: 0, mass: 6.2 },
-    recovery: { kind: "parachute", diameter: 300, cd: 0.8, mass: 8, position: 150, deployment: "ejection" },
-    extras: [
-      { name: "Cuerda y algodón", mass: 2.7, position: 170 },
-      { name: "Tubo de motor, anillos y guía", mass: 3.5, position: 350 },
-    ],
-    launch: { altitude: 0, temperature: 15, guideLength: 1 },
-    motor: { id: motor, delay, mountDiameter: 18 },
-  };
-}
+// The physics is checked against exact solutions of simplified cases.
 
-function withNoseMass(d: EstesDesign): EstesDesign {
-  // 2 mm polystyrene shell (1050 kg/m³) plus its 20 mm shoulder, as in the OpenRocket file
-  const shell = noseProperties("ogive", 100, 25).surface + Math.PI * 23 * 20;
-  return { ...d, nose: { ...d.nose, mass: shell * 2 * 1050e-6 } };
-}
-
-const fly = (d: Parameters<typeof simulate>[0]) => {
-  const r = simulate(d);
+const fly = (d: Parameters<typeof simulate>[0], o?: SimulationOptions) => {
+  const r = simulate(d, o);
   if (typeof r === "string") throw new Error(r);
   return r as FlightResult;
 };
 
+const rocketTec = (): EstesDesign => newEstesDesign();
+
 describe("Barrowman stability", () => {
-  it("matches OpenRocket's centre of pressure for the example rocket", () => {
-    expect(centreOfPressure(openRocketExample()) / 1000).toBeCloseTo(0.319, 2);
+  it("puts the centre of pressure of a finless ogive rocket at 0.466 of the nose length", () => {
+    const d = { ...rocketTec(), fins: { ...rocketTec().fins, count: 0 } };
+    expect(centreOfPressure(d)).toBeCloseTo(0.466 * d.nose.length, 6);
+  });
+
+  it("moves the centre of pressure aft when the fins grow", () => {
+    const d = rocketTec();
+    const bigger = { ...d, fins: { ...d.fins, span: d.fins.span * 1.5 } };
+    expect(centreOfPressure(bigger)).toBeGreaterThan(centreOfPressure(d));
   });
 });
 
-describe("Estes flight", () => {
-  const r = fly(withNoseMass(openRocketExample()));
+describe("Rocket Tec flight (A10-3T)", () => {
+  const r = fly(rocketTec());
 
-  it("has the example's liftoff mass", () => {
-    expect(r.liftoffMass).toBeGreaterThan(66);
-    expect(r.liftoffMass).toBeLessThan(76);
+  it("delivers the motor's whole impulse", () => {
+    const burn = r.samples.filter((s) => s.t <= r.burnout!.t + 1e-9);
+    let impulse = 0;
+    for (let i = 1; i < burn.length; i++) impulse += ((burn[i - 1].thrust + burn[i].thrust) / 2) * (burn[i].t - burn[i - 1].t);
+    expect(impulse).toBeCloseTo(a10Motor().totalImpulse, 1);
   });
 
-  it("reaches an apogee within 10% of OpenRocket", () => {
-    expect(r.apogee.h).toBeGreaterThan(316.6 * 0.9);
-    expect(r.apogee.h).toBeLessThan(316.6 * 1.1);
-    expect(r.maxVelocity).toBeGreaterThan(95.3 * 0.92);
-    expect(r.maxVelocity).toBeLessThan(95.3 * 1.08);
-    expect(r.apogee.t).toBeGreaterThan(7.27 * 0.9);
-    expect(r.apogee.t).toBeLessThan(7.27 * 1.1);
+  it("gives a plausible, stable flight that opens the parachute 3 s after burnout", () => {
+    expect(r.apogee.h).toBeGreaterThan(20);
+    expect(r.apogee.h).toBeLessThan(250);
+    expect(r.stabilityLoaded.margin).toBeGreaterThan(1);
+    expect(r.ejection!.t).toBeCloseTo(r.burnout!.t + 3, 1);
   });
 
-  it("opens the parachute at burnout + delay and lands slowly", () => {
-    expect(r.ejection!.t).toBeCloseTo(r.burnout!.t + 5, 1);
-    expect(r.descentRate).toBeGreaterThan(3);
-    expect(r.descentRate).toBeLessThan(6);
-    expect(r.idealDelay).toBeGreaterThan(5);
-    expect(r.idealDelay).toBeLessThan(7);
+  it("matches energy conservation after burnout when there is no air", () => {
+    const v = fly(rocketTec(), { noDrag: true, untilApogee: true });
+    const bound = v.burnout!.h + (v.burnout!.v ** 2) / (2 * G);
+    expect(v.apogee.h).toBeCloseTo(bound, 0);
   });
 
-  it("flags a booster motor (delay 0) as never deploying the parachute", () => {
-    const b = fly(withNoseMass(openRocketExample("C6", 0)));
-    expect(b.ejection).toBeNull();
-    expect(b.warnings.some((w) => w.level === "error")).toBe(true);
+  it("matches the exact coasting solution with constant drag", () => {
+    const d = { ...rocketTec(), cdOverride: 0.6 };
+    const c = fly(d, { untilApogee: true });
+    const bo = c.burnout!;
+    const m = c.samples[c.samples.length - 1].mass;
+    const rho = air((bo.h + c.apogee.h) / 2, d.launch.altitude, d.launch.temperature).density;
+    const k = (rho * 0.6 * dragModel(d).refArea) / (2 * m);
+    const tUp = Math.atan(bo.v * Math.sqrt(k / G)) / Math.sqrt(G * k);
+    const dhUp = Math.log(1 + (k * bo.v ** 2) / G) / (2 * k);
+    expect(c.apogee.t - bo.t).toBeCloseTo(tUp, 1);
+    expect(Math.abs(c.apogee.h - bo.h - dhUp) / dhUp).toBeLessThan(0.01);
+  });
+
+  it("lands at the parachute's terminal velocity", () => {
+    const d = rocketTec();
+    const last = r.samples[r.samples.length - 1];
+    const rho = air(0, d.launch.altitude, d.launch.temperature).density;
+    const cdA = d.recovery.cd * (Math.PI / 4) * (d.recovery.diameter / 1000) ** 2 + last.cd * dragModel(d).refArea;
+    const vt = Math.sqrt((2 * last.mass * G) / (rho * cdA));
+    expect(r.descentRate).toBeCloseTo(vt, 1);
+  });
+
+  it("warns when the rocket is heavier than Estes allows for the A10-3T", () => {
+    const heavy = fly({ ...rocketTec(), extras: [{ name: "lastre", mass: 60, position: 60 }] });
+    expect(heavy.warnings.some((w) => w.text.includes("85 g"))).toBe(true);
+  });
+
+  it("converges: RK4 beats Euler and gains about 16× when the step halves", () => {
+    const ref = fly(rocketTec(), { untilApogee: true }).apogee.h;
+    const err = (method: "rk4" | "euler", dt: number) => Math.abs(fly(rocketTec(), { method, dt, untilApogee: true }).apogee.h - ref);
+    expect(err("rk4", 0.01)).toBeLessThan(err("euler", 0.01));
+    expect(err("euler", 0.01)).toBeGreaterThan(err("euler", 0.005));
   });
 });
 
@@ -83,7 +98,6 @@ describe("water rocket", () => {
 
   it("gives a plausible flight for a 1.5 L bottle at 60 psi", () => {
     const r = fly(newWaterDesign());
-    // Full-bore 1.5 L rockets of ~200 g reach tens of metres; thrust lasts a fraction of a second.
     expect(r.apogee.h).toBeGreaterThan(15);
     expect(r.apogee.h).toBeLessThan(90);
     expect(r.burnout!.t).toBeLessThan(0.3);

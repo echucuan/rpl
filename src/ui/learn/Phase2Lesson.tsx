@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Design } from "../../model";
-import { motorById } from "../../catalog";
+import { a10Motor } from "../../motor";
 import { air, G } from "../../physics/atmosphere";
 import { dragModel } from "../../physics/drag";
 import { simulate, type FlightResult } from "../../physics/simulate";
@@ -17,7 +17,7 @@ export function Phase2Lesson({ design: d, result: res, onPhase }: { design: Desi
   const samples = within(res.samples, ph.from, ph.to);
   const start = nearest(res.samples, ph.from), end = nearest(res.samples, ph.to);
   const { rho, cd, mass } = phaseAverages(d, samples);
-  const model = useMemo(() => dragModel(d, d.type === "water" ? d.water.nozzleDiameter : (motorById(d.type === "estes" ? d.motor.id : "")?.diameter ?? 0) * 0.5), [d]);
+  const model = useMemo(() => dragModel(d, d.type === "water" ? d.water.nozzleDiameter : (d.type === "estes" ? 13 : 0) * 0.5), [d]);
   const A = model.refArea;
   const k = (rho * cd * A) / (2 * mass);
   const vb = start.v;
@@ -30,7 +30,7 @@ export function Phase2Lesson({ design: d, result: res, onPhase }: { design: Desi
   }, [d]);
   const atm = air(start.h, d.launch.altitude, d.launch.temperature);
   const parts = model.breakdown(vb, vb / atm.soundSpeed, atm.kinematicViscosity, false);
-  const motor = d.type === "estes" ? motorById(d.motor.id) : undefined;
+  const motor = d.type === "estes" ? a10Motor(d.motor.mass, d.motor.propellant) : undefined;
 
   const analytic = useMemo(() => {
     const pts: { x: number; y: number }[] = [];
@@ -63,7 +63,7 @@ export function Phase2Lesson({ design: d, result: res, onPhase }: { design: Desi
           {motor && res.idealDelay !== null && (
             <p>
               Para un motor Estes, esta fase coincide con el <b>retardo</b>: lo ideal es que la carga de eyección se active justo en el apogeo. En tu
-              cohete esta fase dura <b>{format(res.idealDelay, 1)} s</b> y elegiste un retardo de <b>{d.type === "estes" ? d.motor.delay : 0} s</b>.
+              cohete esta fase dura <b>{format(res.idealDelay, 1)} s</b> y elegiste un retardo de <b>3 s</b>.
             </p>
           )}
           <p>De qué está hecho el arrastre al empezar la fase ({format(vb, 0)} m/s):</p>

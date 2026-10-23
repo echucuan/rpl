@@ -32,7 +32,7 @@ export function NumField({ label, value, onChange, unit, min, max, digits = 2, c
   const valid = parsed !== null && (min === undefined || parsed >= min) && (max === undefined || parsed <= max);
 
   useEffect(() => {
-    // Follow external changes (catalog picks, kits) unless the text already means this value.
+    // Follow external changes (e.g. a recomputed mass) unless the text already means this value.
     if (parseNumber(text) !== value) setText(format(value, digits));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);

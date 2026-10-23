@@ -2,7 +2,7 @@
 // model as RPL, except that the rocket's drag coefficient is held constant.
 import type { Design } from "../model";
 import { PSI } from "../model";
-import { motorById } from "../catalog";
+import { a10Motor } from "../motor";
 import { groundPressure } from "../physics/atmosphere";
 import { centreOfMass, layout, structureItems } from "../physics/geometry";
 import { simulate, type FlightResult } from "../physics/simulate";
@@ -81,15 +81,15 @@ p.paracaidas = false;                 % cambia a true cuando se abre
 
   let propulsion: string;
   if (d.type === "estes") {
-    const m = motorById(d.motor.id)!;
+    const m = a10Motor(d.motor.mass, d.motor.propellant);
     propulsion = `
-% Motor ${m.name}-${d.motor.delay} (curva de empuje medida)
+% Motor Estes ${m.name} (curva de empuje medida; masas: ${num(d.motor.mass, 1)} g y ${num(d.motor.propellant, 1)} g de propelente)
 p.agua    = false;
 p.t_tab   = ${vector(m.time, 3)};   % s
 p.T_tab   = ${vector(m.thrust, 2)};   % N
 p.m_tab   = ${vector(m.mass, 2)}/1000;   % kg, masa del motor
 p.t_b     = p.t_tab(end);             % s, fin del empuje
-p.retardo = ${d.motor.delay};                       % s, retardo hasta la eyección
+p.retardo = ${m.delay};                       % s, retardo hasta la eyección
 `;
   } else {
     const w = d.water;

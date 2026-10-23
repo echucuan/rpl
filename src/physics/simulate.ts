@@ -1,7 +1,7 @@
 // One-dimensional vertical flight (the lab launches straight up), integrated with RK4.
 import type { Design } from "../model";
 import { MAX_PRESSURE_PSI } from "../model";
-import { motorById, type Motor } from "../catalog";
+import { A10_SPECS, a10Motor, type Motor } from "../motor";
 import { air, G } from "./atmosphere";
 import { dragModel } from "./drag";
 import { centreOfMass, stability, structureItems, waterFill, type MassItem, type Stability } from "./geometry";
@@ -48,7 +48,7 @@ export interface Warning {
 export interface FlightResult {
   samples: Sample[];
   liftoffMass: number; // g
-  thrustToWeight: number; // average thrust over liftoff weight (motors) or initial ratio (water)
+  thrustToWeight: number; // peak thrust (motor) or initial thrust (water) over liftoff weight
   guideExit: FlightPoint | null;
   burnout: FlightPoint | null;
   apogee: FlightPoint;
@@ -81,8 +81,8 @@ function setup(d: Design, groundPressure: number, groundTemperature: number): Se
   const items = structureItems(d);
   const dry = centreOfMass(items).mass / 1000;
   if (d.type === "estes") {
-    const motor = motorById(d.motor.id);
-    if (!motor) return "Elige un motor.";
+    if (d.motor.propellant <= 0 || d.motor.propellant >= d.motor.mass) return "Revisa la masa del motor: el propelente debe ser menor que la masa total.";
+    const motor = a10Motor(d.motor.mass, d.motor.propellant);
     const end = d.body.length + d.nose.length;
     const x = end - motor.length / 2;
     const loaded = [...items, { name: "Motor", mass: motor.mass[0], x }];
@@ -91,7 +91,7 @@ function setup(d: Design, groundPressure: number, groundTemperature: number): Se
       propulsion: motorPropulsion(motor),
       dryMass: dry,
       motor,
-      delay: d.motor.delay,
+      delay: motor.delay,
       items: loaded,
       stabilityLoaded: stability(d, loaded),
       stabilityEmpty: stability(d, empty),
@@ -154,7 +154,7 @@ export function simulate(d: Design, options: SimulationOptions = {}): FlightResu
   let y = [0, 0, ...s.propulsion.initial];
   let first = derivatives(0, y);
   const liftoffMass = first.mass * 1000;
-  const thrustToWeight = s.motor ? s.motor.averageThrust / (first.mass * G) : first.thrust / (first.mass * G);
+  const thrustToWeight = s.motor ? s.motor.maxThrust / (first.mass * G) : first.thrust / (first.mass * G);
 
   let guideExit: FlightPoint | null = null;
   let burnout: FlightPoint | null = null;
@@ -251,14 +251,12 @@ function warnings(d: Design, r: FlightResult, lifted: boolean): Warning[] {
     });
   }
   else if (Math.max(r.stabilityLoaded.margin, r.stabilityEmpty.margin) > 3) w.push({ level: "warning", text: "Sobreestable (más de 3 calibres): con viento tenderá a girar contra él." });
-  if (d.type === "estes" && r.thrustToWeight < 5) w.push({ level: "warning", text: `Relación empuje/peso de ${r.thrustToWeight.toFixed(1)}: Estes recomienda al menos 5. Usa un motor más potente o reduce el peso.` });
+  // For the A10-3T, Estes states the limit as a maximum liftoff mass (checked below) instead of a thrust-to-weight ratio.
   if (r.guideExit && r.guideExit.v < 10) w.push({ level: "warning", text: `Sale de la guía a solo ${r.guideExit.v.toFixed(1)} m/s; abajo de 10 m/s las aletas todavía no estabilizan bien.` });
   if (d.recovery.kind === "none" || d.recovery.deployment === "none") w.push({ level: "warning", text: "Sin paracaídas: el cohete cae libremente. Revisa la zona de seguridad." });
-  if (d.type === "estes" && d.recovery.kind === "parachute") {
-    if (d.motor.delay === 0) w.push({ level: "error", text: "Este motor no tiene carga de eyección (retardo 0, es para primera etapa): el paracaídas nunca se abre." });
-    else if (!r.ejection) w.push({ level: "error", text: "El cohete toca el suelo antes de que se active la eyección. Usa un retardo más corto." });
-  }
-  if (r.ejection && Math.abs(r.ejection.v) > 20) w.push({ level: "warning", text: `El paracaídas se abre a ${Math.abs(r.ejection.v).toFixed(0)} m/s: puede romperse o desprenderse. Elige un retardo más cercano a ${r.idealDelay?.toFixed(1) ?? "-"} s.` });
+  if (d.type === "estes" && d.recovery.kind === "parachute" && !r.ejection) w.push({ level: "error", text: "El cohete toca el suelo antes de que se active la eyección del motor." });
+  if (d.type === "estes" && r.liftoffMass > A10_SPECS.maxLiftoffMass) w.push({ level: "error", text: `Pesa ${r.liftoffMass.toFixed(0)} g al despegar: Estes indica un máximo de ${A10_SPECS.maxLiftoffMass} g para el motor A10-3T. Aligera las piezas impresas.` });
+  if (r.ejection && Math.abs(r.ejection.v) > 20) w.push({ level: "warning", text: `El paracaídas se abre a ${Math.abs(r.ejection.v).toFixed(0)} m/s: puede romperse o desprenderse. El retardo ideal sería ${r.idealDelay?.toFixed(1) ?? "-"} s y el del A10-3T es de 3 s: ajusta la masa o el arrastre.` });
   if (r.landing && d.recovery.kind === "parachute" && r.ejection && r.descentRate > 6) w.push({ level: "warning", text: `Aterriza a ${r.descentRate.toFixed(1)} m/s; arriba de 6 m/s puede dañarse. Usa un paracaídas más grande.` });
   if (r.maxMach > 0.7) w.push({ level: "info", text: "Velocidad cercana a la del sonido: el modelo de arrastre pierde precisión arriba de Mach 0.7." });
   return w;

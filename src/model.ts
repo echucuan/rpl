@@ -1,3 +1,5 @@
+import { A10_SPECS } from "./motor";
+
 // Design model shared by the UI and the physics. Lengths in millimetres, masses in grams,
 // pressures in psi (the unit of the lab's compressor gauge). Physics converts to SI.
 
@@ -9,16 +11,27 @@ export interface NoseCone {
   length: number; // exposed length, without shoulder
   diameter: number;
   mass: number;
-  catalog?: string; // Estes part description, when picked from the catalog
 }
 
 export interface BodyTube {
   length: number;
   diameter: number; // outside diameter
   mass: number;
-  catalog?: string;
-  massPerMm?: number; // set for catalog tubes so cutting the tube rescales its mass
 }
+
+/** Rocket Tec body: a letter-size sheet of opalina (cardstock) rolled into a tube. */
+export const LETTER = { width: 215.9, length: 279.4 }; // mm
+
+export interface PaperSheet {
+  /** "long": the 27.9 cm side becomes the tube length; "short": the 21.6 cm side. */
+  orientation: "long" | "short";
+  gsm: number; // g/m², paper weight printed on the package
+  thickness: number; // mm, one sheet
+}
+
+export const sheetLength = (s: PaperSheet) => (s.orientation === "long" ? LETTER.length : LETTER.width);
+export const sheetWrap = (s: PaperSheet) => (s.orientation === "long" ? LETTER.width : LETTER.length);
+export const sheetMass = (s: PaperSheet) => (s.gsm * LETTER.width * LETTER.length) / 1e6; // g, the whole sheet
 
 /** Diameter reduction behind the body: the bottle shoulder and neck of a water rocket. */
 export interface Tail {
@@ -46,7 +59,6 @@ export interface Recovery {
   cd: number;
   mass: number;
   position: number; // from nose tip
-  catalog?: string;
   /** Estes rockets deploy at the motor's ejection charge; water rockets at apogee or never. */
   deployment: Deployment;
 }
@@ -76,7 +88,11 @@ interface DesignBase {
 
 export interface EstesDesign extends DesignBase {
   type: "estes";
-  motor: { id: string; delay: number; mountDiameter: number };
+  /** Always the Estes A10-3T; the masses can be corrected with a scale. */
+  motor: { mass: number; propellant: number };
+  sheet: PaperSheet;
+  motorMount: { mass: number }; // printed PLA mount at the aft end
+  altimeter: { included: boolean; mass: number; position: number }; // Estes altimeter, inside the nose
 }
 
 export interface WaterDesign extends DesignBase {
@@ -99,17 +115,24 @@ export const PSI = 6894.757; // Pa
 
 export const CULIACAN: LaunchSite = { altitude: 55, temperature: 30, guideLength: 0.9 };
 
+// Rocket Tec defaults: PLA nose, fins and motor mount, rolled opalina body, A10-3T motor,
+// Estes 24" printed parachute and Estes altimeter in the nose. Masses are estimates to be
+// replaced by what each team weighs.
 export function newEstesDesign(): EstesDesign {
+  const sheet: PaperSheet = { orientation: "long", gsm: 225, thickness: 0.25 };
   return {
     type: "estes",
-    name: "Mi cohete Estes",
-    nose: { shape: "ogive", length: 70, diameter: 24.8, mass: 8 },
-    body: { length: 250, diameter: 24.8, mass: 12 },
-    fins: { count: 3, rootChord: 60, tipChord: 30, span: 45, sweep: 30, thickness: 2.5, profile: "square", offsetFromAft: 0, mass: 9 },
-    recovery: { kind: "parachute", diameter: 305, cd: 0.8, mass: 8, position: 110, deployment: "ejection" },
-    extras: [{ name: "Soporte de motor, cuerda y algodón", mass: 8, position: 280 }],
+    name: "Mi cohete Rocket Tec",
+    nose: { shape: "ogive", length: 80, diameter: 32, mass: 7 },
+    body: { length: sheetLength(sheet), diameter: 32, mass: Math.round(sheetMass(sheet) * 10) / 10 },
+    sheet,
+    fins: { count: 3, rootChord: 60, tipChord: 25, span: 40, sweep: 35, thickness: 2, profile: "rounded", offsetFromAft: 0, mass: 8 },
+    motorMount: { mass: 4 },
+    recovery: { kind: "parachute", diameter: 610, cd: 0.75, mass: 9, position: 130, deployment: "ejection" },
+    altimeter: { included: true, mass: 5, position: 55 },
+    extras: [],
     launch: { ...CULIACAN },
-    motor: { id: "C6", delay: 5, mountDiameter: 18 },
+    motor: { mass: A10_SPECS.mass, propellant: A10_SPECS.propellant },
   };
 }
 
@@ -130,34 +153,3 @@ export function newWaterDesign(): WaterDesign {
   };
 }
 
-// Approximate published specifications; students should weigh and measure their own kit.
-export const KITS: { name: string; note: string; design: () => EstesDesign }[] = [
-  {
-    name: "Estes Alpha III",
-    note: "Aprox. 31 cm de largo, tubo BT-50, unos 34 g sin motor. Motores recomendados: A8-3, B4-4, B6-4, C6-5.",
-    design: () => ({
-      ...newEstesDesign(),
-      name: "Alpha III",
-      nose: { shape: "ogive", length: 65, diameter: 24.8, mass: 6, catalog: "Kit Alpha III" },
-      body: { length: 247, diameter: 24.8, mass: 7, catalog: "Kit Alpha III" },
-      fins: { count: 3, rootChord: 64, tipChord: 25, span: 45, sweep: 40, thickness: 2.5, profile: "rounded", offsetFromAft: 0, mass: 10 },
-      recovery: { kind: "parachute", diameter: 305, cd: 0.8, mass: 5, position: 100, deployment: "ejection" },
-      extras: [{ name: "Soporte de motor, cuerda y algodón", mass: 6, position: 270 }],
-      motor: { id: "B6", delay: 4, mountDiameter: 18 },
-    }),
-  },
-  {
-    name: "Estes Big Bertha",
-    note: "Aprox. 62 cm de largo, tubo BT-60, unos 60 g sin motor. Motores recomendados: B6-4, C6-5.",
-    design: () => ({
-      ...newEstesDesign(),
-      name: "Big Bertha",
-      nose: { shape: "ogive", length: 105, diameter: 41.6, mass: 12, catalog: "Kit Big Bertha" },
-      body: { length: 510, diameter: 41.6, mass: 22, catalog: "Kit Big Bertha" },
-      fins: { count: 4, rootChord: 100, tipChord: 50, span: 70, sweep: 50, thickness: 3.2, profile: "rounded", offsetFromAft: 0, mass: 12 },
-      recovery: { kind: "parachute", diameter: 457, cd: 0.8, mass: 7, position: 150, deployment: "ejection" },
-      extras: [{ name: "Soporte de motor, cuerda y algodón", mass: 7, position: 540 }],
-      motor: { id: "C6", delay: 5, mountDiameter: 18 },
-    }),
-  },
-];

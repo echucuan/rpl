@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Design } from "../model";
-import { motorById } from "../catalog";
+import { a10Motor } from "../motor";
 import { layout } from "../physics/geometry";
 import type { FlightResult } from "../physics/simulate";
 import { NumField, Segmented, SelectField, format } from "./fields";
@@ -69,7 +69,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
   }, [r, real]);
 
   const l = layout(d);
-  const motor = d.type === "estes" ? motorById(d.motor.id) : undefined;
+  const motor = d.type === "estes" ? a10Motor(d.motor.mass, d.motor.propellant) : undefined;
   const altimeterM = comparison.altimeterUnit === "ft" ? comparison.altimeter * 0.3048 : comparison.altimeter;
   const err = (v: number) => ((v - r.apogee.h) / r.apogee.h) * 100;
 
@@ -122,9 +122,9 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
           <Kpi label="Se abre el paracaídas" value={r.ejection ? format(r.ejection.t, 2) : "No"} unit={r.ejection ? "s" : undefined} sub={r.ejection ? `a ${format(r.ejection.h, 1)} m, ${format(Math.abs(r.ejection.v), 1)} m/s` : undefined} />
           <Kpi label="Velocidad de aterrizaje" value={format(r.descentRate, 1)} unit="m/s" sub={r.landing ? `vuelo de ${format(r.landing.t, 1)} s` : undefined} />
           {motor && r.idealDelay !== null && (
-            <Kpi label="Retardo ideal" value={format(r.idealDelay, 1)} unit="s" sub={`el más cercano: ${motor.name}-${closest(motor.delays.filter((x) => x > 0), r.idealDelay) ?? "–"}`} />
+            <Kpi label="Retardo ideal" value={format(r.idealDelay, 1)} unit="s" sub={`el A10-3T tiene ${motor.delay} s`} />
           )}
-          <Kpi label="Empuje / peso" value={format(r.thrustToWeight, 1)} sub={d.type === "estes" ? "con empuje promedio" : "al despegar"} />
+          <Kpi label="Empuje / peso" value={format(r.thrustToWeight, 1)} sub={d.type === "estes" ? "con el empuje máximo" : "al despegar"} />
         </div>
         {r.warnings.length > 0 && (
           <div className="alerts" style={{ marginTop: 12 }}>
@@ -195,12 +195,12 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
           <tbody>
             <tr><td>Largo total</td><td className="val">{format(l.length / 10, 1)} cm</td></tr>
             <tr><td>Diámetro</td><td className="val">{format(l.refDiameter, 1)} mm</td></tr>
-            <tr><td>Nariz</td><td className="val">{d.nose.catalog ?? "propia"} · {format(d.nose.length)} mm · {format(d.nose.mass, 1)} g</td></tr>
+            <tr><td>Nariz</td><td className="val">{d.type === "estes" ? "PLA" : "impresa"} · {format(d.nose.length)} mm · {format(d.nose.mass, 1)} g</td></tr>
             {d.type === "estes"
-              ? <tr><td>Tubo</td><td className="val">{d.body.catalog ?? "propio"} · {format(d.body.length)} mm · {format(d.body.mass, 1)} g</td></tr>
+              ? <tr><td>Cuerpo</td><td className="val">opalina {d.sheet.gsm} g/m² · {format(d.body.length)} × Ø{format(d.body.diameter)} mm · {format(d.body.mass, 1)} g</td></tr>
               : <tr><td>Botella</td><td className="val">{format(d.water.bottleVolume, 2)} L · {format(d.water.bottleMass, 0)} g · {format(d.water.waterVolume, 2)} L de agua a {format(d.water.pressure, 0)} psi</td></tr>}
             <tr><td>Aletas</td><td className="val">{d.fins.count} · raíz {format(d.fins.rootChord)} / punta {format(d.fins.tipChord)} / altura {format(d.fins.span)} mm · {format(d.fins.mass, 1)} g</td></tr>
-            {motor && d.type === "estes" && <tr><td>Motor</td><td className="val">{motor.name}-{d.motor.delay} · {format(motor.totalImpulse, 1)} N·s</td></tr>}
+            {motor && d.type === "estes" && <tr><td>Motor</td><td className="val">{motor.name} · {format(motor.totalImpulse, 2)} N·s · {format(d.motor.mass, 1)} g</td></tr>}
             <tr><td>Paracaídas</td><td className="val">{d.recovery.kind === "parachute" ? `${format(d.recovery.diameter / 10, 0)} cm · ${format(d.recovery.mass, 1)} g` : "ninguno"}</td></tr>
             {d.extras.map((e, i) => <tr key={i}><td>{e.name}</td><td className="val">{format(e.mass, 1)} g a {format(e.position)} mm</td></tr>)}
             <tr><td>Sitio</td><td className="val">{format(d.launch.altitude, 0)} m s.n.m. · {format(d.launch.temperature, 0)} °C · guía {format(d.launch.guideLength, 2)} m</td></tr>
@@ -211,6 +211,3 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
   );
 }
 
-function closest(values: number[], target: number): number | undefined {
-  return values.reduce<number | undefined>((best, v) => (best === undefined || Math.abs(v - target) < Math.abs(best - target) ? v : best), undefined);
-}
