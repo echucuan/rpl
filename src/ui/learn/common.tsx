@@ -45,7 +45,7 @@ export function LessonHeader({ title, intro }: { title: string; intro: ReactNode
         <span className="arrow">→</span>
         <span className="chip matematicas">2 Matemáticas</span>
         <span className="arrow">→</span>
-        <span className="chip computacion">3 Computación</span>
+        <span className="chip computacion">3 Computación (MATLAB)</span>
       </div>
       <h2>{title}</h2>
       <p>{intro}</p>
@@ -63,8 +63,14 @@ export function YourRocket({ children }: { children: ReactNode }) {
   );
 }
 
-export function Code({ children }: { children: string }) {
-  return <pre className="code"><code>{children.trim()}</code></pre>;
+/** MATLAB code shown in the Computación stage. */
+export function Code({ children, title = "MATLAB" }: { children: string; title?: string }) {
+  return (
+    <figure className="code-block">
+      <figcaption>{title}</figcaption>
+      <pre className="code"><code>{children.trim()}</code></pre>
+    </figure>
+  );
 }
 
 export function Think({ children }: { children: ReactNode }) {

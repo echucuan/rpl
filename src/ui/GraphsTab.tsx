@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import type { Design } from "../model";
 import { motorById } from "../catalog";
 import { layout } from "../physics/geometry";
@@ -6,8 +6,10 @@ import type { FlightResult } from "../physics/simulate";
 import { NumField, Segmented, SelectField, format } from "./fields";
 import { LineChart, type Series } from "./LineChart";
 import { flightMarkers, flightSpans, series, thin } from "./phases";
+import { PhaseTimeline } from "./PhaseTimeline";
 import { guessColumn, parseTable, realSeries, type Table } from "./realData";
 import { downloadFile, fileSafe } from "./storage";
+import { downloadMatlab } from "./matlab";
 import type { SubTab } from "./Workspace";
 
 const BLUE = "#0039a6";
@@ -45,7 +47,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
   const { csv } = comparison;
   const simLiftoff = r.samples.find((s) => s.h > 0.5)?.t ?? 0;
   const real = useMemo(() => (csv ? realSeries(csv.table, csv.timeCol, csv.altCol, csv.accelCol, csv.altUnit, simLiftoff) : null), [csv, simLiftoff]);
-  const spans = useMemo(() => flightSpans(r, d.type === "water"), [r, d.type]);
+  const spans = useMemo(() => flightSpans(r), [r]);
   const markers = useMemo(() => flightMarkers(r), [r]);
 
   const charts = useMemo(() => {
@@ -106,6 +108,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
           <h2>Resultados de la simulación · {d.name}</h2>
           <div className="btn-row no-print">
             <button type="button" className="btn small" onClick={exportCsv}>Descargar datos (CSV)</button>
+            <button type="button" className="btn small" onClick={() => downloadMatlab(d, r)}>Descargar script de MATLAB</button>
             <button type="button" className="btn small" onClick={() => window.print()}>Imprimir o guardar PDF</button>
           </div>
         </div>
@@ -135,15 +138,15 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
           <h2>Gráficas del vuelo</h2>
           <Segmented value={range} options={[{ value: "ascent", label: "Ascenso" }, { value: "all", label: "Todo el vuelo" }]} onChange={setRange} />
         </div>
-        <p className="hint" style={{ marginBottom: 12 }}>
-          Las franjas de color marcan las fases del vuelo: <span className="phase thrust">empuje</span> <span className="phase coast">vuelo libre</span>{" "}
-          <span className="phase fall">caída</span> <span className="phase chute">paracaídas</span>. Las líneas punteadas son los eventos.
+        <p className="hint" style={{ marginBottom: 8 }}>
+          Las franjas de color marcan las cuatro fases del vuelo y las líneas punteadas, los eventos. Haz clic en una fase para ver cómo se calcula.
         </p>
+        <PhaseTimeline result={r} onPick={(id) => onLesson(`fase${id}` as SubTab)} />
         <div className="charts">
-          <ChartCard lesson="altura" onLesson={onLesson}><LineChart title="Altura h(t)" xLabel="Tiempo (s)" yLabel="Altura (m)" series={charts.altitude} spans={spans} markers={markers} xMax={xMax} /></ChartCard>
-          <ChartCard lesson="velocidad" onLesson={onLesson}><LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={charts.velocity} spans={spans} markers={markers} xMax={xMax} /></ChartCard>
-          <ChartCard lesson="fuerzas" onLesson={onLesson}><LineChart title="Aceleración a(t)" xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={charts.acceleration} spans={spans} markers={markers} xMax={xMax} /></ChartCard>
-          <ChartCard lesson="empuje" onLesson={onLesson}><LineChart title={d.type === "water" ? "Empuje del agua y el aire T(t)" : `Empuje del motor ${motor?.name ?? ""} T(t)`} xLabel="Tiempo (s)" yLabel="Empuje (N)" series={charts.thrust} xMax={charts.burnEnd} /></ChartCard>
+          <div><LineChart title="Altura h(t)" xLabel="Tiempo (s)" yLabel="Altura (m)" series={charts.altitude} spans={spans} markers={markers} xMax={xMax} /></div>
+          <div><LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={charts.velocity} spans={spans} markers={markers} xMax={xMax} /></div>
+          <div><LineChart title="Aceleración a(t)" xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={charts.acceleration} spans={spans} markers={markers} xMax={xMax} /></div>
+          <div><LineChart title={d.type === "water" ? "Empuje del agua y el aire T(t)" : `Empuje del motor ${motor?.name ?? ""} T(t)`} xLabel="Tiempo (s)" yLabel="Empuje (N)" series={charts.thrust} xMax={charts.burnEnd} /></div>
         </div>
       </div>
 
@@ -204,15 +207,6 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
           </tbody>
         </table>
       </div>
-    </div>
-  );
-}
-
-function ChartCard({ lesson, onLesson, children }: { lesson: SubTab; onLesson: (s: SubTab) => void; children: ReactNode }) {
-  return (
-    <div className="chart-card">
-      {children}
-      <button type="button" className="link" onClick={() => onLesson(lesson)}>¿Cómo se calcula esta gráfica? →</button>
     </div>
   );
 }

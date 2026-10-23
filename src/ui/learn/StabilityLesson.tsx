@@ -20,7 +20,7 @@ export function StabilityLesson({ design: d, result: res }: { design: Design; re
   return (
     <div className="lesson">
       <LessonHeader
-        title="5. Estabilidad: ¿por qué vuela derecho?"
+        title="Estabilidad: ¿por qué vuela derecho?"
         intro={<>Un cohete estable regresa solo a la vertical cuando algo lo inclina (una ráfaga, la salida de la guía). Depende de dos puntos: el <b>centro de gravedad</b> (CG) y el <b>centro de presión</b> (CP).</>}
       />
       <div className="card"><RocketView design={d} loaded={res.stabilityLoaded} empty={res.stabilityEmpty} /></div>
@@ -77,14 +77,19 @@ export function StabilityLesson({ design: d, result: res }: { design: Design; re
             </tbody>
           </table>
           <Code>{`
-// Centro de gravedad: promedio ponderado por masa
-const masa = piezas.reduce((s, p) => s + p.masa, 0);
-const xCG  = piezas.reduce((s, p) => s + p.masa * p.x, 0) / masa;
+% Piezas: masa (g) y posición de su centro (mm desde la punta)
+masa = [${items.map((i) => i.mass.toFixed(1)).join(" ")}];
+x    = [${items.map((i) => i.x.toFixed(0)).join(" ")}];
+xCG  = sum(masa.*x)/sum(masa);          % centro de gravedad
 
-// Centro de presión: promedio ponderado por C_Nα (Barrowman)
-const CN  = terminos.reduce((s, t) => s + t.cn, 0);
-const xCP = terminos.reduce((s, t) => s + t.cn * t.x, 0) / CN;
-const margen = (xCP - xCG) / diametro;
+% Barrowman: C_Nalpha y posición de cada parte
+CN   = [${terms.map((t) => t.cn.toFixed(3)).join(" ")}];
+xN   = [${terms.map((t) => t.x.toFixed(0)).join(" ")}];
+xCP  = sum(CN.*xN)/sum(CN);             % centro de presión
+
+d = ${ref.toFixed(1)};                       % diámetro (mm)
+margen = (xCP - xCG)/d;
+fprintf('CG = %.1f mm, CP = %.1f mm, margen = %.2f calibres\n', xCG, xCP, margen);
           `}</Code>
         </StageBlock>
       </div>

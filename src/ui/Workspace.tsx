@@ -3,15 +3,15 @@ import type { Design, EstesDesign } from "../model";
 import { simulate } from "../physics/simulate";
 import { RocketTab } from "./RocketTab";
 import { GraphsTab, type Comparison } from "./GraphsTab";
-import { ThrustLesson } from "./learn/ThrustLesson";
-import { ForcesLesson } from "./learn/ForcesLesson";
-import { VelocityLesson } from "./learn/VelocityLesson";
-import { AltitudeLesson } from "./learn/AltitudeLesson";
+import { Phase1Lesson } from "./learn/Phase1Lesson";
+import { Phase2Lesson } from "./learn/Phase2Lesson";
+import { Phase3Lesson } from "./learn/Phase3Lesson";
+import { Phase4Lesson } from "./learn/Phase4Lesson";
 import { StabilityLesson } from "./learn/StabilityLesson";
 import { NumericalLesson } from "./learn/NumericalLesson";
 import { downloadDesign, saveDesign } from "./storage";
 
-export type SubTab = "cohete" | "graficas" | "empuje" | "fuerzas" | "velocidad" | "altura" | "estabilidad" | "metodo";
+export type SubTab = "cohete" | "graficas" | "fase1" | "fase2" | "fase3" | "fase4" | "estabilidad" | "metodo";
 
 const DESIGN_TABS: { id: SubTab; label: string }[] = [
   { id: "cohete", label: "Cohete" },
@@ -19,10 +19,10 @@ const DESIGN_TABS: { id: SubTab; label: string }[] = [
 ];
 
 export const LESSONS: { id: SubTab; label: string }[] = [
-  { id: "empuje", label: "Empuje" },
-  { id: "fuerzas", label: "Fuerzas y aceleración" },
-  { id: "velocidad", label: "Velocidad" },
-  { id: "altura", label: "Altura" },
+  { id: "fase1", label: "Fase 1 · Empuje" },
+  { id: "fase2", label: "Fase 2 · Frenado" },
+  { id: "fase3", label: "Fase 3 · Caída libre" },
+  { id: "fase4", label: "Fase 4 · Paracaídas" },
   { id: "estabilidad", label: "Estabilidad" },
   { id: "metodo", label: "Método numérico" },
 ];
@@ -68,9 +68,9 @@ export function Workspace({ design, onChange, sub, onSub, onLoadKit, savedId, on
         </div>
         <div className="subtabs lessons" role="tablist" aria-label="Aprende cómo se calcula">
           <span className="subtabs-label">Aprende cómo se calcula:</span>
-          {LESSONS.map((t, i) => (
+          {LESSONS.map((t) => (
             <button key={t.id} role="tab" aria-selected={sub === t.id} onClick={() => go(t.id)}>
-              <span className="lesson-n">{i + 1}</span>{t.label}
+              {t.label}
             </button>
           ))}
         </div>
@@ -91,10 +91,10 @@ export function Workspace({ design, onChange, sub, onSub, onLoadKit, savedId, on
           {typeof result !== "string" && (
             <>
               {sub === "graficas" && <GraphsTab design={deferred} result={result} comparison={comparison} onComparison={setComparison} onLesson={go} />}
-              {sub === "empuje" && <ThrustLesson design={deferred} result={result} />}
-              {sub === "fuerzas" && <ForcesLesson design={deferred} result={result} />}
-              {sub === "velocidad" && <VelocityLesson design={deferred} result={result} />}
-              {sub === "altura" && <AltitudeLesson design={deferred} result={result} />}
+              {sub === "fase1" && <Phase1Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
+              {sub === "fase2" && <Phase2Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
+              {sub === "fase3" && <Phase3Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
+              {sub === "fase4" && <Phase4Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
               {sub === "estabilidad" && <StabilityLesson design={deferred} result={result} />}
               {sub === "metodo" && <NumericalLesson design={deferred} result={result} />}
             </>
@@ -128,8 +128,8 @@ function LessonNav({ sub, go }: { sub: SubTab; go: (s: SubTab) => void }) {
   const prev = LESSONS[i - 1], next = LESSONS[i + 1];
   return (
     <div className="lesson-nav no-print">
-      {prev ? <button className="btn" onClick={() => go(prev.id)}>← {i}. {prev.label}</button> : <button className="btn" onClick={() => go("graficas")}>← Gráficas</button>}
-      {next ? <button className="btn primary" onClick={() => go(next.id)}>{i + 2}. {next.label} →</button> : <button className="btn primary" onClick={() => go("cohete")}>Volver al cohete</button>}
+      {prev ? <button className="btn" onClick={() => go(prev.id)}>← {prev.label}</button> : <button className="btn" onClick={() => go("graficas")}>← Gráficas</button>}
+      {next ? <button className="btn primary" onClick={() => go(next.id)}>{next.label} →</button> : <button className="btn primary" onClick={() => go("cohete")}>Volver al cohete</button>}
     </div>
   );
 }

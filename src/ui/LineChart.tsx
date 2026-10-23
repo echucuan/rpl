@@ -35,6 +35,7 @@ interface Props {
   series: Series[];
   spans?: Span[];
   markers?: Marker[];
+  xMin?: number;
   xMax?: number;
   height?: number;
 }
@@ -82,7 +83,7 @@ const phasesPlugin: Plugin<"line"> = {
   },
 };
 
-export function LineChart({ title, xLabel, yLabel, series, spans = [], markers = [], xMax, height = 240 }: Props) {
+export function LineChart({ title, xLabel, yLabel, series, spans = [], markers = [], xMin, xMax, height = 240 }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const chart = useRef<Chart<"line"> | null>(null);
   const unit = yLabel.match(/\(([^)]+)\)/)?.[1] ?? "";
@@ -132,9 +133,10 @@ export function LineChart({ title, xLabel, yLabel, series, spans = [], markers =
       stepped: s.stepped ?? false,
     }));
     (c.options.plugins as unknown as { phases: unknown }).phases = { spans, markers };
+    c.options.scales!.x!.min = xMin;
     c.options.scales!.x!.max = xMax;
     c.update();
-  }, [series, spans, markers, xMax]);
+  }, [series, spans, markers, xMin, xMax]);
 
   return (
     <figure style={{ margin: 0 }}>
