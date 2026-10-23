@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Design, EstesDesign, WaterDesign } from "../model";
-import { newEstesDesign, newWaterDesign } from "../model";
+import { WEIGHED, newEstesDesign, newWaterDesign } from "../model";
 import { About } from "./About";
 import { Designs } from "./Designs";
 import { Workspace, SUB_TABS, type SubTab } from "./Workspace";
@@ -24,7 +24,14 @@ export function normalize(d: Design): Design {
   for (const [k, v] of Object.entries(base)) {
     if (v && typeof v === "object" && !Array.isArray(v)) merged[k] = { ...v, ...((d as unknown as Record<string, object>)[k] ?? {}) };
   }
-  return merged as unknown as Design;
+  const n = merged as unknown as Design;
+  if (n.type === "estes") {
+    // Replace the placeholder estimates used before the lab weighed these parts; keep anything a student typed.
+    if (n.altimeter.mass === 5) n.altimeter = { ...n.altimeter, mass: WEIGHED.altimeter };
+    if (n.recovery.mass === 9) n.recovery = { ...n.recovery, mass: WEIGHED.parachute };
+    if (n.motor.mass === 8.2 && n.motor.propellant === 3.5) n.motor = { mass: WEIGHED.motorLoaded, propellant: WEIGHED.motorLoaded - WEIGHED.motorBurnt };
+  }
+  return n;
 }
 
 /** Location hash: "#estes/graficas" → tab and sub-tab. */
