@@ -1,0 +1,7 @@
+node_modules/
+dist/
+# Fotos, STL y ensamblajes del lanzador: material de referencia privado, no se publica
+referencia/
+# Tipografía con licencia de escritorio (Linotype): nunca se publica
+*.ttf
+*.otf
