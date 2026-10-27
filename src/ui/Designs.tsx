@@ -3,7 +3,7 @@ import { PROGRAMS } from "./StartScreen";
 import type { Design } from "../model";
 import { deleteDesign, downloadDesign, listDesigns, readDesignFile, saveDesign } from "./storage";
 
-export function Designs({ onOpen }: { onOpen: (d: Design, id?: string) => void }) {
+export function Designs({ onOpen }: { onOpen: (d: Design, id: string | undefined, source: "opened" | "imported") => void }) {
   const [list, setList] = useState(listDesigns);
   const [error, setError] = useState("");
 
@@ -13,7 +13,7 @@ export function Designs({ onOpen }: { onOpen: (d: Design, id?: string) => void }
     setError("");
     const entry = saveDesign(d);
     setList(listDesigns());
-    onOpen(d, entry?.id);
+    onOpen(d, entry?.id, "imported");
   };
 
   return (
@@ -38,7 +38,7 @@ export function Designs({ onOpen }: { onOpen: (d: Design, id?: string) => void }
               <small>{PROGRAMS[s.design.type].name} · {PROGRAMS[s.design.type].fuel.toLowerCase()} · {new Date(s.savedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}</small>
             </div>
             <div className="btn-row">
-              <button type="button" className="btn small primary" onClick={() => onOpen(s.design, s.id)}>Abrir</button>
+              <button type="button" className="btn small primary" onClick={() => onOpen(s.design, s.id, "opened")}>Abrir</button>
               <button type="button" className="btn small" onClick={() => downloadDesign(s.design)}>Descargar</button>
               <button type="button" className="btn small danger" onClick={() => {
                 if (!confirm(`¿Borrar "${s.design.name}" de este navegador?`)) return;
