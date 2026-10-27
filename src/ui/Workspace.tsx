@@ -9,7 +9,7 @@ import { Phase3Lesson } from "./learn/Phase3Lesson";
 import { Phase4Lesson } from "./learn/Phase4Lesson";
 import { StabilityLesson } from "./learn/StabilityLesson";
 import { NumericalLesson } from "./learn/NumericalLesson";
-import { downloadDesign, saveDesign } from "./storage";
+import { saveDesign } from "./storage";
 import { PROGRAMS, logoUrl } from "./StartScreen";
 import { PHASE_SOLID, type PhaseId } from "./phases";
 
@@ -47,11 +47,16 @@ interface Props {
   onSub: (s: SubTab) => void;
   savedId?: string;
   onSaved: (id: string) => void;
+  /** Saves the project file; the app tracks whether it worked. */
+  onDownload: () => void;
+  exporting: boolean;
+  exportError: string | null;
+  /** Both go through the app's unsaved-changes check. */
   onNew: () => void;
   onHome: () => void;
 }
 
-export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onNew, onHome }: Props) {
+export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDownload, exporting, exportError, onNew, onHome }: Props) {
   const deferred = useDeferredValue(design);
   const result = useMemo(() => simulate(deferred), [deferred]);
   const [notice, setNotice] = useState("");
@@ -78,10 +83,12 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onNe
           <h2>{PROGRAMS[design.type].name}</h2>
         </div>
         <div className="banner-actions no-print">
-          {notice && <span className="banner-notice">{notice}</span>}
-          <button type="button" className="btn small solid" onClick={save}>Guardar</button>
-          <button type="button" className="btn small" onClick={() => downloadDesign(design)}>Descargar</button>
-          <button type="button" className="btn small" onClick={() => confirm("¿Empezar un diseño nuevo? Los cambios sin guardar se pierden.") && onNew()}>Nuevo</button>
+          {exportError ? <span className="banner-notice" role="alert">No se pudo crear el archivo: {exportError}</span> : notice && <span className="banner-notice">{notice}</span>}
+          <button type="button" className="btn small solid" onClick={save} title="Guarda una copia en Mis diseños, solo en este navegador">Guardar</button>
+          <button type="button" className="btn small" onClick={onDownload} disabled={exporting} title="Guarda el archivo del proyecto en tu computadora">
+            {exporting ? "Preparando…" : "Descargar"}
+          </button>
+          <button type="button" className="btn small" onClick={onNew}>Nuevo</button>
           <button type="button" className="btn small" onClick={onHome}>Cambiar combustible</button>
         </div>
       </div>

@@ -1,5 +1,6 @@
 // Designs live in the student's own browser (localStorage) and can be downloaded as files.
 import type { Design } from "../model";
+import { projectFile, type Draft, type Writer } from "./project";
 
 export interface SavedDesign {
   id: string;
@@ -41,8 +42,9 @@ export function deleteDesign(id: string) {
   write(LIST_KEY, listDesigns().filter((d) => d.id !== id));
 }
 
-export const loadCurrent = <T extends Design>(type: T["type"]): T | null => read<T | null>(currentKey(type), null);
-export const storeCurrent = (design: Design) => write(currentKey(design.type), design);
+/** Recovery draft of the active project; only a backup, the student's file is the real save. */
+export const loadDraft = (type: Design["type"]): unknown => read<unknown>(currentKey(type), null);
+export const storeDraft = (type: Design["type"], draft: Draft) => write(currentKey(type), draft);
 
 export function downloadFile(name: string, content: string | Blob, type = "application/json") {
   const blob = content instanceof Blob ? content : new Blob([content], { type });
@@ -56,9 +58,42 @@ export function downloadFile(name: string, content: string | Blob, type = "appli
 
 export const fileSafe = (name: string) => name.trim().replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "") || "diseño";
 
+export const designFileName = (design: Design) => `${fileSafe(design.name)}.rpl.json`;
+
 export function downloadDesign(design: Design) {
-  downloadFile(`${fileSafe(design.name)}.rpl.json`, JSON.stringify({ app: "Rocket Physics Lab Sinaloa", version: 1, design }, null, 2));
+  downloadFile(designFileName(design), projectFile(design));
 }
+
+interface SaveFilePicker {
+  (options: { suggestedName: string; types: { description: string; accept: Record<string, string[]> }[] }): Promise<{
+    createWritable(): Promise<{ write(data: string): Promise<void>; close(): Promise<void> }>;
+  }>;
+}
+
+/**
+ * Saves the project file. Where the browser has a "Save as" dialog (Chrome, Edge) the write is
+ * confirmed; elsewhere the file goes to the downloads, which the page cannot check.
+ */
+export const saveProjectFile: Writer = async (name, content) => {
+  const picker = (window as unknown as { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+  if (picker) {
+    let handle = null;
+    try {
+      handle = await picker({ suggestedName: name, types: [{ description: "Diseño de Rocket Physics Lab", accept: { "application/json": [".json"] } }] });
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return "cancelled";
+      // Not allowed here (e.g. inside a frame): fall back to a normal download.
+    }
+    if (handle) {
+      const w = await handle.createWritable();
+      await w.write(content);
+      await w.close();
+      return "written";
+    }
+  }
+  downloadFile(name, content);
+  return "downloaded";
+};
 
 /** Reads a downloaded design file; returns an error message when it is not one. */
 export async function readDesignFile(file: File): Promise<Design | string> {
