@@ -101,7 +101,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
 
   return (
     <div className="results wide">
-      <div className="print-only"><h2 style={{ color: BLUE }}>Rocket Physics Lab · {d.name}</h2></div>
+      <div className="print-only"><h2 style={{ color: BLUE }}>Rocket Physics Lab Sinaloa · {d.name}</h2></div>
 
       <div className="card">
         <div className="card-head">

@@ -26,7 +26,7 @@ export function StartScreen({ onPick }: { onPick: (type: Design["type"]) => void
             <li>Nariz, aletas y porta motor de PLA; cuerpo de opalina enrollada</li>
             <li>Paracaídas Estes de 24" y altímetro Estes en la nariz</li>
           </ul>
-          <span className="program-go">Diseñar con motor A10-3T →</span>
+          <span className="program-go">Diseñar con combustible sólido →</span>
         </button>
         <button type="button" className="program-card water" onClick={() => onPick("water")}>
           <img src={logoUrl("water")} alt="Logotipo de Rocket Challenge Sinaloa 2026" />
@@ -37,7 +37,7 @@ export function StartScreen({ onPick }: { onPick: (type: Design["type"]) => void
             <li>Tú eliges el agua y la presión (máximo {MAX_PRESSURE_PSI} psi)</li>
             <li>Aletas, nariz y lastre impresos en PLA Aero</li>
           </ul>
-          <span className="program-go">Diseñar cohete de agua →</span>
+          <span className="program-go">Diseñar con agua y aire a presión →</span>
         </button>
       </div>
       <p className="start-foot">

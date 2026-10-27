@@ -1,4 +1,4 @@
-# Rocket Physics Lab (RPL)
+# Rocket Physics Lab Sinaloa (RPL)
 
 Simulador web de cohetes para las prácticas de física del Tecnológico de Monterrey, Campus Sinaloa, con la metodología Física → Matemáticas → Computación.
 

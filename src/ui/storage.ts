@@ -57,7 +57,7 @@ export function downloadFile(name: string, content: string | Blob, type = "appli
 export const fileSafe = (name: string) => name.trim().replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "") || "diseño";
 
 export function downloadDesign(design: Design) {
-  downloadFile(`${fileSafe(design.name)}.rpl.json`, JSON.stringify({ app: "Rocket Physics Lab", version: 1, design }, null, 2));
+  downloadFile(`${fileSafe(design.name)}.rpl.json`, JSON.stringify({ app: "Rocket Physics Lab Sinaloa", version: 1, design }, null, 2));
 }
 
 /** Reads a downloaded design file; returns an error message when it is not one. */
@@ -65,7 +65,7 @@ export async function readDesignFile(file: File): Promise<Design | string> {
   try {
     const data = JSON.parse(await file.text());
     const design = data?.design ?? data;
-    if (design?.type !== "estes" && design?.type !== "water") return "El archivo no es un diseño de Rocket Physics Lab.";
+    if (design?.type !== "estes" && design?.type !== "water") return "El archivo no es un diseño de Rocket Physics Lab Sinaloa.";
     return design as Design;
   } catch {
     return "No se pudo leer el archivo.";
