@@ -44,7 +44,7 @@ export function matlabScript(d: Design, r: FlightResult): string {
   const date = new Date().toLocaleDateString("es-MX", { dateStyle: "long" });
   const water = d.type === "water";
 
-  const header = `%% Rocket Physics Lab - simulación de "${d.name.replace(/"/g, "'")}"
+  const header = `%% Rocket Physics Lab Sinaloa - simulación de "${d.name.replace(/"/g, "'")}"
 % ${program.name} (${program.fuel.toLowerCase()}) · generado el ${date}
 % Metodología: Física -> Matemáticas -> Computación
 %

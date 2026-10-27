@@ -4,7 +4,7 @@ import { A10_SPECS } from "../motor";
 export function About() {
   return (
     <div className="card prose">
-      <h2 style={{ marginTop: 0 }}>Qué es Rocket Physics Lab</h2>
+      <h2 style={{ marginTop: 0 }}>Qué es Rocket Physics Lab Sinaloa</h2>
       <p>
         Un simulador para diseñar cohetes, predecir su vuelo y compararlo con lo que se mide en el lanzamiento. Funciona en el navegador,
         sin instalar nada, y los diseños se guardan solo en tu equipo. Está hecho a la medida de dos retos del Campus Sinaloa:
@@ -38,7 +38,7 @@ export function About() {
         físicos se comprobaron contra sus soluciones exactas (vacío, arrastre constante y velocidad terminal).
       </p>
       <p>
-        Desarrollado para los cursos de física del Tecnológico de Monterrey, Campus Sinaloa. Rocket Physics Lab es software libre bajo la
+        Desarrollado para los cursos de física del Tecnológico de Monterrey, Campus Sinaloa. Rocket Physics Lab Sinaloa es software libre bajo la
         licencia GPL-3.0.
       </p>
     </div>

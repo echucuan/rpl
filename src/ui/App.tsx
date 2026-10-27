@@ -73,16 +73,10 @@ export function App() {
 
   return (
     <>
-      <header className="top">
-        <div className="top-inner">
-          <div className="brand">
-            <img src={`${import.meta.env.BASE_URL}brand/logo-tec-azul.png`} alt="Tecnológico de Monterrey" />
-            <div className="brand-title">
-              <h1>Rocket Physics Lab</h1>
-              <p>Física · Matemáticas · Computación — Campus Sinaloa</p>
-            </div>
-          </div>
-          <nav className="tabs" role="tablist">
+      <header className="site-header">
+        <div className="topbar">
+          <img className="tec-logo" src={`${import.meta.env.BASE_URL}brand/logo-tec-azul.png`} alt="Tecnológico de Monterrey" />
+          <nav className="main-nav" role="tablist" aria-label="Secciones de la aplicación">
             {TABS.map((t) => (
               <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
                 {t.logo && <img className="tab-logo" src={logoUrl(t.logo)} alt="" />}
@@ -90,6 +84,10 @@ export function App() {
               </button>
             ))}
           </nav>
+        </div>
+        <div className={`hero ${tab === "inicio" ? "" : "compact"}`}>
+          <h1>Rocket Physics Lab <span>Sinaloa</span></h1>
+          {tab === "inicio" && <p>Diseña tu cohete, simula su vuelo y descubre la física detrás de cada gráfica.</p>}
         </div>
       </header>
       <main>
@@ -122,7 +120,7 @@ export function App() {
         {tab === "about" && <About />}
       </main>
       <footer>
-        Rocket Physics Lab · Tecnológico de Monterrey, Campus Sinaloa · Software libre (GPL-3.0). Especificaciones de productos: Estes Industries.
+        Rocket Physics Lab Sinaloa · Tecnológico de Monterrey, Campus Sinaloa · Software libre (GPL-3.0). Especificaciones de productos: Estes Industries.
       </footer>
     </>
   );

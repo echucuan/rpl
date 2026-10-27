@@ -207,7 +207,11 @@ function MotorSection({ d, update }: { d: EstesDesign; update: Update }) {
   const motor = a10Motor(d.motor.mass, d.motor.propellant);
   const setE = (fn: (p: EstesDesign) => EstesDesign) => update((p) => fn(p as EstesDesign));
   return (
-    <Section title="Motor Estes A10-3T y porta motor" summary={`A10-3T · ${format(d.motor.mass + d.motorMount.mass, 1)} g`}>
+    <Section title="Motor y porta motor" summary={`Estes A10-3T · ${format(d.motor.mass + d.motorMount.mass, 1)} g`}>
+      {/* For now the challenge allows a single manufacturer and motor; the lists make that choice visible. */}
+      <SelectField label="Fabricante" value="estes" options={[{ value: "estes", label: "Estes" }]} onChange={() => {}} />
+      <SelectField label="Motor" value="A10-3T" options={[{ value: "A10-3T", label: "A10-3T · 13 mm · retardo 3 s" }]} onChange={() => {}} />
+      <p className="hint full">Por ahora el reto usa solo el motor Estes A10-3T.</p>
       <NumField
         label="Masa con combustible"
         unit="g"
