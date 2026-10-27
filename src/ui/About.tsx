@@ -3,6 +3,7 @@ import { A10_SPECS } from "../motor";
 
 export function About() {
   return (
+    <div className="about">
     <div className="card prose">
       <h2 style={{ marginTop: 0 }}>Qué es Rocket Physics Lab Sinaloa</h2>
       <p>
@@ -39,8 +40,51 @@ export function About() {
       </p>
       <p>
         Desarrollado para los cursos de física del Tecnológico de Monterrey, Campus Sinaloa. Rocket Physics Lab Sinaloa es software libre bajo la
-        licencia GPL-3.0.
+        licencia GPL-3.0. Creado por{" "}
+        <button type="button" className="link" onClick={() => document.getElementById("acerca-del-desarrollador")?.scrollIntoView({ behavior: "smooth" })}>
+          Edgar Chucuan
+        </button>.
       </p>
+    </div>
+
+    <section className="card prose author" id="acerca-del-desarrollador" aria-labelledby="author-title">
+      <p className="author-kicker">Acerca del desarrollador</p>
+      <div className="author-head">
+        <span className="author-monogram" aria-hidden="true">EC</span>
+        <div>
+          <h2 id="author-title">Edgar Chucuan</h2>
+          <p className="author-role">Profesor de Física · Desarrollador de tecnología educativa · Colaborador científico internacional</p>
+        </div>
+      </div>
+      <p>
+        Edgar Chucuan es profesor del Área de Ciencias del Tecnológico de Monterrey, Campus Sinaloa. Es ingeniero en Electrónica, con especialidad en
+        Telecomunicaciones, y cuenta con una Maestría en Administración de Telecomunicaciones.
+      </p>
+      <p>
+        Su actividad académica se centra en la enseñanza de la física, el modelado matemático, la simulación computacional y el desarrollo de
+        experiencias educativas basadas en retos de ingeniería.
+      </p>
+      <p>
+        Participa en colaboraciones científicas internacionales vinculadas con el estudio de la física de partículas, incluyendo el experimento
+        <b> Hyper-Kamiokande</b>, en Japón, y proyectos de investigación asociados con <b>CERN</b>, en Suiza.
+      </p>
+      <p>
+        Como parte de su interés por la innovación educativa, desarrolla herramientas digitales que integran modelos físicos, métodos numéricos,
+        simulación e inteligencia artificial para promover el aprendizaje activo y el pensamiento científico.
+      </p>
+      <p>
+        Es creador de <b>Rocket Physics Lab Sinaloa</b>, una plataforma interactiva diseñada para que los estudiantes exploren los principios físicos
+        de la propulsión, la aerodinámica y la dinámica de vuelo mediante el diseño y la simulación de cohetes de combustible sólido y de agua a presión.
+      </p>
+      <p>
+        El proyecto surge de la experiencia educativa <b>Rocket Tec Sinaloa</b>, desarrollada en el Tecnológico de Monterrey, con el propósito de
+        acercar a los estudiantes a la ingeniería aeroespacial mediante la experimentación, la modelación matemática y la validación de predicciones.
+      </p>
+      <blockquote className="author-quote">
+        Su filosofía educativa se fundamenta en un principio: <b>comprender la física, construir modelos, realizar predicciones y contrastarlas con
+        la realidad experimental.</b>
+      </blockquote>
+    </section>
     </div>
   );
 }

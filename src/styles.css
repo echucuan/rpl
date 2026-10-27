@@ -494,3 +494,20 @@ main:has(> .start) { padding-top: 28px; }
 .btn:disabled { opacity: 0.6; cursor: default; }
 .btn:focus-visible { outline: 3px solid var(--tec-blue); outline-offset: 2px; }
 @media (max-width: 520px) { .modal-actions { flex-direction: column-reverse; } .modal-actions .btn { width: 100%; } }
+
+/* ---------- about: developer profile ---------- */
+.about { display: flex; flex-direction: column; gap: 20px; max-width: 812px; }
+.about .prose { max-width: none; }
+.author { border-top: 4px solid var(--tec-blue); scroll-margin-top: 16px; }
+.author-kicker { margin: 0 0 12px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.author-head { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.author-monogram {
+  flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%;
+  background: var(--tec-blue); color: #fff; font-weight: 700; font-size: 1.15rem; letter-spacing: 0.02em;
+}
+.prose .author-head h2 { margin: 0; font-size: 1.35rem; }
+.prose .author-role { margin: 2px 0 0; color: var(--muted); font-size: 0.92rem; font-style: italic; }
+.author-quote {
+  margin: 16px 0 0; padding: 12px 16px; border-left: 4px solid var(--tec-blue);
+  background: var(--tec-blue-soft); border-radius: 0 8px 8px 0; color: #2b2f36;
+}
