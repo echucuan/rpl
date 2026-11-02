@@ -2,6 +2,7 @@ import type { Design, EstesDesign, FinProfile, NoseShape, WaterDesign } from "..
 import { LETTER, MAX_PRESSURE_PSI, WEIGHED, sheetLength, sheetMass, sheetWrap } from "../model";
 import { A10_SPECS, a10Motor, impulseClass } from "../motor";
 import { finArea, layout, noseProperties } from "../physics/geometry";
+import { WATER_DENSITY } from "../physics/propulsion";
 import { NumField, Section, Segmented, SelectField, TextField, format } from "./fields";
 
 type Update = (fn: (d: Design) => Design) => void;
@@ -273,14 +274,18 @@ function BottleSection({ d, update }: { d: WaterDesign; update: Update }) {
 
 function WaterSection({ d, update }: { d: WaterDesign; update: Update }) {
   const setWater = (patch: Partial<WaterDesign["water"]>) => update((p) => ({ ...(p as WaterDesign), water: { ...(p as WaterDesign).water, ...patch } }));
-  const maxWater = Math.round(d.water.bottleVolume * 0.9 * 100) / 100;
+  // Students weigh the water, so the form uses kg; the model keeps litres (files stay compatible).
+  const kgPerL = WATER_DENSITY / 1000;
+  const waterKg = d.water.waterVolume * kgPerL;
+  const setKg = (kg: number) => setWater({ waterVolume: kg / kgPerL });
+  const maxKg = Math.round(d.water.bottleVolume * 0.9 * kgPerL * 100) / 100;
   return (
-    <Section title="Agua y presión" summary={`${format(d.water.waterVolume, 2)} L · ${format(d.water.pressure, 0)} psi`}>
-      <NumField label="Agua" unit="L" min={0} max={maxWater} value={d.water.waterVolume} onChange={(waterVolume) => setWater({ waterVolume })} />
+    <Section title="Agua y presión" summary={`${format(waterKg, 2)} kg · ${format(d.water.pressure, 0)} psi`}>
+      <NumField label="Masa de agua" unit="kg" min={0} max={maxKg} digits={3} value={waterKg} onChange={setKg} title="Pésala en la báscula: 1 L de agua tiene una masa de casi 1 kg" />
       <NumField label="Presión (manómetro)" unit="psi" min={0} max={MAX_PRESSURE_PSI} digits={0} value={d.water.pressure} onChange={(pressure) => setWater({ pressure })} />
       <div className="slider">
         <span className="hint">Agua</span>
-        <input type="range" min={0} max={maxWater} step={0.05} value={d.water.waterVolume} onChange={(e) => setWater({ waterVolume: Number(e.target.value) })} aria-label="Agua en litros" />
+        <input type="range" min={0} max={maxKg} step={0.05} value={waterKg} onChange={(e) => setKg(Number(e.target.value))} aria-label="Masa de agua en kilogramos" />
       </div>
       <div className="slider">
         <span className="hint">Presión</span>
@@ -288,7 +293,8 @@ function WaterSection({ d, update }: { d: WaterDesign; update: Update }) {
       </div>
       <NumField label="Boquilla (boca de la botella)" unit="mm" min={4} max={30} value={d.water.nozzleDiameter} onChange={(nozzleDiameter) => setWater({ nozzleDiameter })} />
       <p className="hint full">
-        Límite de seguridad: {MAX_PRESSURE_PSI} psi. Las botellas se debilitan con cada lanzamiento: cerca del límite usa botellas sin golpes ni rayones.
+        {format(waterKg, 3)} kg de agua ocupan {format(d.water.waterVolume, 3)} L; quedan {format(Math.max(d.water.bottleVolume - d.water.waterVolume, 0), 3)} L de aire
+        a presión. Límite de seguridad: {MAX_PRESSURE_PSI} psi. Las botellas se debilitan con cada lanzamiento: cerca del límite usa botellas sin golpes ni rayones.
       </p>
     </Section>
   );

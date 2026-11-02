@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { Design } from "../model";
 import { a10Motor } from "../motor";
 import { layout } from "../physics/geometry";
+import { WATER_DENSITY } from "../physics/propulsion";
 import type { FlightResult } from "../physics/simulate";
 import { NumField, Segmented, SelectField, format } from "./fields";
 import { LineChart, type Series } from "./LineChart";
@@ -19,6 +20,9 @@ const G0 = 9.80665;
 export interface Comparison {
   altimeter: number;
   altimeterUnit: "m" | "ft";
+  /** Times read from the launch video (Rocket Challenge), s; 0 = not entered. */
+  apogeeTime: number;
+  descentTime: number;
   csv: { name: string; table: Table; timeCol: number; altCol: number; accelCol: number; altUnit: "m" | "ft" } | null;
 }
 
@@ -154,12 +158,30 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
         <h2>Comparar con el vuelo real</h2>
         <div className="compare-grid">
           <div>
-            <p className="hint" style={{ marginBottom: 8 }}>Altímetro Estes: escribe la altura máxima que marcó.</p>
+            <p className="hint" style={{ marginBottom: 8 }}>
+              {d.type === "water"
+                ? "Sensor de altura: escribe la altura máxima que marcó. Del video, mide el tiempo hasta el apogeo y del apogeo al aterrizaje."
+                : "Altímetro Estes: escribe la altura máxima que marcó."}
+            </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 110px", gap: 8 }}>
               <NumField label="Altura medida" min={0} value={comparison.altimeter} onChange={(altimeter) => onComparison({ ...comparison, altimeter })} unit={comparison.altimeterUnit} />
               <SelectField label="Unidad" value={comparison.altimeterUnit} options={[{ value: "ft", label: "pies (ft)" }, { value: "m", label: "metros" }]} onChange={(altimeterUnit) => onComparison({ ...comparison, altimeterUnit })} />
+              {d.type === "water" && (
+                <>
+                  <NumField label="Tiempo hasta el apogeo (video)" unit="s" min={0} value={comparison.apogeeTime} onChange={(apogeeTime) => onComparison({ ...comparison, apogeeTime })} className="full-row" />
+                  <NumField label="Tiempo del apogeo al aterrizaje (video)" unit="s" min={0} value={comparison.descentTime} onChange={(descentTime) => onComparison({ ...comparison, descentTime })} className="full-row" />
+                </>
+              )}
             </div>
-            {comparison.altimeter > 0 && (
+            {d.type === "water" ? (
+              <MeasuredVsSimulated
+                rows={[
+                  { label: "Altura máxima", unit: "m", digits: 1, real: altimeterM, sim: r.apogee.h },
+                  { label: "Tiempo hasta el apogeo", unit: "s", digits: 2, real: comparison.apogeeTime, sim: r.apogee.t },
+                  { label: "Del apogeo al aterrizaje", unit: "s", digits: 2, real: comparison.descentTime, sim: r.landing ? r.landing.t - r.apogee.t : NaN },
+                ]}
+              />
+            ) : comparison.altimeter > 0 && (
               <p style={{ marginTop: 10 }}>
                 Real: <b>{format(altimeterM, 1)} m</b> · simulado: <b>{format(r.apogee.h, 1)} m</b> · diferencia:{" "}
                 <b>{err(altimeterM) >= 0 ? "+" : ""}{format(err(altimeterM), 1)} %</b>
@@ -198,7 +220,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
             <tr><td>Nariz</td><td className="val">{d.type === "estes" ? "PLA" : "impresa"} · {format(d.nose.length)} mm · {format(d.nose.mass, 1)} g</td></tr>
             {d.type === "estes"
               ? <tr><td>Cuerpo</td><td className="val">opalina {d.sheet.gsm} g/m² · {format(d.body.length)} × Ø{format(d.body.diameter)} mm · {format(d.body.mass, 1)} g</td></tr>
-              : <tr><td>Botella</td><td className="val">{format(d.water.bottleVolume, 2)} L · {format(d.water.bottleMass, 0)} g · {format(d.water.waterVolume, 2)} L de agua a {format(d.water.pressure, 0)} psi</td></tr>}
+              : <tr><td>Botella</td><td className="val">{format(d.water.bottleVolume, 2)} L · {format(d.water.bottleMass, 0)} g · {format(d.water.waterVolume * WATER_DENSITY / 1000, 3)} kg de agua a {format(d.water.pressure, 0)} psi</td></tr>}
             <tr><td>Aletas</td><td className="val">{d.fins.count} · raíz {format(d.fins.rootChord)} / punta {format(d.fins.tipChord)} / altura {format(d.fins.span)} mm · {format(d.fins.mass, 1)} g</td></tr>
             {motor && d.type === "estes" && <tr><td>Motor</td><td className="val">{motor.name} · {format(motor.totalImpulse, 2)} N·s · {format(d.motor.mass, 1)} g</td></tr>}
             <tr><td>Paracaídas</td><td className="val">{d.recovery.kind === "parachute" ? `${format(d.recovery.diameter / 10, 0)} cm · ${format(d.recovery.mass, 1)} g` : "ninguno"}</td></tr>
@@ -211,3 +233,25 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
   );
 }
 
+
+/** Rocket Challenge: each measurement next to the prediction; rows without a measurement show only the prediction. */
+function MeasuredVsSimulated({ rows }: { rows: { label: string; unit: string; digits: number; real: number; sim: number }[] }) {
+  return (
+    <table className="summary" style={{ marginTop: 10 }}>
+      <thead><tr><th /><th className="num">Medido</th><th className="num">Simulado</th><th className="num">Diferencia</th></tr></thead>
+      <tbody>
+        {rows.map((x) => {
+          const diff = x.real > 0 && x.sim > 0 ? ((x.real - x.sim) / x.sim) * 100 : null;
+          return (
+            <tr key={x.label}>
+              <td>{x.label}</td>
+              <td className="num">{x.real > 0 ? `${format(x.real, x.digits)} ${x.unit}` : "–"}</td>
+              <td className="num">{Number.isFinite(x.sim) ? `${format(x.sim, x.digits)} ${x.unit}` : "–"}</td>
+              <td className="num">{diff === null ? "–" : <b>{diff >= 0 ? "+" : ""}{format(diff, 1)} %</b>}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}

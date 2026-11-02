@@ -7,7 +7,8 @@ Simulador web de cohetes para las prácticas de física del Tecnológico de Mont
 - **Rocket Tec (combustible sólido):** motor Estes A10-3T, nariz, aletas y porta motor impresos en PLA, cuerpo de una hoja carta de opalina enrollada, paracaídas Estes de 24" y altímetro Estes en la nariz.
 - **Rocket Challenge (agua):** botella Topo Chico de 1.5 L, lanzador de boca completa, hasta 90 psi.
 - Estabilidad (Barrowman), vuelo vertical con arrastre, lecciones por fase del vuelo con código en MATLAB y script de MATLAB descargable.
-- Comparación con el altímetro Estes o un archivo CSV (PASCO).
+- Comparación con el altímetro Estes o un archivo CSV (PASCO); en Rocket Challenge también con los tiempos medidos en video.
+- Rocket Challenge incluye la fase 0 «El experimento»: variables, base de lanzamiento V02 (STL en `public/lanzador/`), materiales y procedimiento de lanzamiento.
 - Cada alumno guarda su diseño como archivo `.rpl.json` en su computadora; la aplicación avisa antes de salir con cambios sin descargar y guarda un borrador de recuperación solo en su navegador.
 
 ## Desarrollo
@@ -24,6 +25,7 @@ Cada push a `main` corre las pruebas y, si pasan, publica el sitio en GitHub Pag
 ## Licencias y créditos
 
 - Código: GPL-3.0-or-later.
+- Base de lanzamiento V02 (piezas STL e imágenes en `public/lanzador/`): CC BY 4.0, Edgar Chucuan, Tecnológico de Monterrey, Campus Sinaloa.
 - Especificaciones de productos: Estes Industries (estesrockets.com).
 - Curva de empuje del A10-3T: prueba de certificación de la NAR, publicada en ThrustCurve.org.
 - Tipografía: Inter (SIL Open Font License). Neue Haas Grotesk se usa solo si está instalada en el equipo de quien visita; sus archivos no se publican.

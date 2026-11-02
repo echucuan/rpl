@@ -11,9 +11,10 @@ import { StabilityLesson } from "./learn/StabilityLesson";
 import { NumericalLesson } from "./learn/NumericalLesson";
 import { saveDesign } from "./storage";
 import { PROGRAMS, logoUrl } from "./StartScreen";
-import { PHASE_SOLID, type PhaseId } from "./phases";
+import { PHASE_SOLID } from "./phases";
+import { Phase0Lesson } from "./learn/Phase0Lesson";
 
-export type SubTab = "cohete" | "graficas" | "fase1" | "fase2" | "fase3" | "fase4" | "estabilidad" | "metodo";
+export type SubTab = "cohete" | "graficas" | "fase0" | "fase1" | "fase2" | "fase3" | "fase4" | "estabilidad" | "metodo";
 
 /** First menu row: the design and the topics that apply to the whole flight. */
 const MAIN_TABS: { id: SubTab; label: string }[] = [
@@ -23,22 +24,26 @@ const MAIN_TABS: { id: SubTab; label: string }[] = [
   { id: "metodo", label: "Método numérico" },
 ];
 
+/** Phase 0 (the experiment) exists only for Rocket Challenge; it uses the water program's colour. */
+const PHASE0 = { id: "fase0" as SubTab, n: 0, label: "El experimento", color: "#0f6d9d" };
+
 /** Second menu row: one lesson per flight phase. */
-const PHASE_TABS: { id: SubTab; n: number; label: string }[] = [
-  { id: "fase1", n: 1, label: "Empuje" },
-  { id: "fase2", n: 2, label: "Frenado hasta el apogeo" },
-  { id: "fase3", n: 3, label: "Caída libre" },
-  { id: "fase4", n: 4, label: "Paracaídas y aterrizaje" },
+const PHASE_TABS: { id: SubTab; n: number; label: string; color: string }[] = [
+  { id: "fase1", n: 1, label: "Empuje", color: PHASE_SOLID[1] },
+  { id: "fase2", n: 2, label: "Frenado hasta el apogeo", color: PHASE_SOLID[2] },
+  { id: "fase3", n: 3, label: "Caída libre", color: PHASE_SOLID[3] },
+  { id: "fase4", n: 4, label: "Paracaídas y aterrizaje", color: PHASE_SOLID[4] },
 ];
+const phaseTabs = (type: Design["type"]) => (type === "water" ? [PHASE0, ...PHASE_TABS] : PHASE_TABS);
 
 /** Reading order of the lessons, for the previous/next buttons. */
-export const LESSONS: { id: SubTab; label: string }[] = [
-  ...PHASE_TABS.map((t) => ({ id: t.id, label: `Fase ${t.n} · ${t.label}` })),
+const lessons = (type: Design["type"]): { id: SubTab; label: string }[] => [
+  ...phaseTabs(type).map((t) => ({ id: t.id, label: `Fase ${t.n} · ${t.label}` })),
   { id: "estabilidad", label: "Estabilidad" },
   { id: "metodo", label: "Método numérico" },
 ];
 
-export const SUB_TABS = [...MAIN_TABS, ...PHASE_TABS].map((t) => t.id);
+export const SUB_TABS = [...MAIN_TABS, PHASE0, ...PHASE_TABS].map((t) => t.id);
 
 interface Props {
   design: Design;
@@ -60,7 +65,9 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
   const deferred = useDeferredValue(design);
   const result = useMemo(() => simulate(deferred), [deferred]);
   const [notice, setNotice] = useState("");
-  const [comparison, setComparison] = useState<Comparison>({ altimeter: 0, altimeterUnit: "ft", csv: null });
+  const [comparison, setComparison] = useState<Comparison>({ altimeter: 0, altimeterUnit: design.type === "water" ? "m" : "ft", apogeeTime: 0, descentTime: 0, csv: null });
+  // "#estes/fase0" (typed or old link): Rocket Tec has no phase 0, so show its design.
+  const view: SubTab = sub === "fase0" && design.type !== "water" ? "cohete" : sub;
 
   const save = () => {
     const entry = saveDesign(design, savedId);
@@ -96,41 +103,42 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
       <nav className="workspace-menu no-print" aria-label="Secciones">
         <div className="menu-row main" role="tablist">
           {MAIN_TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={sub === t.id} onClick={() => go(t.id)}>{t.label}</button>
+            <button key={t.id} role="tab" aria-selected={view === t.id} onClick={() => go(t.id)}>{t.label}</button>
           ))}
         </div>
         <div className="menu-row phases" role="tablist" aria-label="El vuelo por fases">
           <span className="menu-label">El vuelo por fases</span>
-          {PHASE_TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={sub === t.id} onClick={() => go(t.id)} style={{ ["--phase" as string]: PHASE_SOLID[t.n as PhaseId] }}>
+          {phaseTabs(design.type).map((t) => (
+            <button key={t.id} role="tab" aria-selected={view === t.id} onClick={() => go(t.id)} style={{ ["--phase" as string]: t.color }}>
               <span className="phase-dot">{t.n}</span>{t.label}
             </button>
           ))}
         </div>
       </nav>
 
-      <ErrorBoundary key={sub}>
-      {typeof result === "string" && sub !== "cohete" ? (
+      <ErrorBoundary key={view}>
+      {typeof result === "string" && view !== "cohete" && view !== "fase0" ? (
         <div className="card"><div className="alert error">{result} Corrige el diseño en la pestaña Cohete.</div></div>
       ) : (
         <>
-          {sub === "cohete" && <RocketTab design={design} shown={deferred} result={result} onChange={onChange} onGo={go} />}
+          {view === "fase0" && deferred.type === "water" && <Phase0Lesson design={deferred} result={typeof result === "string" ? null : result} onGo={go} />}
+          {view === "cohete" && <RocketTab design={design} shown={deferred} result={result} onChange={onChange} onGo={go} />}
           {typeof result !== "string" && (
             <>
-              {sub === "graficas" && <GraphsTab design={deferred} result={result} comparison={comparison} onComparison={setComparison} onLesson={go} />}
-              {sub === "fase1" && <Phase1Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
-              {sub === "fase2" && <Phase2Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
-              {sub === "fase3" && <Phase3Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
-              {sub === "fase4" && <Phase4Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
-              {sub === "estabilidad" && <StabilityLesson design={deferred} result={result} />}
-              {sub === "metodo" && <NumericalLesson design={deferred} result={result} />}
+              {view === "graficas" && <GraphsTab design={deferred} result={result} comparison={comparison} onComparison={setComparison} onLesson={go} />}
+              {view === "fase1" && <Phase1Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
+              {view === "fase2" && <Phase2Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
+              {view === "fase3" && <Phase3Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
+              {view === "fase4" && <Phase4Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
+              {view === "estabilidad" && <StabilityLesson design={deferred} result={result} />}
+              {view === "metodo" && <NumericalLesson design={deferred} result={result} />}
             </>
           )}
         </>
       )}
       </ErrorBoundary>
-      {sub !== "cohete" && sub !== "graficas" && (
-        <LessonNav sub={sub} go={go} />
+      {view !== "cohete" && view !== "graficas" && (
+        <LessonNav sub={view} type={design.type} go={go} />
       )}
     </>
   );
@@ -150,7 +158,8 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
   }
 }
 
-function LessonNav({ sub, go }: { sub: SubTab; go: (s: SubTab) => void }) {
+function LessonNav({ sub, type, go }: { sub: SubTab; type: Design["type"]; go: (s: SubTab) => void }) {
+  const LESSONS = lessons(type);
   const i = LESSONS.findIndex((l) => l.id === sub);
   const prev = LESSONS[i - 1], next = LESSONS[i + 1];
   return (
