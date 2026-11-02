@@ -33,7 +33,9 @@ export function NumField({ label, value, onChange, unit, min, max, digits = 2, c
 
   useEffect(() => {
     // Follow external changes (e.g. a recomputed mass) unless the text already means this value.
-    if (parseNumber(text) !== value) setText(format(value, digits));
+    // A tolerance keeps converted values (kg ↔ L) from rewriting what the student is typing.
+    const typed = parseNumber(text);
+    if (typed === null || Math.abs(typed - value) > 1e-9 * Math.max(1, Math.abs(value))) setText(format(value, digits));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 

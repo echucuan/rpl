@@ -1,0 +1,10 @@
+Base de lanzamiento V02 (HEX) para el Rocket Challenge Sinaloa
+Tecnológico de Monterrey, Campus Sinaloa
+
+Los archivos STL y las imágenes de esta carpeta se publican bajo la licencia
+Creative Commons Atribución 4.0 Internacional (CC BY 4.0):
+https://creativecommons.org/licenses/by/4.0/deed.es
+
+Puedes imprimir, compartir y modificar las piezas, incluso con fines comerciales,
+siempre que des crédito: "Base de lanzamiento V02, Edgar Chucuan,
+Tecnológico de Monterrey, Campus Sinaloa".

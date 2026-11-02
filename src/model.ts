@@ -150,7 +150,8 @@ export function newWaterDesign(): WaterDesign {
     // The water sits at the aft end, so water rockets usually need ballast in the nose.
     extras: [{ name: "Lastre en la nariz (plastilina)", mass: 80, position: 70 }],
     launch: { altitude: 55, temperature: 30, guideLength: 0.5 },
-    water: { bottleVolume: 1.5, bottleMass: 40, waterVolume: 0.5, pressure: 60, nozzleDiameter: 21.5 },
+    // 0.5 kg of water: the form works in kg, the model in litres (density 997 kg/m³).
+    water: { bottleVolume: 1.5, bottleMass: 40, waterVolume: 0.5 / 0.997, pressure: 60, nozzleDiameter: 21.5 },
   };
 }
 
