@@ -17,7 +17,7 @@ export function normalize(d: Design): Design {
     // Replace the placeholder estimates used before the lab weighed these parts; keep anything a student typed.
     if (n.altimeter.mass === 5) n.altimeter = { ...n.altimeter, mass: WEIGHED.altimeter };
     if (n.recovery.mass === 9) n.recovery = { ...n.recovery, mass: WEIGHED.parachute };
-    if (n.motor.mass === 8.2 && n.motor.propellant === 3.5) n.motor = { mass: WEIGHED.motorLoaded, propellant: WEIGHED.motorLoaded - WEIGHED.motorBurnt };
+    if (n.motor.mass === 8.2 && n.motor.propellant === 3.5) n.motor = { ...n.motor, mass: WEIGHED.motorLoaded, propellant: WEIGHED.motorLoaded - WEIGHED.motorBurnt };
   }
   return n;
 }

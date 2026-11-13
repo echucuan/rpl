@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
 import type { Design } from "../model";
-import { a10Motor } from "../motor";
+import { motorFor } from "../motor";
 import { layout } from "../physics/geometry";
 import { WATER_DENSITY } from "../physics/propulsion";
 import type { FlightResult } from "../physics/simulate";
 import { NumField, Segmented, SelectField, format } from "./fields";
 import { LineChart, type Series } from "./LineChart";
-import { flightMarkers, flightSpans, series, thin } from "./phases";
+import { QTY, flightMarkers, flightSpans, posAxis, posTitle, series, thin } from "./phases";
 import { PhaseTimeline } from "./PhaseTimeline";
+import { FlightBadge } from "./FlightBadge";
+import { forceSeriesTec } from "./learn/phaseCommon";
 import { guessColumn, parseTable, realSeries, type Table } from "./realData";
 import { downloadFile, fileSafe } from "./storage";
 import { downloadMatlab } from "./matlab";
@@ -26,12 +28,78 @@ export interface Comparison {
   csv: { name: string; table: Table; timeCol: number; altCol: number; accelCol: number; altUnit: "m" | "ft" } | null;
 }
 
-function Kpi({ label, value, unit, sub, hero }: { label: string; value: string; unit?: string; sub?: string; hero?: boolean }) {
+type Q = "F" | "a" | "v" | "s" | "n";
+interface Card { label: string; value: string; unit?: string; sub?: string }
+
+/** One flight result: the card takes the colour of its quantity (as in the phase lessons). */
+function FlightCard({ q, label, value, unit, sub }: Card & { q: Q }) {
   return (
-    <div className={`kpi ${hero ? "hero" : ""}`}>
-      <div className="label">{label}</div>
-      <div className="value">{value}{unit && <small>{unit}</small>}</div>
-      {sub && <div className="sub">{sub}</div>}
+    <div className={`change-card q-${q}`}>
+      <div className="change-head"><span>{label}</span></div>
+      <div className="change-value">{value}{unit && <small>{unit}</small>}</div>
+      {sub && <div className="change-span">{sub}</div>}
+    </div>
+  );
+}
+
+/** The flight in numbers, grouped by quantity: forces → acceleration → velocities → positions → times. */
+function FlightResults({ d, r, motor }: { d: Design; r: FlightResult; motor?: { name: string; delay: number } }) {
+  const maxThrust = Math.max(...r.samples.map((s) => s.thrust));
+  const weight = r.samples[0].mass * G0;
+  const maxDrag = Math.max(...r.samples.map((s) => Math.abs(s.drag)));
+  const quick = (t: number) => format(t, t < 0.5 ? 3 : 2);
+  const groups: { q: Q; title: string; cards: Card[] }[] = [
+    {
+      q: "F", title: "Fuerzas",
+      cards: [
+        { label: d.type === "water" ? "Empuje máximo del agua" : "Empuje máximo", value: format(maxThrust, 1), unit: "N" },
+        { label: "Peso al despegar", value: format(weight, 2), unit: "N", sub: `masa de ${format(r.samples[0].mass * 1000, 0)} g` },
+        { label: "Arrastre máximo", value: format(maxDrag, 2), unit: "N" },
+        { label: "Empuje / peso", value: format(r.thrustToWeight, 1), sub: d.type === "estes" ? "con el empuje máximo" : "al despegar" },
+      ],
+    },
+    {
+      q: "a", title: "Aceleraciones",
+      cards: [{ label: "Aceleración máxima", value: format(r.maxAcceleration, 0), unit: "m/s²", sub: `${format(r.maxAcceleration / G0, 1)} g` }],
+    },
+    {
+      q: "v", title: "Velocidades",
+      cards: [
+        { label: "Al salir de la guía", value: r.guideExit ? format(r.guideExit.v, 1) : "–", unit: "m/s", sub: `guía de ${format(d.launch.guideLength, 2)} m` },
+        { label: "Velocidad máxima", value: format(r.maxVelocity, 1), unit: "m/s", sub: `${format(r.maxVelocity * 3.6, 0)} km/h · Mach ${format(r.maxMach, 2)}` },
+        ...(r.ejection ? [{ label: "Al abrir el paracaídas", value: format(Math.abs(r.ejection.v), 1), unit: "m/s" }] : []),
+        { label: "Velocidad de aterrizaje", value: format(r.descentRate, 1), unit: "m/s" },
+      ],
+    },
+    {
+      q: "s", title: "Posiciones",
+      cards: [
+        ...(r.burnout ? [{ label: d.type === "water" ? "Altura al acabarse el agua" : "Altura al fin del empuje", value: format(r.burnout.h, 1), unit: "m" }] : []),
+        { label: d.type === "estes" ? "Apogeo" : "Altura máxima", value: format(r.apogee.h, 1), unit: "m", sub: `${format(r.apogee.h / 0.3048, 0)} ft` },
+        ...(r.ejection ? [{ label: "Altura al abrir el paracaídas", value: format(r.ejection.h, 1), unit: "m" }] : []),
+      ],
+    },
+    {
+      q: "n", title: "Tiempos",
+      cards: [
+        { label: d.type === "water" ? "Se acaba el agua y el aire" : "Fin del empuje", value: r.burnout ? quick(r.burnout.t) : "–", unit: r.burnout ? "s" : undefined },
+        { label: "Tiempo al apogeo", value: format(r.apogee.t, 2), unit: "s" },
+        { label: "Se abre el paracaídas", value: r.ejection ? format(r.ejection.t, 2) : "No", unit: r.ejection ? "s" : undefined },
+        ...(motor && r.idealDelay !== null ? [{ label: "Retardo ideal", value: format(r.idealDelay, 1), unit: "s", sub: `el ${motor.name} tiene ${motor.delay} s` }] : []),
+        ...(r.landing ? [{ label: "Duración del vuelo", value: format(r.landing.t, 1), unit: "s" }] : []),
+      ],
+    },
+  ];
+  return (
+    <div className="flight-results">
+      {groups.map((g) => (
+        <section key={g.q} className={`flight-group q-${g.q}`}>
+          <h3>{g.title}</h3>
+          <div className="flight-cards">
+            {g.cards.map((c) => <FlightCard key={c.label} q={g.q} {...c} />)}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
@@ -46,34 +114,38 @@ interface Props {
 
 export function GraphsTab({ design: d, result: r, comparison, onComparison, onLesson }: Props) {
   const [csvError, setCsvError] = useState("");
-  const [range, setRange] = useState<"ascent" | "all">("ascent");
+  const [range, setRange] = useState<"ascent" | "all">("all");
   const xMax = range === "ascent" ? Math.min(r.apogee.t * 1.25 + 0.2, r.samples[r.samples.length - 1].t) : undefined;
   const { csv } = comparison;
   const simLiftoff = r.samples.find((s) => s.h > 0.5)?.t ?? 0;
   const real = useMemo(() => (csv ? realSeries(csv.table, csv.timeCol, csv.altCol, csv.accelCol, csv.altUnit, simLiftoff) : null), [csv, simLiftoff]);
-  const spans = useMemo(() => flightSpans(r), [r]);
+  const spans = useMemo(() => flightSpans(r, d.type), [r, d.type]);
   const markers = useMemo(() => flightMarkers(r), [r]);
 
+  // Rocket Tec: one colour per quantity (s, v, dv/dt), the same as in the lessons.
+  const tec = d.type === "estes";
   const charts = useMemo(() => {
     const shown = thin(r);
     const burnEnd = (r.burnout?.t ?? 0) * 1.3 + 0.02;
-    const altitude: Series[] = [{ label: "Simulación", points: series(shown, (s) => s.h), color: BLUE }];
-    const acceleration: Series[] = [{ label: "Simulación", points: series(shown, (s) => s.a), color: BLUE }];
+    // Rocket Tec labels each curve with its quantity and colour, as in the phase lessons.
+    const altitude: Series[] = [{ label: tec ? "s" : "Simulación", points: series(shown, (s) => s.h), color: tec ? QTY.s : BLUE }];
+    const acceleration: Series[] = [{ label: tec ? "dv/dt" : "Simulación", points: series(shown, (s) => s.a), color: tec ? QTY.a : BLUE }];
     if (real && typeof real !== "string") {
       altitude.push({ label: "Vuelo real", points: real.altitude, color: ORANGE });
       if (real.acceleration.length) acceleration.push({ label: "Vuelo real (sensor)", points: real.acceleration, color: ORANGE });
     }
     return {
       altitude,
-      velocity: [{ label: "Simulación", points: series(shown, (s) => s.v), color: BLUE }],
+      velocity: [{ label: tec ? "v" : "Simulación", points: series(shown, (s) => s.v), color: tec ? QTY.v : BLUE }],
+      forces: forceSeriesTec(shown),
       acceleration,
-      thrust: [{ label: "Empuje", points: r.samples.filter((s) => s.t <= burnEnd).map((s) => ({ x: s.t, y: s.thrust })), color: "#a35f2a", fill: true }],
+      thrust: [{ label: "Empuje", points: r.samples.filter((s) => s.t <= burnEnd).map((s) => ({ x: s.t, y: s.thrust })), color: QTY.T, fill: true }],
       burnEnd,
     };
-  }, [r, real]);
+  }, [r, real, tec]);
 
   const l = layout(d);
-  const motor = d.type === "estes" ? a10Motor(d.motor.mass, d.motor.propellant) : undefined;
+  const motor = d.type === "estes" ? motorFor(d.motor) : undefined;
   const altimeterM = comparison.altimeterUnit === "ft" ? comparison.altimeter * 0.3048 : comparison.altimeter;
   const err = (v: number) => ((v - r.apogee.h) / r.apogee.h) * 100;
 
@@ -107,6 +179,8 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
     <div className="results wide">
       <div className="print-only"><h2 style={{ color: BLUE }}>Rocket Physics Lab Sinaloa · {d.name}</h2></div>
 
+      <FlightBadge design={d} result={r} onGo={onLesson} />
+
       <div className="card">
         <div className="card-head">
           <h2>Resultados de la simulación · {d.name}</h2>
@@ -116,20 +190,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
             <button type="button" className="btn small" onClick={() => window.print()}>Imprimir o guardar PDF</button>
           </div>
         </div>
-        <div className="kpis">
-          <Kpi hero label="Altura máxima" value={format(r.apogee.h, 1)} unit="m" sub={`${format(r.apogee.h / 0.3048, 0)} ft`} />
-          <Kpi label="Tiempo al apogeo" value={format(r.apogee.t, 2)} unit="s" />
-          <Kpi label="Velocidad máxima" value={format(r.maxVelocity, 1)} unit="m/s" sub={`${format(r.maxVelocity * 3.6, 0)} km/h · Mach ${format(r.maxMach, 2)}`} />
-          <Kpi label="Aceleración máxima" value={format(r.maxAcceleration / G0, 1)} unit="g" sub={`${format(r.maxAcceleration, 0)} m/s²`} />
-          <Kpi label="Al salir de la guía" value={r.guideExit ? format(r.guideExit.v, 1) : "–"} unit="m/s" sub={`guía de ${format(d.launch.guideLength, 2)} m`} />
-          <Kpi label={d.type === "water" ? "Se acaba el agua y el aire" : "Fin del empuje"} value={r.burnout ? format(r.burnout.t, r.burnout.t < 0.5 ? 3 : 2) : "–"} unit="s" sub={r.burnout ? `a ${format(r.burnout.h, 1)} m y ${format(r.burnout.v, 1)} m/s` : undefined} />
-          <Kpi label="Se abre el paracaídas" value={r.ejection ? format(r.ejection.t, 2) : "No"} unit={r.ejection ? "s" : undefined} sub={r.ejection ? `a ${format(r.ejection.h, 1)} m, ${format(Math.abs(r.ejection.v), 1)} m/s` : undefined} />
-          <Kpi label="Velocidad de aterrizaje" value={format(r.descentRate, 1)} unit="m/s" sub={r.landing ? `vuelo de ${format(r.landing.t, 1)} s` : undefined} />
-          {motor && r.idealDelay !== null && (
-            <Kpi label="Retardo ideal" value={format(r.idealDelay, 1)} unit="s" sub={`el A10-3T tiene ${motor.delay} s`} />
-          )}
-          <Kpi label="Empuje / peso" value={format(r.thrustToWeight, 1)} sub={d.type === "estes" ? "con el empuje máximo" : "al despegar"} />
-        </div>
+        <FlightResults d={d} r={r} motor={motor} />
         {r.warnings.length > 0 && (
           <div className="alerts" style={{ marginTop: 12 }}>
             {r.warnings.map((w, i) => <div key={i} className={`alert ${w.level}`}>{w.text}</div>)}
@@ -139,18 +200,30 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
 
       <div className="card">
         <div className="card-head">
-          <h2>Gráficas del vuelo</h2>
+          <h2>Simulaciones del vuelo</h2>
           <Segmented value={range} options={[{ value: "ascent", label: "Ascenso" }, { value: "all", label: "Todo el vuelo" }]} onChange={setRange} />
         </div>
         <p className="hint" style={{ marginBottom: 8 }}>
           Las franjas de color marcan las cuatro fases del vuelo y las líneas punteadas, los eventos. Haz clic en una fase para ver cómo se calcula.
         </p>
-        <PhaseTimeline result={r} onPick={(id) => onLesson(`fase${id}` as SubTab)} />
+        <PhaseTimeline result={r} type={d.type} onPick={(id) => onLesson(`fase${id}` as SubTab)} />
         <div className="charts">
-          <div><LineChart title="Altura h(t)" xLabel="Tiempo (s)" yLabel="Altura (m)" series={charts.altitude} spans={spans} markers={markers} xMax={xMax} /></div>
+          {tec ? (
+            <>
+              {/* Same order and colours as the phase lessons: cause → effect. */}
+              <div><LineChart title="Fuerzas y suma de fuerzas ΣF" xLabel="Tiempo (s)" yLabel="Fuerza (N)" series={charts.forces} spans={spans} markers={markers} xMax={xMax} /></div>
+              <div><LineChart title="Aceleración dv/dt" xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={charts.acceleration} spans={spans} markers={markers} xMax={xMax} /></div>
+              <div><LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={charts.velocity} spans={spans} markers={markers} xMax={xMax} /></div>
+              <div><LineChart title={posTitle(d.type)} xLabel="Tiempo (s)" yLabel={posAxis(d.type)} series={charts.altitude} spans={spans} markers={markers} xMax={xMax} /></div>
+            </>
+          ) : (
+            <>
+          <div><LineChart title={posTitle(d.type)} xLabel="Tiempo (s)" yLabel={posAxis(d.type)} series={charts.altitude} spans={spans} markers={markers} xMax={xMax} /></div>
           <div><LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={charts.velocity} spans={spans} markers={markers} xMax={xMax} /></div>
           <div><LineChart title="Aceleración a(t)" xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={charts.acceleration} spans={spans} markers={markers} xMax={xMax} /></div>
-          <div><LineChart title={d.type === "water" ? "Empuje del agua y el aire T(t)" : `Empuje del motor ${motor?.name ?? ""} T(t)`} xLabel="Tiempo (s)" yLabel="Empuje (N)" series={charts.thrust} xMax={charts.burnEnd} /></div>
+          <div><LineChart title={d.type === "water" ? "Empuje del agua y el aire T(t)" : `Empuje del motor ${motor?.name ?? ""} T(t)${motor?.model === "average" ? " (empuje promedio constante)" : ""}`} xLabel="Tiempo (s)" yLabel="Empuje (N)" series={charts.thrust} xMax={charts.burnEnd} /></div>
+            </>
+          )}
         </div>
       </div>
 
@@ -161,7 +234,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
             <p className="hint" style={{ marginBottom: 8 }}>
               {d.type === "water"
                 ? "Sensor de altura: escribe la altura máxima que marcó. Del video, mide el tiempo hasta el apogeo y del apogeo al aterrizaje."
-                : "Altímetro Estes: escribe la altura máxima que marcó."}
+                : "Altímetro Estes: escribe el apogeo que marcó."}
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 110px", gap: 8 }}>
               <NumField label="Altura medida" min={0} value={comparison.altimeter} onChange={(altimeter) => onComparison({ ...comparison, altimeter })} unit={comparison.altimeterUnit} />
@@ -201,7 +274,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
                 {typeof real === "string" && <div className="alert error" style={{ gridColumn: "1 / -1" }}>{real}</div>}
                 {real && typeof real !== "string" && (
                   <p style={{ gridColumn: "1 / -1", margin: 0 }}>
-                    {csv.name}: altura máxima real <b>{format(real.apogee, 1)} m</b> · diferencia{" "}
+                    {csv.name}: {d.type === "estes" ? "apogeo" : "altura máxima"} real <b>{format(real.apogee, 1)} m</b> · diferencia{" "}
                     <b>{err(real.apogee) >= 0 ? "+" : ""}{format(err(real.apogee), 1)} %</b>. El despegue real se alineó con el simulado.
                   </p>
                 )}
@@ -222,7 +295,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
               ? <tr><td>Cuerpo</td><td className="val">opalina {d.sheet.gsm} g/m² · {format(d.body.length)} × Ø{format(d.body.diameter)} mm · {format(d.body.mass, 1)} g</td></tr>
               : <tr><td>Botella</td><td className="val">{format(d.water.bottleVolume, 2)} L · {format(d.water.bottleMass, 0)} g · {format(d.water.waterVolume * WATER_DENSITY / 1000, 3)} kg de agua a {format(d.water.pressure, 0)} psi</td></tr>}
             <tr><td>Aletas</td><td className="val">{d.fins.count} · raíz {format(d.fins.rootChord)} / punta {format(d.fins.tipChord)} / altura {format(d.fins.span)} mm · {format(d.fins.mass, 1)} g</td></tr>
-            {motor && d.type === "estes" && <tr><td>Motor</td><td className="val">{motor.name} · {format(motor.totalImpulse, 2)} N·s · {format(d.motor.mass, 1)} g</td></tr>}
+            {motor && d.type === "estes" && <tr><td>Motor</td><td className="val">{motor.name} · {format(motor.totalImpulse, 2)} N·s · {format(d.motor.mass, 1)} g · {motor.model === "average" ? `empuje promedio constante de ${format(motor.averageThrust, 2)} N` : "empuje real (curva)"}</td></tr>}
             <tr><td>Paracaídas</td><td className="val">{d.recovery.kind === "parachute" ? `${format(d.recovery.diameter / 10, 0)} cm · ${format(d.recovery.mass, 1)} g` : "ninguno"}</td></tr>
             {d.extras.map((e, i) => <tr key={i}><td>{e.name}</td><td className="val">{format(e.mass, 1)} g a {format(e.position)} mm</td></tr>)}
             <tr><td>Sitio</td><td className="val">{format(d.launch.altitude, 0)} m s.n.m. · {format(d.launch.temperature, 0)} °C · guía {format(d.launch.guideLength, 2)} m</td></tr>

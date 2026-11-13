@@ -3,7 +3,7 @@ import type { Design } from "../../model";
 import { simulate, type FlightResult } from "../../physics/simulate";
 import { format } from "../fields";
 import { LineChart, type Series } from "../LineChart";
-import { series } from "../phases";
+import { posAxis, posSym, series } from "../phases";
 import { downloadMatlab, matlabFileName } from "../matlab";
 import { Code, Eq, LessonHeader, StageBlock, Think, YourRocket, n } from "./common";
 
@@ -14,6 +14,7 @@ const WATER_STEPS = [0.00005, 0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01]
 export function NumericalLesson({ design: d, result: ref }: { design: Design; result: FlightResult }) {
   const steps = d.type === "water" ? WATER_STEPS : ESTES_STEPS;
   const [k, setK] = useState(4);
+  const S = posSym(d.type);
   const dt = steps[k];
 
   const runs = useMemo(() => {
@@ -50,7 +51,7 @@ export function NumericalLesson({ design: d, result: ref }: { design: Design; re
         <StageBlock stage="fisica">
           <p>
             Toda la física de las lecciones anteriores se resume en: <i>"conociendo dónde está el cohete y qué tan rápido va ahora, puedo calcular qué tan
-            rápido cambian esas cantidades"</i>. Es un <b>problema de valor inicial</b>: sabemos que al principio <Eq tex="h=0" /> y <Eq tex="v=0" />, y conocemos las
+            rápido cambian esas cantidades"</i>. Es un <b>problema de valor inicial</b>: sabemos que al principio <Eq tex={`${S}=0`} /> y <Eq tex="v=0" />, y conocemos las
             leyes que dictan el cambio.
           </p>
           <p>
@@ -91,13 +92,13 @@ export function NumericalLesson({ design: d, result: ref }: { design: Design; re
               <input type="range" min={0} max={steps.length - 1} step={1} value={k} onChange={(e) => setK(Number(e.target.value))} />
             </label>
             <YourRocket>
-              <Eq block tex={r`\text{Referencia: } h_{max} = ${n(ref.apogee.h, 2)}\ \text{m}`} />
+              <Eq block tex={r`\text{Referencia: } ${S}_{max} = ${n(ref.apogee.h, 2)}\ \text{m}`} />
               {runs.euler && <Eq block tex={r`\text{Euler: } ${n(runs.euler.apogee.h, 2)}\ \text{m} \quad (\text{error } ${n(err(runs.euler.apogee.h), 2)}\%)`} />}
               {runs.rk4 && <Eq block tex={r`\text{RK4: } ${n(runs.rk4.apogee.h, 2)}\ \text{m} \quad (\text{error } ${n(err(runs.rk4.apogee.h), 3)}\%)`} />}
             </YourRocket>
           </div>
           <table className="summary">
-            <thead><tr><th>Δt (s)</th><th className="num">Euler: h<sub>max</sub></th><th className="num">error</th><th className="num">RK4: h<sub>max</sub></th><th className="num">error</th></tr></thead>
+            <thead><tr><th>Δt (s)</th><th className="num">Euler: {S}<sub>max</sub></th><th className="num">error</th><th className="num">RK4: {S}<sub>max</sub></th><th className="num">error</th></tr></thead>
             <tbody>
               {table.map((row) => (
                 <tr key={row.dt} style={row.dt === dt ? { background: "var(--tec-blue-soft)" } : undefined}>
@@ -130,11 +131,11 @@ pasos = [${steps.join(" ")}];
 for i = 1:numel(pasos)
     rE = simular(p, @paso_euler, pasos(i), true);   % solo el ascenso
     rR = simular(p, @paso_rk4,   pasos(i), true);
-    hE(i) = rE.h_apogeo;  hR(i) = rR.h_apogeo;
+    ${S}E(i) = rE.${S}_apogeo;  ${S}R(i) = rR.${S}_apogeo;
 end
 ref = simular(p, @paso_rk4, [], true);           % RK4 con paso variable
-loglog(pasos, abs(hE - ref.h_apogeo), 'o-', pasos, abs(hR - ref.h_apogeo), 's-');
-xlabel('\Delta t (s)'); ylabel('error en h_{max} (m)');
+loglog(pasos, abs(${S}E - ref.${S}_apogeo), 'o-', pasos, abs(${S}R - ref.${S}_apogeo), 's-');
+xlabel('\\Delta t (s)'); ylabel('error en ${S}_{max} (m)');
 legend('Euler (pendiente 1)', 'RK4 (pendiente 4)');
           `}</Code>
         </StageBlock>
@@ -149,7 +150,7 @@ legend('Euler (pendiente 1)', 'RK4 (pendiente 4)');
       </div>
 
       <div className="card">
-        <LineChart title="Ascenso calculado con cada método" xLabel="Tiempo (s)" yLabel="Altura (m)" series={chart} height={320} />
+        <LineChart title="Ascenso calculado con cada método" xLabel="Tiempo (s)" yLabel={posAxis(d.type)} series={chart} height={320} />
       </div>
       <Think>
         <ul>

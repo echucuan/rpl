@@ -1,9 +1,10 @@
 // One-dimensional vertical flight (the lab launches straight up), integrated with RK4.
 import type { Design } from "../model";
 import { MAX_PRESSURE_PSI } from "../model";
-import { A10_SPECS, a10Motor, type Motor } from "../motor";
+import { makerName, motorFor, motorSpec, type Motor } from "../motor";
 import { air, G } from "./atmosphere";
 import { dragModel } from "./drag";
+import { chuteCdA } from "./parachute";
 import { centreOfMass, stability, structureItems, waterFill, type MassItem, type Stability } from "./geometry";
 import { motorPropulsion, waterPropulsion, WATER_DENSITY, type Propulsion } from "./propulsion";
 
@@ -82,7 +83,7 @@ function setup(d: Design, groundPressure: number, groundTemperature: number): Se
   const dry = centreOfMass(items).mass / 1000;
   if (d.type === "estes") {
     if (d.motor.propellant <= 0 || d.motor.propellant >= d.motor.mass) return "Revisa la masa del motor: el propelente debe ser menor que la masa total.";
-    const motor = a10Motor(d.motor.mass, d.motor.propellant);
+    const motor = motorFor(d.motor);
     const end = d.body.length + d.nose.length;
     const x = end - motor.length / 2;
     const loaded = [...items, { name: "Motor", mass: motor.mass[0], x }];
@@ -119,9 +120,19 @@ export function simulate(d: Design, options: SimulationOptions = {}): FlightResu
   const s = setup(d, ground.pressure, ground.temperature);
   if (typeof s === "string") return s;
   const drag = dragModel(d, s.propulsion.exhaustDiameter);
-  const chuteArea = d.recovery.kind === "parachute" ? (Math.PI / 4) * (d.recovery.diameter / 1000) ** 2 : 0;
-  const chuteCdA = d.recovery.cd * chuteArea;
+  const chuteDragArea = chuteCdA(d);
+  // Rocket Tec phase IV: only the parachute drags (the body is negligible next to it), either as ½ρ·Cd·A·v² or as the
+  // linear force f = −b·v, with b = mg / v_t so that both land at the same terminal speed (air density at the ground).
+  const tecChute = d.type === "estes";
+  const linearChute = tecChute && d.recovery.chuteModel !== "quadratic" && chuteDragArea > 0; // linear unless chosen otherwise
+  const linearB = (mass: number) => (mass * G) / Math.sqrt((2 * mass * G) / (ground.density * chuteDragArea));
 
+  // Simplified Rocket Tec model: with the average thrust, drag can be switched off while the motor burns.
+  const noBurnDrag = d.type === "estes" && d.motor.thrust === "average" && d.motor.burnDrag === false;
+  // Rocket Tec phase II (burnout to apogee): drag can be switched off too.
+  const noCoastDrag = d.type === "estes" && d.motor.coastDrag === false;
+  // Rocket Tec phase III (apogee to ejection, falling without the parachute): drag can be switched off too.
+  const noFallDrag = d.type === "estes" && d.motor.fallDrag === false;
   let deployed = false;
   // state: [h, v, ...propulsion]
   const derivatives = (t: number, y: number[]) => {
@@ -131,9 +142,12 @@ export function simulate(d: Design, options: SimulationOptions = {}): FlightResu
     const mass = s.dryMass + p.mass;
     const speed = Math.abs(v);
     const mach = speed / atm.soundSpeed;
-    const cd = noDrag ? 0 : drag.cd(speed, mach, atm.kinematicViscosity, p.active);
-    const cdA = cd * drag.refArea + (deployed && !noDrag ? chuteCdA : 0);
-    const dragForce = 0.5 * atm.density * v * v * cdA * Math.sign(v);
+    const coasting = !p.active && v > 0 && !deployed;
+    const falling = !p.active && v <= 0 && !deployed;
+    const chuteOnly = deployed && tecChute;
+    const cd = noDrag || chuteOnly || (noBurnDrag && p.active) || (noCoastDrag && coasting) || (noFallDrag && falling) ? 0 : drag.cd(speed, mach, atm.kinematicViscosity, p.active);
+    const cdA = cd * drag.refArea + (deployed && !noDrag ? chuteDragArea : 0);
+    const dragForce = chuteOnly && linearChute && !noDrag ? linearB(mass) * v : 0.5 * atm.density * v * v * cdA * Math.sign(v);
     let a = (p.thrust - dragForce) / mass - G;
     if (h <= 0 && v <= 0 && a < 0) a = 0; // resting on the pad
     return { dy: [v, a, ...p.derivative], a, thrust: p.thrust, drag: dragForce, mass, active: p.active, mach, cd, density: atm.density, p };
@@ -255,7 +269,10 @@ function warnings(d: Design, r: FlightResult, lifted: boolean): Warning[] {
   if (r.guideExit && r.guideExit.v < 10) w.push({ level: "warning", text: `Sale de la guía a solo ${r.guideExit.v.toFixed(1)} m/s; abajo de 10 m/s las aletas todavía no estabilizan bien.` });
   if (d.recovery.kind === "none" || d.recovery.deployment === "none") w.push({ level: "warning", text: "Sin paracaídas: el cohete cae libremente. Revisa la zona de seguridad." });
   if (d.type === "estes" && d.recovery.kind === "parachute" && !r.ejection) w.push({ level: "error", text: "El cohete toca el suelo antes de que se active la eyección del motor." });
-  if (d.type === "estes" && r.liftoffMass > A10_SPECS.maxLiftoffMass) w.push({ level: "error", text: `Pesa ${r.liftoffMass.toFixed(0)} g al despegar: Estes indica un máximo de ${A10_SPECS.maxLiftoffMass} g para el motor A10-3T. Aligera las piezas impresas.` });
+  if (d.type === "estes") {
+    const spec = motorSpec(d.motor.id);
+    if (r.liftoffMass > spec.rated.maxLiftoffMass) w.push({ level: "error", text: `Pesa ${r.liftoffMass.toFixed(0)} g al despegar: ${makerName(spec.maker)} indica un máximo de ${spec.rated.maxLiftoffMass} g para el motor ${spec.name}. Aligera las piezas impresas.` });
+  }
   if (r.ejection && Math.abs(r.ejection.v) > 20) w.push({ level: "warning", text: `El paracaídas se abre a ${Math.abs(r.ejection.v).toFixed(0)} m/s: puede romperse o desprenderse. El retardo ideal sería ${r.idealDelay?.toFixed(1) ?? "-"} s y el del A10-3T es de 3 s: ajusta la masa o el arrastre.` });
   if (r.landing && d.recovery.kind === "parachute" && r.ejection && r.descentRate > 6) w.push({ level: "warning", text: `Aterriza a ${r.descentRate.toFixed(1)} m/s; arriba de 6 m/s puede dañarse. Usa un paracaídas más grande.` });
   if (r.maxMach > 0.7) w.push({ level: "info", text: "Velocidad cercana a la del sonido: el modelo de arrastre pierde precisión arriba de Mach 0.7." });

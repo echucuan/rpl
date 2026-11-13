@@ -4,13 +4,20 @@ import { G } from "../../physics/atmosphere";
 import { dragModel } from "../../physics/drag";
 import type { FlightResult } from "../../physics/simulate";
 import { format } from "../fields";
-import { nearest, series, within, type PhaseId } from "../phases";
+import { nearest, posSym, series, within, type PhaseId } from "../phases";
 import { Code, Eq, StageBlock, Think, YourRocket, n } from "./common";
+import { Phase4EstesLesson } from "./Phase4Estes";
 import { MissingPhase, PhaseCharts, PhaseFacts, PhaseHeader, phaseAverages, phaseOf } from "./phaseCommon";
 
 const r = String.raw;
 
-export function Phase4Lesson({ design: d, result: res, onPhase }: { design: Design; result: FlightResult; onPhase: (id: PhaseId) => void }) {
+export function Phase4Lesson({ design, result, onPhase, onChange }: { design: Design; result: FlightResult; onPhase: (id: PhaseId) => void; onChange?: (d: Design) => void }) {
+  return design.type === "estes"
+    ? <Phase4EstesLesson design={design} result={result} onPhase={onPhase} onChange={onChange} />
+    : <Phase4Water design={design} result={result} onPhase={onPhase} />;
+}
+
+function Phase4Water({ design: d, result: res, onPhase }: { design: Design; result: FlightResult; onPhase: (id: PhaseId) => void }) {
   const ph = phaseOf(res, 4);
   const samples = within(res.samples, ph.from, ph.to);
   const { rho, cd, mass } = phaseAverages(d, samples.length > 2 ? samples : res.samples.slice(-20));
@@ -24,6 +31,7 @@ export function Phase4Lesson({ design: d, result: res, onPhase }: { design: Desi
   const peak = samples.reduce((m, s) => Math.max(m, s.a), 0);
   const tLand = ph.to - ph.from;
   const energy = 0.5 * mass * res.descentRate ** 2;
+  const S = posSym(d.type);
 
   const compare = useMemo(() => [
     { label: "v simulada", points: series(samples, (s) => s.v), color: "#1d7a3e" },
@@ -33,8 +41,8 @@ export function Phase4Lesson({ design: d, result: res, onPhase }: { design: Desi
   if (!ph.exists) {
     return (
       <div className="lesson">
-        <PhaseHeader result={res} id={4} onPick={onPhase} intro={<>Del momento en que se abre el paracaídas hasta que el cohete toca el suelo.</>} />
-        <MissingPhase id={4}>
+        <PhaseHeader result={res} type={d.type} id={4} onPick={onPhase} intro={<>Del momento en que se abre el paracaídas hasta que el cohete toca el suelo.</>} />
+        <MissingPhase type={d.type} id={4}>
           <p>{ph.note}</p>
           <p>Sin paracaídas, el cohete toca el suelo a <b>{format(res.descentRate, 1)} m/s</b> ({format(res.descentRate * 3.6, 0)} km/h). Agrega uno en la pestaña Cohete para ver esta fase.</p>
         </MissingPhase>
@@ -45,7 +53,7 @@ export function Phase4Lesson({ design: d, result: res, onPhase }: { design: Desi
   return (
     <div className="lesson">
       <PhaseHeader
-        result={res}
+        result={res} type={d.type}
         id={4}
         onPick={onPhase}
         intro={<>Se abre el paracaídas a {format(start.h, 1)} m de altura. El arrastre crece de golpe, frena al cohete hasta su <b>velocidad terminal</b> y lo baja suavemente: aterriza a {format(res.descentRate, 1)} m/s después de {format(tLand, 1)} s.</>}
@@ -59,7 +67,7 @@ export function Phase4Lesson({ design: d, result: res, onPhase }: { design: Desi
               conviene abrirlo cerca del apogeo.
             </li>
             <li>Después, el arrastre crece hasta igualar al peso: la fuerza neta es cero, la aceleración también, y el cohete baja a <b>velocidad constante</b> (terminal).</li>
-            <li>La gráfica de altura se vuelve casi una recta: la pendiente es la velocidad terminal.</li>
+            <li>La gráfica de {S === "s" ? <>posición <Eq tex="s(t)" /></> : "altura"} se vuelve casi una recta: la pendiente es la velocidad terminal.</li>
           </ul>
           <p>Se recomienda aterrizar a menos de 6 m/s para no dañar el cohete.</p>
         </StageBlock>
@@ -69,7 +77,7 @@ export function Phase4Lesson({ design: d, result: res, onPhase }: { design: Desi
           <p>Velocidad terminal (cuando <Eq tex="dv/dt = 0" />) y tirón al abrirse con velocidad <Eq tex="v_0" />:</p>
           <Eq block tex={r`v_t = \sqrt{\frac{2mg}{\rho\,(C_dA + C_{d,p}A_p)}} \qquad a_{apertura} = \frac{\tfrac12\rho v_0^2(C_dA + C_{d,p}A_p)}{m} - g`} />
           <p>Tiempo aproximado de descenso y energía al tocar el suelo:</p>
-          <Eq block tex={r`t_{descenso} \approx \frac{h_0}{v_t} \qquad E_c = \tfrac12 m v_{suelo}^2`} />
+          <Eq block tex={r`t_{descenso} \approx \frac{${S}_0}{v_t} \qquad E_c = \tfrac12 m v_{suelo}^2`} />
           <YourRocket>
             <Eq block tex={r`A_p = \tfrac{\pi}{4}(${n(d.recovery.diameter / 1000, 3)})^2 = ${n(Ap, 4)}\ \text{m}^2 \quad (${n(Ap / A, 0)}\ \text{veces el área del cohete})`} />
             <Eq block tex={r`v_t = \sqrt{\frac{2(${n(mass, 4)})(9.81)}{(${n(rho, 3)})(${n(cdA, 5)})}} = ${n(vt, 2)}\ \text{m/s} \quad (\text{simulación: } ${n(res.descentRate, 2)})`} />
@@ -80,9 +88,9 @@ export function Phase4Lesson({ design: d, result: res, onPhase }: { design: Desi
         </StageBlock>
 
         <StageBlock stage="computacion">
-          <p>La única diferencia con las fases anteriores es que, desde el evento de apertura, el área de arrastre incluye el paracaídas. El aterrizaje es otro evento: cuando <Eq tex="h \le 0" />.</p>
+          <p>La única diferencia con las fases anteriores es que, desde el evento de apertura, el área de arrastre incluye el paracaídas. El aterrizaje es otro evento: cuando <Eq tex={`${S} \\le 0`} />.</p>
           <Code>{`
-% Fase 4: paracaídas abierto hasta tocar el suelo
+% Fase ${d.type === "estes" ? "IV" : "4"}: paracaídas abierto hasta tocar el suelo
 p.CdA = p.Cd*p.A + p.Cdp*p.Ap;                % el paracaídas suma área
 dt = 0.01;                                    % aquí todo cambia despacio
 while y(1) > 0
@@ -97,8 +105,8 @@ yline(-vt, '--', 'v_t');
         </StageBlock>
       </div>
 
-      <PhaseFacts result={res} id={4} />
-      <PhaseCharts result={res} id={4} extra={{ title: "Velocidad y velocidad terminal", yLabel: "Velocidad (m/s)", series: compare }} />
+      <PhaseFacts result={res} type={d.type} id={4} />
+      <PhaseCharts result={res} type={d.type} id={4} extra={{ title: "Velocidad y velocidad terminal", yLabel: "Velocidad (m/s)", series: compare }} />
       <Think>
         <ul>
           <li>Si duplicas el diámetro del paracaídas, ¿cuánto cambia la velocidad terminal? (Pista: el área crece con <Eq tex="D^2" />.)</li>

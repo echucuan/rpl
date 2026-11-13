@@ -2,9 +2,10 @@
 // model as RPL, except that the rocket's drag coefficient is held constant.
 import type { Design } from "../model";
 import { PSI } from "../model";
-import { a10Motor } from "../motor";
+import { motorFor } from "../motor";
 import { groundPressure } from "../physics/atmosphere";
 import { centreOfMass, layout, structureItems } from "../physics/geometry";
+import { chuteProperties } from "../physics/parachute";
 import { simulate, type FlightResult } from "../physics/simulate";
 import { flightPhases } from "./phases";
 import { PROGRAMS } from "./StartScreen";
@@ -35,7 +36,8 @@ export function constantCd(r: FlightResult): number {
 
 export function matlabScript(d: Design, r: FlightResult): string {
   const cd = constantCd(r);
-  const check = simulate({ ...d, cdOverride: cd });
+  // The script uses the quadratic drag ½ρ·Cd·A·v² for the parachute too.
+  const check = simulate({ ...d, cdOverride: cd, recovery: { ...d.recovery, chuteModel: "quadratic" } });
   const expected = typeof check === "string" ? null : check;
   const l = layout(d);
   const dry = centreOfMass(structureItems(d)).mass / 1000;
@@ -43,18 +45,20 @@ export function matlabScript(d: Design, r: FlightResult): string {
   const chute = d.recovery.kind === "parachute" && d.recovery.deployment !== "none";
   const date = new Date().toLocaleDateString("es-MX", { dateStyle: "long" });
   const water = d.type === "water";
+  // Position along the flight path: Rocket Tec calls it s (state), the water rocket keeps h.
+  const S = water ? "h" : "s";
 
   const header = `%% Rocket Physics Lab Sinaloa - simulación de "${d.name.replace(/"/g, "'")}"
 % ${program.name} (${program.fuel.toLowerCase()}) · generado el ${date}
 % Metodología: Física -> Matemáticas -> Computación
 %
 % Resuelve el mismo modelo que RPL con una simplificación: el coeficiente de
-% arrastre del cohete es constante, Cd = ${num(cd, 3)} (el promedio de RPL en la fase 2).
+% arrastre del cohete es constante, Cd = ${num(cd, 3)} (el promedio de RPL en la fase ${water ? "2" : "II"}).
 ${expected ? `% Si el script funciona bien, debe dar aproximadamente:
-%   altura máxima    = ${num(expected.apogee.h, 1)} m a los ${num(expected.apogee.t, 2)} s
+%   ${water ? "altura máxima" : "apogeo       "}    = ${num(expected.apogee.h, 1)} m a los ${num(expected.apogee.t, 2)} s
 %   velocidad máxima = ${num(expected.maxVelocity, 1)} m/s
 %   aterrizaje       = ${num(expected.descentRate, 1)} m/s a los ${num(expected.landing?.t ?? 0, 1)} s
-% (RPL, con Cd variable, predice ${num(r.apogee.h, 1)} m de altura máxima.)` : ""}
+% (RPL, con Cd variable, predice ${num(r.apogee.h, 1)} m de ${water ? "altura máxima" : "apogeo"}.)` : ""}
 %
 % Requiere MATLAB R2016b o más reciente (funciones locales al final del script).
 
@@ -75,15 +79,15 @@ p.guia    = ${num(d.launch.guideLength, 2)};                   % m, largo de la 
 
 % Paracaídas
 p.tiene_paracaidas = ${chute ? "true" : "false"};
-p.Dp  = ${num(d.recovery.diameter / 1000, 3)};  p.Cdp = ${num(d.recovery.cd, 2)};  p.Ap = pi*p.Dp^2/4;
+p.Cdp = ${num(chuteProperties(d).cd, 3)};  p.Ap = ${num(chuteProperties(d).area, 4)};   % Cd y área plana del paracaídas
 p.paracaidas = false;                 % cambia a true cuando se abre
 `;
 
   let propulsion: string;
   if (d.type === "estes") {
-    const m = a10Motor(d.motor.mass, d.motor.propellant);
+    const m = motorFor(d.motor);
     propulsion = `
-% Motor Estes ${m.name} (curva de empuje medida; masas: ${num(d.motor.mass, 1)} g y ${num(d.motor.propellant, 1)} g de propelente)
+% Motor Estes ${m.name} (${m.model === "average" ? `empuje promedio constante de ${num(m.averageThrust, 2)} N durante ${num(m.burnTime, 2)} s` : "curva de empuje medida"}; masas: ${num(d.motor.mass, 1)} g y ${num(d.motor.propellant, 1)} g de propelente)
 p.agua    = false;
 p.t_tab   = ${vector(m.time, 3)};   % s
 p.T_tab   = ${vector(m.thrust, 2)};   % N
@@ -112,9 +116,9 @@ p.factor    = 1 - min((p.An/p.Ab)^2, 0.9);
 
   const math = `
 %% 2. MATEMÁTICAS: el modelo
-%   dh/dt = v
-%   dv/dt = (T(t) - D)/m(t) - g,      D = 1/2*rho(h)*v*|v|*Cd*A  (+ paracaídas)
-%   rho(h) = P(h)/(R*T(h)),           T(h) = T0 - 0.0065*h
+%   d${S}/dt = v${water ? "" : "                      (s = estado: posición sobre la plataforma)"}
+%   dv/dt = (T(t) - D)/m(t) - g,      D = 1/2*rho(${S})*v*|v|*Cd*A  (+ paracaídas)
+%   rho(${S}) = P(${S})/(R*T(${S})),           T(${S}) = T0 - 0.0065*${S}
 ${water ? `%   Agua: p = p0*(Va0/Va)^gamma,  u = sqrt(2(p-pa)/(rho_w*factor)),
 %         dVw/dt = -Cd_n*An*u,     T = rho_w*Cd_n*An*u^2
 %   Aire (al acabarse el agua): flujo sónico por la boquilla` : `%   T(t) y m(t): interpolación lineal de la tabla del motor`}
@@ -129,22 +133,22 @@ r = simular(p, @paso_rk4, [], false);
 fprintf('--- Resultados (RK4) ---\\n');
 fprintf('Fin del empuje:   %.3f s\\n', r.t_b);
 fprintf('Velocidad máxima: %.1f m/s\\n', max(r.v));
-fprintf('Altura máxima:    %.1f m a los %.2f s\\n', r.h_apogeo, r.t_apogeo);
+fprintf('${water ? "Altura máxima:  " : "Apogeo:         "}  %.1f m a los %.2f s\\n', r.${S}_apogeo, r.t_apogeo);
 if ~isnan(r.t_par), fprintf('Paracaídas:       se abre a los %.2f s\\n', r.t_par); end
 fprintf('Aterrizaje:       %.1f m/s a los %.1f s\\n', r.v_suelo, r.t_suelo);
 
 %% 4. Gráficas por fases
 figure('Name', 'Vuelo por fases', 'Color', 'w');
-subplot(3,1,1); plot(r.t, r.h, 'LineWidth', 1.5); grid on; ylabel('Altura (m)');
-title('Fase 1 Empuje · Fase 2 Frenado · Fase 3 Caída libre · Fase 4 Paracaídas'); sombrear_fases(r);
+subplot(3,1,1); plot(r.t, r.${S}, 'LineWidth', 1.5); grid on; ylabel('${water ? "Altura (m)" : "Posición s (m)"}');
+title('${water ? "Fase 1 Empuje · Fase 2 Frenado · Fase 3 Caída libre · Fase 4 Paracaídas" : "Fase I Despegue - MaxQ · Fase II MaxQ - Apogeo · Fase III Apogeo - Separación · Fase IV Recuperación"}'); sombrear_fases(r);
 subplot(3,1,2); plot(r.t, r.v, 'LineWidth', 1.5); grid on; ylabel('Velocidad (m/s)'); sombrear_fases(r);
 subplot(3,1,3); plot(r.t, r.a, 'LineWidth', 1.5); grid on; ylabel('Aceleración (m/s^2)');
 xlabel('Tiempo (s)'); sombrear_fases(r);
 
-% Acercamiento al ascenso (fases 1 a 3), donde todo cambia rápido
+% Acercamiento al ascenso (fases ${water ? "1 a 3" : "I a III"}), donde todo cambia rápido
 figure('Name', 'Ascenso', 'Color', 'w');
 t_zoom = min(r.t(end), 1.5*r.t_apogeo + 0.5);
-subplot(3,1,1); plot(r.t, r.h, 'LineWidth', 1.5); grid on; ylabel('Altura (m)'); xlim([0 t_zoom]);
+subplot(3,1,1); plot(r.t, r.${S}, 'LineWidth', 1.5); grid on; ylabel('${water ? "Altura (m)" : "Posición s (m)"}'); xlim([0 t_zoom]);
 title('Ascenso'); sombrear_fases(r);
 subplot(3,1,2); plot(r.t, r.v, 'LineWidth', 1.5); grid on; ylabel('Velocidad (m/s)'); xlim([0 t_zoom]); sombrear_fases(r);
 subplot(3,1,3); plot(r.t, r.a, 'LineWidth', 1.5); grid on; ylabel('Aceleración (m/s^2)'); xlim([0 t_zoom]);
@@ -153,16 +157,16 @@ xlabel('Tiempo (s)'); sombrear_fases(r);
 %% 5. Método numérico: Euler contra RK4 (solo el ascenso)
 pasos = ${steps};
 ref = simular(p, @paso_rk4, [], true);
-hE = zeros(size(pasos));  hR = zeros(size(pasos));
+${S}E = zeros(size(pasos));  ${S}R = zeros(size(pasos));
 for i = 1:numel(pasos)
-    rE = simular(p, @paso_euler, pasos(i), true);  hE(i) = rE.h_apogeo;
-    rR = simular(p, @paso_rk4,   pasos(i), true);  hR(i) = rR.h_apogeo;
+    rE = simular(p, @paso_euler, pasos(i), true);  ${S}E(i) = rE.${S}_apogeo;
+    rR = simular(p, @paso_rk4,   pasos(i), true);  ${S}R(i) = rR.${S}_apogeo;
 end
 figure('Name', 'Convergencia', 'Color', 'w');
-loglog(pasos, abs(hE - ref.h_apogeo) + eps, 'o-', pasos, abs(hR - ref.h_apogeo) + eps, 's-', 'LineWidth', 1.5);
-grid on; xlabel('\\Delta t (s)'); ylabel('error en la altura máxima (m)');
+loglog(pasos, abs(${S}E - ref.${S}_apogeo) + eps, 'o-', pasos, abs(${S}R - ref.${S}_apogeo) + eps, 's-', 'LineWidth', 1.5);
+grid on; xlabel('\\Delta t (s)'); ylabel('error en ${water ? "la altura máxima" : "s_{max}"} (m)');
 legend('Euler', 'RK4', 'Location', 'northwest');
-disp(table(pasos(:), hE(:), hR(:), 'VariableNames', {'dt', 'h_Euler', 'h_RK4'}));
+disp(table(pasos(:), ${S}E(:), ${S}R(:), 'VariableNames', {'dt', '${S}_Euler', '${S}_RK4'}));
 `;
 
   const functions = `
@@ -172,13 +176,13 @@ function r = simular(p, paso, dt_fijo, hasta_apogeo)
 % Integra el vuelo. paso: @paso_rk4 o @paso_euler. dt_fijo = [] usa paso variable.
     t = 0;
     if p.agua
-        y = [0; 0; p.Vw0; p.rho0*(p.V_botella - p.Vw0)];   % [h; v; Vw; m_aire]
+        y = [0; 0; p.Vw0; p.rho0*(p.V_botella - p.Vw0)];   % [${S}; v; Vw; m_aire]
     else
-        y = [0; 0];                                          % [h; v]
+        y = [0; 0];                                          % [${S}; v]
     end
     [dy, activo] = derivadas(t, y, p);
-    r.t = 0;  r.h = 0;  r.v = 0;  r.a = dy(2);
-    r.t_b = NaN;  r.t_apogeo = NaN;  r.h_apogeo = 0;  r.t_par = NaN;
+    r.t = 0;  r.${S} = 0;  r.v = 0;  r.a = dy(2);
+    r.t_b = NaN;  r.t_apogeo = NaN;  r.${S}_apogeo = 0;  r.t_par = NaN;
     r.t_suelo = NaN;  r.v_suelo = NaN;
     despego = false;
     while t < 600
@@ -200,9 +204,9 @@ function r = simular(p, paso, dt_fijo, hasta_apogeo)
         t = t + dt;
         if y_nuevo(1) > 0.001, despego = true; end
         [dy, activo_nuevo] = derivadas(t, y_nuevo, p);
-        if activo && ~activo_nuevo && isnan(r.t_b), r.t_b = t; end          % fin de la fase 1
-        if despego && isnan(r.t_apogeo) && y(2) > 0 && y_nuevo(2) <= 0     % fin de la fase 2
-            r.t_apogeo = t;  r.h_apogeo = y_nuevo(1);
+        if activo && ~activo_nuevo && isnan(r.t_b), r.t_b = t; end          % fin de la fase ${water ? "1" : "I"}
+        if despego && isnan(r.t_apogeo) && y(2) > 0 && y_nuevo(2) <= 0     % fin de la fase ${water ? "2" : "II"}
+            r.t_apogeo = t;  r.${S}_apogeo = y_nuevo(1);
             if p.agua && p.tiene_paracaidas, p.paracaidas = true; r.t_par = t; end
         end
         if ~p.agua && p.tiene_paracaidas && p.retardo > 0 && ~p.paracaidas && t >= p.t_b + p.retardo
@@ -210,7 +214,7 @@ function r = simular(p, paso, dt_fijo, hasta_apogeo)
         end
         activo = activo_nuevo;
         y = y_nuevo;
-        r.t(end+1) = t;  r.h(end+1) = max(y(1), 0);  r.v(end+1) = y(2);  r.a(end+1) = dy(2);
+        r.t(end+1) = t;  r.${S}(end+1) = max(y(1), 0);  r.v(end+1) = y(2);  r.a(end+1) = dy(2);
         if hasta_apogeo && ~isnan(r.t_apogeo), break; end
         if despego && y(1) <= 0 && y(2) < 0                  % aterrizaje
             r.t_suelo = t;  r.v_suelo = abs(y(2));
@@ -222,8 +226,8 @@ end
 
 function [dydt, activo] = derivadas(t, y, p)
 % f(t, y): derivadas del estado. activo = hay empuje.
-    h = y(1);  v = y(2);
-    [rho, Pa] = atmosfera(max(h, 0), p);
+    ${S} = y(1);  v = y(2);
+    [rho, Pa] = atmosfera(max(${S}, 0), p);
     if p.agua
         [T, dVw, dma, m_prop, activo] = empuje_agua(y(3), y(4), Pa, p);
     else
@@ -236,7 +240,7 @@ function [dydt, activo] = derivadas(t, y, p)
     if p.paracaidas, CdA = CdA + p.Cdp*p.Ap; end
     D = 0.5*rho*v*abs(v)*CdA;                                % arrastre
     a = (T - D)/m - p.g;                                     % segunda ley de Newton
-    if h <= 0 && v <= 0 && a < 0, a = 0; end                 % sobre la plataforma
+    if ${S} <= 0 && v <= 0 && a < 0, a = 0; end                % sobre la plataforma
     if p.agua
         dydt = [v; a; dVw; dma];
     else
@@ -244,9 +248,9 @@ function [dydt, activo] = derivadas(t, y, p)
     end
 end
 
-function [rho, P] = atmosfera(h, p)
+function [rho, P] = atmosfera(${S}, p)
 % Atmósfera estándar ajustada a la temperatura del sitio.
-    T = max(p.T0 - 0.0065*h, 150);
+    T = max(p.T0 - 0.0065*${S}, 150);
     P = p.P0*(T/p.T0)^(p.g/(p.R*0.0065));
     rho = P/(p.R*T);
 end
@@ -305,7 +309,7 @@ function sombrear_fases(r)
     else
         f = [0 r.t_b; r.t_b r.t_apogeo; r.t_apogeo r.t_par; r.t_par t_fin];
     end
-    colores = [0.88 0.44 0.11; 0 0.22 0.65; 0.36 0.38 0.44; 0.11 0.48 0.24];
+${water ? "" : "    numeros = {'I', 'II', 'III', 'IV'};\n"}    colores = [0.88 0.44 0.11; 0 0.22 0.65; 0.36 0.38 0.44; 0.11 0.48 0.24];
     yl = ylim;  hold on;
     for k = 1:4
         if any(isnan(f(k,:))) || f(k,2) <= f(k,1), continue; end
@@ -314,7 +318,7 @@ function sombrear_fases(r)
         uistack(h, 'bottom');
         xl = xlim;
         if f(k,2) - f(k,1) > 0.05*(xl(2) - xl(1))         % rotular solo si cabe
-            text(f(k,1), yl(2), sprintf(' Fase %d', k), 'VerticalAlignment', 'top', 'FontSize', 8);
+            text(f(k,1), yl(2), ${water ? "sprintf(' Fase %d', k)" : "[' Fase ' numeros{k}]"}, 'VerticalAlignment', 'top', 'FontSize', 8);
         end
     end
     ylim(yl);  hold off;

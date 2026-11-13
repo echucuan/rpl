@@ -1,18 +1,25 @@
 import { useMemo } from "react";
 import type { Design } from "../../model";
-import { a10Motor } from "../../motor";
+import { motorFor } from "../../motor";
 import { air, G } from "../../physics/atmosphere";
 import { dragModel } from "../../physics/drag";
 import { simulate, type FlightResult } from "../../physics/simulate";
 import { format } from "../fields";
-import { nearest, series, within, type PhaseId } from "../phases";
+import { nearest, posSym, series, within, type PhaseId } from "../phases";
 import { Code, Eq, StageBlock, Think, YourRocket, n } from "./common";
 import { CdBars } from "./diagrams";
+import { Phase2EstesLesson } from "./Phase2Estes";
 import { PhaseCharts, PhaseFacts, PhaseHeader, phaseAverages, phaseOf } from "./phaseCommon";
 
 const r = String.raw;
 
-export function Phase2Lesson({ design: d, result: res, onPhase }: { design: Design; result: FlightResult; onPhase: (id: PhaseId) => void }) {
+export function Phase2Lesson({ design, result, onPhase, onChange }: { design: Design; result: FlightResult; onPhase: (id: PhaseId) => void; onChange?: (d: Design) => void }) {
+  return design.type === "estes"
+    ? <Phase2EstesLesson design={design} result={result} onPhase={onPhase} onChange={onChange} />
+    : <Phase2Water design={design} result={result} onPhase={onPhase} />;
+}
+
+function Phase2Water({ design: d, result: res, onPhase }: { design: Design; result: FlightResult; onPhase: (id: PhaseId) => void }) {
   const ph = phaseOf(res, 2);
   const samples = within(res.samples, ph.from, ph.to);
   const start = nearest(res.samples, ph.from), end = nearest(res.samples, ph.to);
@@ -30,7 +37,8 @@ export function Phase2Lesson({ design: d, result: res, onPhase }: { design: Desi
   }, [d]);
   const atm = air(start.h, d.launch.altitude, d.launch.temperature);
   const parts = model.breakdown(vb, vb / atm.soundSpeed, atm.kinematicViscosity, false);
-  const motor = d.type === "estes" ? a10Motor(d.motor.mass, d.motor.propellant) : undefined;
+  const motor = d.type === "estes" ? motorFor(d.motor) : undefined;
+  const S = posSym(d.type);
 
   const analytic = useMemo(() => {
     const pts: { x: number; y: number }[] = [];
@@ -47,7 +55,7 @@ export function Phase2Lesson({ design: d, result: res, onPhase }: { design: Desi
   return (
     <div className="lesson">
       <PhaseHeader
-        result={res}
+        result={res} type={d.type}
         id={2}
         onPick={onPhase}
         intro={<>Se acabó el empuje: el cohete sigue subiendo por inercia, pero el peso y el arrastre lo frenan. La velocidad <b>disminuye</b> de {format(vb, 1)} m/s a {format(end.v, 1)} m/s en {format(ph.to - ph.from, 2)} s.</>}
@@ -74,14 +82,14 @@ export function Phase2Lesson({ design: d, result: res, onPhase }: { design: Desi
           <Eq block tex={r`m\,\frac{dv}{dt} = -mg - \tfrac12\rho v^2 C_d A \quad (v > 0)`} />
           <p>Si suponemos <Eq tex="\rho" />, <Eq tex="m" /> y <Eq tex="C_d" /> constantes, con <Eq tex="k = \rho C_d A / 2m" />, la ecuación tiene solución exacta:</p>
           <Eq block tex={r`v(t) = \sqrt{\tfrac{g}{k}}\;\tan\!\left(\arctan\!\left(v_b\sqrt{\tfrac{k}{g}}\right) - \sqrt{gk}\,t\right)`} />
-          <Eq block tex={r`t_{sub} = \frac{\arctan\left(v_b\sqrt{k/g}\right)}{\sqrt{gk}} \qquad \Delta h_{sub} = \frac{1}{2k}\ln\!\left(1 + \frac{k\,v_b^2}{g}\right)`} />
+          <Eq block tex={r`t_{sub} = \frac{\arctan\left(v_b\sqrt{k/g}\right)}{\sqrt{gk}} \qquad \Delta ${S}_{sub} = \frac{1}{2k}\ln\!\left(1 + \frac{k\,v_b^2}{g}\right)`} />
           <p>Sin aire (<Eq tex="k \to 0" />) se recupera la conservación de la energía:</p>
-          <Eq block tex={r`\Delta h = \frac{v_b^2}{2g}`} />
+          <Eq block tex={r`\Delta ${S} = \frac{v_b^2}{2g}`} />
           <YourRocket>
             <Eq block tex={r`k = \frac{(${n(rho, 3)})(${n(cd, 3)})(${n(A * 1e4, 2)}\times10^{-4})}{2(${n(mass, 4)})} = ${n(k, 5)}\ \text{m}^{-1}`} />
-            <Eq block tex={r`t_{sub} = ${n(tUp, 2)}\ \text{s}\ \ (\text{simulación: } ${n(ph.to - ph.from, 2)}) \qquad \Delta h_{sub} = ${n(dhUp, 1)}\ \text{m}\ \ (\text{simulación: } ${n(end.h - start.h, 1)})`} />
-            <Eq block tex={r`\text{Sin aire: } h_{max} = ${n(start.h, 1)} + \frac{${n(vb, 1)}^2}{2(9.81)} = ${n(energy, 1)}\ \text{m} \quad\text{vs.}\quad ${n(res.apogee.h, 1)}\ \text{m con aire}`} />
-            {ph.note && <p className="hint">Como el paracaídas se abrió antes del apogeo, la fase simulada termina antes y no se puede comparar directamente con <Eq tex="t_{sub}" /> y <Eq tex="\Delta h_{sub}" />.</p>}
+            <Eq block tex={r`t_{sub} = ${n(tUp, 2)}\ \text{s}\ \ (\text{simulación: } ${n(ph.to - ph.from, 2)}) \qquad \Delta ${S}_{sub} = ${n(dhUp, 1)}\ \text{m}\ \ (\text{simulación: } ${n(end.h - start.h, 1)})`} />
+            <Eq block tex={r`\text{Sin aire: } ${S}_{max} = ${n(start.h, 1)} + \frac{${n(vb, 1)}^2}{2(9.81)} = ${n(energy, 1)}\ \text{m} \quad\text{vs.}\quad ${n(res.apogee.h, 1)}\ \text{m con aire}`} />
+            {ph.note && <p className="hint">Como el paracaídas se abrió antes del apogeo, la fase simulada termina antes y no se puede comparar directamente con <Eq tex="t_{sub}" /> y <Eq tex={`\\Delta ${S}_{sub}`} />.</p>}
             {vacuum && <Eq block tex={r`\text{Todo el vuelo sin aire: } ${n(vacuum.apogee.h, 1)}\ \text{m} \Rightarrow \text{el aire quita } ${n(((vacuum.apogee.h - res.apogee.h) / vacuum.apogee.h) * 100, 0)}\%`} />}
           </YourRocket>
         </StageBlock>
@@ -93,22 +101,22 @@ export function Phase2Lesson({ design: d, result: res, onPhase }: { design: Desi
           </p>
           <Eq block tex={r`t^* = t_n + \Delta t\,\frac{v_n}{v_n - v_{n+1}}`} />
           <Code>{`
-% Fase 2: integrar hasta que la velocidad cambie de signo
+% Fase ${d.type === "estes" ? "II" : "2"}: integrar hasta que la velocidad cambie de signo
 while true
     y_nuevo = paso_rk4(@derivadas, t, y, dt, p);
     if y(2) > 0 && y_nuevo(2) <= 0                  % se cruzó v = 0
         t_ap = t + dt*y(2)/(y(2) - y_nuevo(2));     % interpolación lineal
-        h_ap = y(1) + (t_ap - t)*y(2);
+        ${S}_ap = y(1) + (t_ap - t)*y(2);
         break
     end
     t = t + dt;  y = y_nuevo;
 end
-fprintf('Apogeo: %.1f m a los %.2f s\\n', h_ap, t_ap);
+fprintf('Apogeo: %.1f m a los %.2f s\\n', ${S}_ap, t_ap);
           `}</Code>
           <p>MATLAB también puede hacerlo con <code>ode45</code> y una función de eventos:</p>
           <Code>{`
 opciones = odeset('Events', @apogeo, 'RelTol', 1e-8);
-[t, y, t_ap, y_ap] = ode45(@(t,y) derivadas(t, y, p), [t_b 60], [h_b; v_b], opciones);
+[t, y, t_ap, y_ap] = ode45(@(t,y) derivadas(t, y, p), [t_b 60], [${S}_b; v_b], opciones);
 
 function [valor, terminal, direccion] = apogeo(~, y)
     valor = y(2);       % el evento ocurre cuando v = 0
@@ -120,7 +128,7 @@ end
 % Comparar con la solución exacta (rho, m y Cd constantes)
 k = rho*Cd*A/(2*m);
 t_sub  = atan(v_b*sqrt(k/g))/sqrt(g*k);
-dh_sub = log(1 + k*v_b^2/g)/(2*k);
+d${S}_sub = log(1 + k*v_b^2/g)/(2*k);
 tt = linspace(0, t_sub, 100);
 v_exacta = sqrt(g/k)*tan(atan(v_b*sqrt(k/g)) - sqrt(g*k)*tt);
 plot(t_b + tt, v_exacta, '--');
@@ -128,8 +136,8 @@ plot(t_b + tt, v_exacta, '--');
         </StageBlock>
       </div>
 
-      <PhaseFacts result={res} id={2} />
-      <PhaseCharts result={res} id={2} extra={{ title: "Velocidad: numérica vs. exacta", yLabel: "Velocidad (m/s)", series: analytic }} />
+      <PhaseFacts result={res} type={d.type} id={2} />
+      <PhaseCharts result={res} type={d.type} id={2} extra={{ title: "Velocidad: numérica vs. exacta", yLabel: "Velocidad (m/s)", series: analytic }} />
       <Think>
         <ul>
           <li>¿Por qué la aceleración en esta fase es más negativa que −9.81 m/s²? ¿En qué instante vale exactamente −g?</li>

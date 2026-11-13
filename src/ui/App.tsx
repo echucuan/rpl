@@ -176,7 +176,7 @@ export function App() {
         exporting={p.exporting !== null}
         exportError={p.error}
         onNew={() => request({ kind: "new", type: t })}
-        onHome={() => request({ kind: "tab", to: "inicio" })}
+        status={<SaveIndicator tab={tab} projects={projects} />}
       />
     );
   };
@@ -188,7 +188,10 @@ export function App() {
           <a className="tec-home" href="#inicio" onClick={(e) => { e.preventDefault(); request({ kind: "tab", to: "inicio" }); }} aria-label="Tecnológico de Monterrey · Inicio">
             <img className="tec-logo" src={`${import.meta.env.BASE_URL}brand/logo-tec-azul.png`} alt="Tecnológico de Monterrey" />
           </a>
-          <SaveIndicator tab={tab} projects={projects} />
+          <div className="topbar-end">
+            {tab !== "estes" && tab !== "water" && <SaveIndicator tab={tab} projects={projects} />}
+            <img className="event-logo" src={`${import.meta.env.BASE_URL}rocket-tec/rocket-tec-logo.webp`} alt="Rocket Tec Sinaloa 2026" />
+          </div>
           <nav className="main-nav" role="tablist" aria-label="Secciones de la aplicación">
             {TABS.map((t) => (
               <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => tab !== t.id && request({ kind: "tab", to: t.id })}>
@@ -198,10 +201,11 @@ export function App() {
             ))}
           </nav>
         </div>
-        <div className={`site-hero ${tab === "inicio" ? "" : "compact"}`}>
+        {/* In a workspace the program banner carries the title, so the page has a single title bar. */}
+        {tab !== "estes" && tab !== "water" && <div className={`site-hero ${tab === "inicio" ? "" : "compact"}`}>
           <h1>Rocket Physics Lab <span>Sinaloa</span></h1>
           {tab === "inicio" && <p>Diseña tu cohete, simula su vuelo y descubre la física detrás de cada vuelo.</p>}
-        </div>
+        </div>}
       </header>
       <main>
         {tab === "inicio" && <StartScreen onPick={(type) => request({ kind: "tab", to: type, sub: "cohete" })} />}

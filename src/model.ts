@@ -1,5 +1,7 @@
 // Design model shared by the UI and the physics. Lengths in millimetres, masses in grams,
 // pressures in psi (the unit of the lab's compressor gauge). Physics converts to SI.
+import { DEFAULT_MOTOR, type MotorId, type ThrustModel } from "./motor";
+import type { ChuteShape } from "./physics/parachute";
 
 export type NoseShape = "ogive" | "conical" | "elliptical" | "parabolic";
 export type FinProfile = "square" | "rounded" | "airfoil";
@@ -59,6 +61,11 @@ export interface Recovery {
   position: number; // from nose tip
   /** Estes rockets deploy at the motor's ejection charge; water rockets at apogee or never. */
   deployment: Deployment;
+  /** Rocket Tec parachute builder: canopy shape and shroud line length (mm); the Cd is computed from them. */
+  shape?: ChuteShape;
+  lineLength?: number;
+  /** Rocket Tec phase IV: the parachute force as f = −b·v ("linear") or ½ρ·Cd·A·v² ("quadratic"). */
+  chuteModel?: "linear" | "quadratic";
 }
 
 export interface ExtraMass {
@@ -86,8 +93,14 @@ interface DesignBase {
 
 export interface EstesDesign extends DesignBase {
   type: "estes";
-  /** Always the Estes A10-3T; the masses can be corrected with a scale. */
-  motor: { mass: number; propellant: number };
+  /** Motor from the catalogue (motor.ts); the masses can be corrected with a scale. */
+  /**
+   * thrust: the certified curve ("real") or a constant average force with constant mass ("average"), chosen in phase 0.
+   * burnDrag: with the average thrust, whether air drag acts while the motor burns (phase I); the real model always has it.
+   * coastDrag: whether air drag acts from burnout to apogee (phase II), with either thrust model.
+   * fallDrag: whether air drag acts from apogee to the ejection (phase III, falling without the parachute).
+   */
+  motor: { id: MotorId; mass: number; propellant: number; thrust: ThrustModel; burnDrag: boolean; coastDrag: boolean; fallDrag: boolean };
   sheet: PaperSheet;
   motorMount: { mass: number }; // printed PLA mount at the aft end
   altimeter: { included: boolean; mass: number; position: number }; // Estes altimeter, inside the nose
@@ -129,11 +142,11 @@ export function newEstesDesign(): EstesDesign {
     sheet,
     fins: { count: 3, rootChord: 60, tipChord: 25, span: 40, sweep: 35, thickness: 2, profile: "rounded", offsetFromAft: 0, mass: 8 },
     motorMount: { mass: 4 },
-    recovery: { kind: "parachute", diameter: 610, cd: 0.75, mass: WEIGHED.parachute, position: 130, deployment: "ejection" },
+    recovery: { kind: "parachute", diameter: 610, cd: 0.75, mass: WEIGHED.parachute, position: 130, deployment: "ejection", shape: "circular", lineLength: 610, chuteModel: "linear" },
     altimeter: { included: true, mass: WEIGHED.altimeter, position: 55 },
     extras: [],
     launch: { ...CULIACAN },
-    motor: { mass: WEIGHED.motorLoaded, propellant: WEIGHED.motorLoaded - WEIGHED.motorBurnt },
+    motor: { id: DEFAULT_MOTOR, thrust: "average", burnDrag: false, coastDrag: false, fallDrag: false, mass: WEIGHED.motorLoaded, propellant: WEIGHED.motorLoaded - WEIGHED.motorBurnt },
   };
 }
 

@@ -95,7 +95,7 @@ fprintf('CG = %.1f mm, CP = %.1f mm, margen = %.2f calibres\n', xCG, xCP, margen
       </div>
       <Think>
         <ul>
-          <li>Agrega 10 g de lastre en la nariz en la pestaña Cohete. ¿Cuánto cambia el margen? ¿Y la altura máxima?</li>
+          <li>Agrega 10 g de lastre en la nariz en la pestaña Cohete. ¿Cuánto cambia el margen? ¿Y {d.type === "estes" ? "el apogeo" : "la altura máxima"}?</li>
           <li>Comprueba el CG de tu cohete real colgándolo de un hilo hasta que quede horizontal. ¿Coincide con el calculado?</li>
           <li>¿Por qué un margen demasiado grande (más de 3) también es malo cuando hay viento?</li>
         </ul>

@@ -1,5 +1,5 @@
 import type { Design } from "../model";
-import { a10Motor } from "../motor";
+import { motorFor } from "../motor";
 import { layout, noseRadius, waterFill } from "../physics/geometry";
 import type { Stability } from "../physics/geometry";
 import { format } from "./fields";
@@ -34,7 +34,7 @@ export function RocketView({ design: d, loaded, empty }: { design: Design; loade
     [le, rb], [le + f.sweep, rb + f.span], [le + f.sweep + f.tipChord, rb + f.span], [le + f.rootChord, rb],
   ].map(([x, y]) => `${X(x).toFixed(1)},${Y(sign * y).toFixed(1)}`).join(" ");
 
-  const motor = d.type === "estes" ? a10Motor(d.motor.mass, d.motor.propellant) : undefined;
+  const motor = d.type === "estes" ? motorFor(d.motor) : undefined;
   const water = d.type === "water" && d.water.waterVolume > 0 ? waterFill(d, d.water.waterVolume) : null;
 
   return (

@@ -1,9 +1,12 @@
 import type { Design, EstesDesign, FinProfile, NoseShape, WaterDesign } from "../model";
 import { LETTER, MAX_PRESSURE_PSI, WEIGHED, sheetLength, sheetMass, sheetWrap } from "../model";
-import { A10_SPECS, a10Motor, impulseClass } from "../motor";
+import { makerName, motorFor, motorSpec, impulseClass } from "../motor";
+import { MotorPicker } from "./MotorPicker";
 import { finArea, layout, noseProperties } from "../physics/geometry";
 import { WATER_DENSITY } from "../physics/propulsion";
+import { CHUTE_SHAPES, chuteProperties, type ChuteShape } from "../physics/parachute";
 import { NumField, Section, Segmented, SelectField, TextField, format } from "./fields";
+import { ChuteDiagram } from "./ChuteDiagram";
 
 type Update = (fn: (d: Design) => Design) => void;
 type Setter = <K extends keyof Design>(key: K, patch: Partial<Design[K]>) => void;
@@ -156,7 +159,7 @@ function AltimeterSection({ d, update }: { d: EstesDesign; update: Update }) {
           <NumField label="Posición de su centro" unit="mm" min={0} value={d.altimeter.position} onChange={(position) => set({ position })} />
           <p className="hint full">
             Pesado en el laboratorio con su batería: {WEIGHED.altimeter} g; si el tuyo pesa distinto, corrígelo. Va dentro de la nariz, así que su centro queda entre {format(d.nose.length * 0.4, 0)} y{" "}
-            {format(d.nose.length, 0)} mm de la punta. Mide hasta 3,000 m (9,999 ft) y guarda la altura máxima de 10 vuelos.
+            {format(d.nose.length, 0)} mm de la punta. Mide hasta 3,000 m (9,999 ft) y guarda el apogeo de 10 vuelos.
           </p>
         </>
       )}
@@ -205,21 +208,22 @@ function PaperSection({ d, update }: { d: EstesDesign; update: Update }) {
 }
 
 function MotorSection({ d, update }: { d: EstesDesign; update: Update }) {
-  const motor = a10Motor(d.motor.mass, d.motor.propellant);
+  const motor = motorFor(d.motor);
+  const spec = motorSpec(d.motor.id);
   const setE = (fn: (p: EstesDesign) => EstesDesign) => update((p) => fn(p as EstesDesign));
   return (
-    <Section title="Motor y porta motor" summary={`Estes A10-3T · ${format(d.motor.mass + d.motorMount.mass, 1)} g`}>
-      {/* For now the challenge allows a single manufacturer and motor; the lists make that choice visible. */}
-      <SelectField label="Fabricante" value="estes" options={[{ value: "estes", label: "Estes" }]} onChange={() => {}} />
-      <SelectField label="Motor" value="A10-3T" options={[{ value: "A10-3T", label: "A10-3T · 13 mm · retardo 3 s" }]} onChange={() => {}} />
-      <p className="hint full">Por ahora el reto usa solo el motor Estes A10-3T.</p>
+    <Section title="Motor y porta motor" summary={`${makerName(spec.maker)} ${spec.name} · ${format(d.motor.mass + d.motorMount.mass, 1)} g`}>
+      {/* For now the catalogue has a single motor; new ones appear here when they are added to motor.ts. */}
+      <MotorPicker d={d} onChange={(next) => setE(() => next)} />
+      <p className="hint full">Por ahora el reto usa solo el motor Estes A10-3T. Sus datos completos y la prueba estática están en la pestaña Motor.</p>
+      {d.motor.thrust === "average" && <div className="alert warning full">Estás usando el <b>empuje promedio constante</b> ({format(motor.averageThrust, 2)} N durante {format(motor.burnTime, 2)} s): las predicciones no son tan correctas como con el empuje real. Se cambia en la pestaña Motor.</div>}
       <NumField
         label="Masa con combustible"
         unit="g"
         min={1}
         max={20}
         value={d.motor.mass}
-        onChange={(mass) => setE((p) => ({ ...p, motor: { mass, propellant: Math.max(mass - (p.motor.mass - p.motor.propellant), 0.1) } }))}
+        onChange={(mass) => setE((p) => ({ ...p, motor: { ...p.motor, mass, propellant: Math.max(mass - (p.motor.mass - p.motor.propellant), 0.1) } }))}
         title="Motor nuevo, antes de encenderlo"
       />
       <NumField
@@ -233,24 +237,42 @@ function MotorSection({ d, update }: { d: EstesDesign; update: Update }) {
       />
       <NumField className="full" label="Porta motor impreso (PLA)" unit="g" min={0} value={d.motorMount.mass} onChange={(mass) => setE((p) => ({ ...p, motorMount: { mass } }))} />
       <p className="hint full">
-        Pierde {format(d.motor.propellant, 1)} g al quemarse (pesados en el laboratorio: {WEIGHED.motorLoaded} g nuevo y {WEIGHED.motorBurnt} g quemado). 13 × 45 mm ·
-        clase {impulseClass(motor.totalImpulse)} · retardo de {A10_SPECS.delay} s. Curva de empuje medida en la prueba de certificación: impulso{" "}
-        {format(motor.totalImpulse, 2)} N·s, empuje máximo {format(motor.maxThrust, 1)} N, {format(motor.burnTime, 2)} s. Estes publica valores nominales de{" "}
-        {A10_SPECS.ratedImpulse} N·s, {A10_SPECS.ratedMaxThrust} N y {A10_SPECS.ratedBurnTime} s, y un máximo de {A10_SPECS.maxLiftoffMass} g de cohete al despegar.
+        Pierde {format(d.motor.propellant, 1)} g al quemarse (pesados en el laboratorio: {WEIGHED.motorLoaded} g nuevo y {WEIGHED.motorBurnt} g quemado). {spec.diameter} × {spec.length} mm ·
+        clase {impulseClass(motor.totalImpulse)} · retardo de {spec.delay} s. Curva de empuje medida en la prueba de certificación: impulso{" "}
+        {format(motor.totalImpulse, 2)} N·s, empuje máximo {format(motor.maxThrust, 1)} N, {format(motor.burnTime, 2)} s. {makerName(spec.maker)} publica valores nominales de{" "}
+        {spec.rated.impulse} N·s, {spec.rated.maxThrust} N y {spec.rated.burnTime} s, y un máximo de {spec.rated.maxLiftoffMass} g de cohete al despegar.
       </p>
     </Section>
   );
 }
 
+const CHUTE_OPTIONS = (Object.keys(CHUTE_SHAPES) as ChuteShape[]).map((value) => ({ value, label: CHUTE_SHAPES[value].label }));
+
+/** Rocket Tec parachute builder: shape, radius and shroud lines give the drag coefficient used in phase IV. */
 function EstesChuteSection({ d, set }: { d: EstesDesign; set: Setter }) {
+  const c = chuteProperties(d);
+  const polygon = CHUTE_SHAPES[c.shape].sides > 0;
   return (
-    <Section title={'Paracaídas Estes 24" impreso'} summary={`61 cm · ${format(d.recovery.mass, 1)} g`}>
+    <Section title="Paracaídas" summary={`${CHUTE_SHAPES[c.shape].label} · ${format(d.recovery.diameter / 10, 0)} cm · ${format(d.recovery.mass, 1)} g`}>
+      <SelectField label="Geometría" value={c.shape} options={CHUTE_OPTIONS} onChange={(shape) => set("recovery", { shape })} />
+      <NumField label="Radio" unit="mm" min={20} max={1000} value={d.recovery.diameter / 2} onChange={(r) => set("recovery", { diameter: r * 2 })}
+        title={polygon ? "Del centro a una esquina (vértice) del polígono" : "Del centro a la orilla"} />
+      <NumField label="Largo de los hilos" unit="mm" min={20} max={3000} value={d.recovery.lineLength ?? d.recovery.diameter} onChange={(lineLength) => set("recovery", { lineLength })}
+        title="De la orilla del paracaídas al punto donde se juntan los hilos" />
       <NumField label="Masa (con cordones)" unit="g" min={0} value={d.recovery.mass} onChange={(mass) => set("recovery", { mass })} />
       <NumField label="Posición" unit="mm" min={0} value={d.recovery.position} onChange={(position) => set("recovery", { position })} />
-      <NumField label="Coef. de arrastre" min={0.3} max={1.5} value={d.recovery.cd} onChange={(cd) => set("recovery", { cd })} title="Entre 0.75 y 0.8 para paracaídas planos de plástico" />
+      <ChuteDiagram shape={c.shape} radius={c.radius} lines={c.ratio * 2 * c.radius} area={c.area} factor={c.factor} />
+      <div className="chute-cd full">
+        <span>Coeficiente de arrastre</span>
+        <b>C<sub>d</sub> = {format(c.cd0, 2)} × {format(c.factor, 3)} = {format(c.cd, 3)}</b>
+        <small>
+          C<sub>d,base</sub> de la forma {CHUTE_SHAPES[c.shape].label.toLowerCase()} ({format(c.cd0, 2)}) × factor de los hilos f(L/D) con L/D = {format(c.ratio, 2)}. Área plana{" "}
+          {format(c.area * 1e4, 0)} cm². Se usa en la Fase IV.
+        </small>
+      </div>
       <p className="hint full">
-        61 cm de diámetro, plástico LDPE con cordones ya unidos. Pesado en el laboratorio: {WEIGHED.parachute} g. Se abre con la carga de eyección del motor, {A10_SPECS.delay} s después de que
-        termina el empuje.
+        El Estes 24" del laboratorio es circular, de 61 cm de diámetro (radio de 305 mm), de plástico LDPE con cordones ya unidos y pesa {WEIGHED.parachute} g. Se abre con la carga de eyección
+        del motor, {motorSpec(d.motor.id).delay} s después de que termina el empuje.
       </p>
     </Section>
   );

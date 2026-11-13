@@ -50,7 +50,7 @@ export function Phase0Lesson({ design: d, result: res, onGo }: { design: WaterDe
   return (
     <div className="lesson experiment">
       <div className="lesson-head card">
-        <h2><span className="phase-title-num" style={{ background: "#0f6d9d" }}>0</span> Fase 0: El experimento</h2>
+        <h2><span className="phase-title-num" style={{ background: "#0f6d9d" }}>🧪</span> El experimento</h2>
         <p>
           <b>No gana quien llega más alto.</b> Un cohete, como cualquier máquina, se comporta de forma <b>determinista</b>: si conocemos sus condiciones
           (masa, agua, presión, forma), la física, las matemáticas y la computación nos permiten <b>predecir</b> su vuelo. Tu reto es predecir, medir,
@@ -206,7 +206,7 @@ export function Phase0Lesson({ design: d, result: res, onGo }: { design: WaterDe
         {!res && <div className="alert warning" style={{ marginTop: 8 }}>Tu diseño tiene un error y no se puede simular: corrígelo en la pestaña Cohete.</div>}
         <div className="btn-row" style={{ marginTop: 12 }}>
           <button type="button" className="btn" onClick={() => onGo("cohete")}>Diseñar mi cohete</button>
-          <button type="button" className="btn primary" onClick={() => onGo("graficas")}>Comparar en Gráficas →</button>
+          <button type="button" className="btn primary" onClick={() => onGo("graficas")}>Comparar en Simulaciones →</button>
         </div>
       </div>
     </div>

@@ -31,7 +31,7 @@ export function RocketTab({ design, shown, result, onChange, onGo }: Props) {
                   <h2>{shown.name}</h2>
                   <p className="hint">{shown.type === "water" ? "Cohete de agua · botella de " + format(shown.water.bottleVolume, 1) + " L" : "Rocket Tec · motor Estes A10-3T"} · {format(r.liftoffMass, 1)} g al despegar</p>
                 </div>
-                <button type="button" className="btn primary" onClick={() => onGo("graficas")}>Ver gráficas del vuelo →</button>
+                <button type="button" className="btn primary" onClick={() => onGo("graficas")}>Ver las simulaciones del vuelo →</button>
               </div>
               <RocketView design={shown} loaded={r.stabilityLoaded} empty={r.stabilityEmpty} />
             </div>
@@ -58,10 +58,10 @@ export function RocketTab({ design, shown, result, onChange, onGo }: Props) {
             <div className="card">
               <div className="card-head">
                 <h2>Vuelo en resumen</h2>
-                <button type="button" className="link" onClick={() => onGo("graficas")}>Ver todas las gráficas</button>
+                <button type="button" className="link" onClick={() => onGo("graficas")}>Ver todas en Simulaciones</button>
               </div>
               <div className="kpis">
-                <div className="kpi hero"><div className="label">Altura máxima</div><div className="value">{format(r.apogee.h, 1)}<small>m</small></div><div className="sub">a los {format(r.apogee.t, 1)} s</div></div>
+                <div className="kpi hero"><div className="label">{design.type === "estes" ? "Apogeo" : "Altura máxima"}</div><div className="value">{format(r.apogee.h, 1)}<small>m</small></div><div className="sub">a los {format(r.apogee.t, 1)} s</div></div>
                 <div className="kpi"><div className="label">Velocidad máxima</div><div className="value">{format(r.maxVelocity, 1)}<small>m/s</small></div><div className="sub">{format(r.maxVelocity * 3.6, 0)} km/h</div></div>
                 <div className="kpi"><div className="label">Aceleración máxima</div><div className="value">{format(r.maxAcceleration / G0, 1)}<small>g</small></div></div>
                 <div className="kpi"><div className="label">Aterriza a</div><div className="value">{format(r.descentRate, 1)}<small>m/s</small></div><div className="sub">{r.landing ? `después de ${format(r.landing.t, 0)} s` : ""}</div></div>

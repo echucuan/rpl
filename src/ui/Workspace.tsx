@@ -8,45 +8,50 @@ import { Phase2Lesson } from "./learn/Phase2Lesson";
 import { Phase3Lesson } from "./learn/Phase3Lesson";
 import { Phase4Lesson } from "./learn/Phase4Lesson";
 import { StabilityLesson } from "./learn/StabilityLesson";
-import { NumericalLesson } from "./learn/NumericalLesson";
+import { LessonTypeContext } from "./learn/common";
 import { saveDesign } from "./storage";
-import { PROGRAMS, logoUrl } from "./StartScreen";
-import { PHASE_SOLID } from "./phases";
+import { PHASE_SOLID, flightPhases, phaseName, phaseNum, type PhaseId } from "./phases";
+import { format } from "./fields";
 import { Phase0Lesson } from "./learn/Phase0Lesson";
+import { StaticTestLesson } from "./learn/StaticTestLesson";
+import type { StaticTestFile } from "./staticTest";
 
-export type SubTab = "cohete" | "graficas" | "fase0" | "fase1" | "fase2" | "fase3" | "fase4" | "estabilidad" | "metodo";
+export type SubTab = "cohete" | "graficas" | "fase0" | "fase1" | "fase2" | "fase3" | "fase4" | "estabilidad";
 
-/** First menu row: the design and the topics that apply to the whole flight. */
-const MAIN_TABS: { id: SubTab; label: string }[] = [
-  { id: "cohete", label: "Cohete" },
-  { id: "graficas", label: "Gráficas" },
-  { id: "estabilidad", label: "Estabilidad" },
-  { id: "metodo", label: "Método numérico" },
+/**
+ * First menu row: the steps before the flight, in order. Rocket Tec starts with the motor (its static test);
+ * Rocket Challenge with the experiment.
+ */
+const MAIN_TABS = (type: Design["type"]): { id: SubTab; label: string; icon: string; sub: string }[] => [
+  type === "water"
+    ? { id: "fase0", label: "Experimento", icon: "🧪", sub: "Paso 1 · prepara el experimento" }
+    : { id: "fase0", label: "Motor", icon: "🔥", sub: "Paso 1 · prueba estática del motor" },
+  { id: "cohete", label: "Cohete", icon: "🚀", sub: "Paso 2 · arma tu cohete" },
+  { id: "estabilidad", label: "Estabilidad", icon: "⚖️", sub: "Paso 3 · revisa que vuele en línea recta" },
 ];
 
-/** Phase 0 (the experiment) exists only for Rocket Challenge; it uses the water program's colour. */
-const PHASE0 = { id: "fase0" as SubTab, n: 0, label: "El experimento", color: "#0f6d9d" };
+/** Second menu row: one lesson per flight phase (names and numerals depend on the program). */
+const PHASE_IDS: PhaseId[] = [1, 2, 3, 4];
+const PHASE_TABS = (type: Design["type"]): { id: SubTab; n: string; label: string; color: string }[] =>
+  PHASE_IDS.map((id) => ({ id: `fase${id}` as SubTab, n: phaseNum(type, id), label: phaseName(type, id), color: PHASE_SOLID[id] }));
+const phaseTabs = PHASE_TABS;
 
-/** Second menu row: one lesson per flight phase. */
-const PHASE_TABS: { id: SubTab; n: number; label: string; color: string }[] = [
-  { id: "fase1", n: 1, label: "Empuje", color: PHASE_SOLID[1] },
-  { id: "fase2", n: 2, label: "Frenado hasta el apogeo", color: PHASE_SOLID[2] },
-  { id: "fase3", n: 3, label: "Caída libre", color: PHASE_SOLID[3] },
-  { id: "fase4", n: 4, label: "Paracaídas y aterrizaje", color: PHASE_SOLID[4] },
-];
-const phaseTabs = (type: Design["type"]) => (type === "water" ? [PHASE0, ...PHASE_TABS] : PHASE_TABS);
+/** After the four phases: the whole flight simulated, with all its charts and results. */
+const SIM_TAB = { id: "graficas" as SubTab, label: "Simulaciones", color: "#0039a6" };
 
 /** Reading order of the lessons, for the previous/next buttons. */
 const lessons = (type: Design["type"]): { id: SubTab; label: string }[] => [
+  ...MAIN_TABS(type).map((t) => ({ id: t.id, label: t.label })),
   ...phaseTabs(type).map((t) => ({ id: t.id, label: `Fase ${t.n} · ${t.label}` })),
-  { id: "estabilidad", label: "Estabilidad" },
-  { id: "metodo", label: "Método numérico" },
+  { id: SIM_TAB.id, label: SIM_TAB.label },
 ];
 
-export const SUB_TABS = [...MAIN_TABS, PHASE0, ...PHASE_TABS].map((t) => t.id);
+export const SUB_TABS: SubTab[] = ["fase0", "cohete", "estabilidad", SIM_TAB.id, ...PHASE_IDS.map((id) => `fase${id}` as SubTab)];
 
 interface Props {
   design: Design;
+  /** The save status, shown at the left of the banner. */
+  status?: ReactNode;
   onChange: (d: Design) => void;
   sub: SubTab;
   onSub: (s: SubTab) => void;
@@ -58,16 +63,16 @@ interface Props {
   exportError: string | null;
   /** Both go through the app's unsaved-changes check. */
   onNew: () => void;
-  onHome: () => void;
 }
 
-export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDownload, exporting, exportError, onNew, onHome }: Props) {
+export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDownload, exporting, exportError, onNew, status }: Props) {
   const deferred = useDeferredValue(design);
   const result = useMemo(() => simulate(deferred), [deferred]);
+  const phaseSpans = useMemo(() => (typeof result === "string" ? null : flightPhases(result)), [result]);
   const [notice, setNotice] = useState("");
   const [comparison, setComparison] = useState<Comparison>({ altimeter: 0, altimeterUnit: design.type === "water" ? "m" : "ft", apogeeTime: 0, descentTime: 0, csv: null });
-  // "#estes/fase0" (typed or old link): Rocket Tec has no phase 0, so show its design.
-  const view: SubTab = sub === "fase0" && design.type !== "water" ? "cohete" : sub;
+  const [staticTest, setStaticTest] = useState<StaticTestFile | null>(null);
+  const view: SubTab = sub;
 
   const save = () => {
     const entry = saveDesign(design, savedId);
@@ -84,35 +89,46 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
   return (
     <>
       <div className={`program-banner ${design.type}`}>
-        <img src={logoUrl(design.type)} alt={`Logotipo de ${PROGRAMS[design.type].name}`} />
-        <div>
-          <span className="program-fuel">{PROGRAMS[design.type].fuel}</span>
-          <h2>{PROGRAMS[design.type].name}</h2>
-        </div>
+        <div className="banner-program">{status}</div>
+        <h1 className="banner-title">Rocket Physics Lab <span>Sinaloa</span></h1>
         <div className="banner-actions no-print">
           {exportError ? <span className="banner-notice" role="alert">No se pudo crear el archivo: {exportError}</span> : notice && <span className="banner-notice">{notice}</span>}
-          <button type="button" className="btn small solid" onClick={save} title="Guarda una copia en Mis diseños, solo en este navegador">Guardar</button>
-          <button type="button" className="btn small" onClick={onDownload} disabled={exporting} title="Guarda el archivo del proyecto en tu computadora">
-            {exporting ? "Preparando…" : "Descargar"}
+          <button type="button" className="bar-btn primary" onClick={save} title="Guarda una copia en Mis diseños, solo en este navegador"><span aria-hidden="true">💾</span><span className="bar-label">Guardar</span></button>
+          <button type="button" className="bar-btn" onClick={onDownload} disabled={exporting} title="Guarda el archivo del proyecto en tu computadora" aria-label="Descargar">
+            <span aria-hidden="true">⬇</span><span className="bar-label">{exporting ? "Preparando…" : "Descargar"}</span>
           </button>
-          <button type="button" className="btn small" onClick={onNew}>Nuevo</button>
-          <button type="button" className="btn small" onClick={onHome}>Cambiar combustible</button>
+          <button type="button" className="bar-btn" onClick={onNew} title="Empieza un diseño nuevo" aria-label="Nuevo"><span aria-hidden="true">＋</span><span className="bar-label">Nuevo</span></button>
         </div>
       </div>
 
       <nav className="workspace-menu no-print" aria-label="Secciones">
         <div className="menu-row main" role="tablist">
-          {MAIN_TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={view === t.id} onClick={() => go(t.id)}>{t.label}</button>
+          {MAIN_TABS(design.type).map((t) => (
+            <button key={t.id} role="tab" aria-selected={view === t.id} onClick={() => go(t.id)}><span className="tab-icon" aria-hidden="true">{t.icon}</span><span className="tab-text">{t.label}<small>{t.sub}</small></span></button>
           ))}
         </div>
         <div className="menu-row phases" role="tablist" aria-label="El vuelo por fases">
           <span className="menu-label">El vuelo por fases</span>
-          {phaseTabs(design.type).map((t) => (
-            <button key={t.id} role="tab" aria-selected={view === t.id} onClick={() => go(t.id)} style={{ ["--phase" as string]: t.color }}>
-              <span className="phase-dot">{t.n}</span>{t.label}
-            </button>
-          ))}
+          {phaseTabs(design.type).map((t) => {
+            const ph = phaseSpans?.find((p) => `fase${p.id}` === t.id);
+            return (
+              <button key={t.id} role="tab" aria-selected={view === t.id} onClick={() => go(t.id)} style={{ ["--phase" as string]: t.color }} className={ph && !ph.exists ? "missing" : undefined}>
+                <span className="phase-dot">{t.n}</span>
+                <span className="phase-tab-text">
+                  {t.label}
+                  {ph && <small>{ph.exists ? `${format(ph.from, ph.to < 1 ? 3 : 2)} – ${format(ph.to, ph.to < 1 ? 3 : 1)} s · dura ${format(ph.to - ph.from, ph.to - ph.from < 1 ? 3 : 1)} s` : "No existe en este vuelo"}</small>}
+                </span>
+              </button>
+            );
+          })}
+          <span className="menu-sep" aria-hidden="true" />
+          <button role="tab" aria-selected={view === SIM_TAB.id} onClick={() => go(SIM_TAB.id)} style={{ ["--phase" as string]: SIM_TAB.color }} className="sim-tab">
+            <span className="phase-dot">▶</span>
+            <span className="phase-tab-text">
+              {SIM_TAB.label}
+              <small>todo el vuelo · gráficas y resultados</small>
+            </span>
+          </button>
         </div>
       </nav>
 
@@ -122,24 +138,22 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
       ) : (
         <>
           {view === "fase0" && deferred.type === "water" && <Phase0Lesson design={deferred} result={typeof result === "string" ? null : result} onGo={go} />}
+          {view === "fase0" && design.type === "estes" && <StaticTestLesson design={design} onChange={onChange} file={staticTest} onFile={setStaticTest} onGo={go} />}
           {view === "cohete" && <RocketTab design={design} shown={deferred} result={result} onChange={onChange} onGo={go} />}
           {typeof result !== "string" && (
-            <>
+            <LessonTypeContext.Provider value={deferred.type}>
               {view === "graficas" && <GraphsTab design={deferred} result={result} comparison={comparison} onComparison={setComparison} onLesson={go} />}
-              {view === "fase1" && <Phase1Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
-              {view === "fase2" && <Phase2Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
-              {view === "fase3" && <Phase3Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
-              {view === "fase4" && <Phase4Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} />}
+              {view === "fase1" && <Phase1Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} onChange={onChange} />}
+              {view === "fase2" && <Phase2Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} onChange={onChange} />}
+              {view === "fase3" && <Phase3Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} onChange={onChange} />}
+              {view === "fase4" && <Phase4Lesson design={deferred} result={result} onPhase={(id) => go(`fase${id}`)} onChange={onChange} />}
               {view === "estabilidad" && <StabilityLesson design={deferred} result={result} />}
-              {view === "metodo" && <NumericalLesson design={deferred} result={result} />}
-            </>
+            </LessonTypeContext.Provider>
           )}
         </>
       )}
       </ErrorBoundary>
-      {view !== "cohete" && view !== "graficas" && (
-        <LessonNav sub={view} type={design.type} go={go} />
-      )}
+      <LessonNav sub={view} type={design.type} go={go} />
     </>
   );
 }
@@ -164,7 +178,7 @@ function LessonNav({ sub, type, go }: { sub: SubTab; type: Design["type"]; go: (
   const prev = LESSONS[i - 1], next = LESSONS[i + 1];
   return (
     <div className="lesson-nav no-print">
-      {prev ? <button className="btn" onClick={() => go(prev.id)}>← {prev.label}</button> : <button className="btn" onClick={() => go("graficas")}>← Gráficas</button>}
+      {prev ? <button className="btn" onClick={() => go(prev.id)}>← {prev.label}</button> : <span />}
       {next ? <button className="btn primary" onClick={() => go(next.id)}>{next.label} →</button> : <button className="btn primary" onClick={() => go("cohete")}>Volver al cohete</button>}
     </div>
   );

@@ -1,6 +1,11 @@
 /* Tec de Monterrey identity: blue #0039A6, Neue Haas Grotesk Text when installed on the
    viewer's machine (the licence does not allow publishing the font files), Inter otherwise. */
 :root {
+  /* Rocket Tec: one colour per quantity (the same as QTY in ui/phases.ts). */
+  --q-F: #1a1a1a;
+  --q-a: #c0262d;
+  --q-v: #1d7a3e;
+  --q-s: #0751b5;
   --tec-blue: #0039a6;
   --tec-blue-dark: #002b7f;
   --tec-blue-soft: #e8eef9;
@@ -146,7 +151,7 @@ details.panel > summary small { color: var(--muted); font-weight: 400; margin-le
 .alert.info { background: var(--tec-blue-soft); border-color: var(--tec-blue); }
 
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-@media (max-width: 760px) { .charts { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .charts { grid-template-columns: minmax(0, 1fr); } }
 .chart-box { position: relative; height: 240px; }
 
 table.summary { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
@@ -225,6 +230,20 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0 
 .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 .rocket-card .card-head p { margin: 2px 0 0; }
 .chart-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; color: var(--ink); }
+/* Chart tools: zoom by dragging, reset and the full-screen view for the projector. */
+.line-chart { margin: 0; }
+.chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.chart-tools { display: flex; gap: 4px; flex-shrink: 0; }
+.chart-tool { border: 1px solid var(--line); background: #fff; color: #0751b5; border-radius: 6px; font: inherit; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; cursor: pointer; }
+.chart-tool:hover { background: #eef4fd; border-color: #0751b5; }
+.chart-head .chart-title { margin-bottom: 4px; }
+.chart-tool { line-height: 1.2; }
+.chart-help { margin: 8px 0 0; color: #5b6270; }
+.line-chart.expanded { position: fixed; inset: 0; z-index: 1000; background: #fff; padding: 20px 28px; display: flex; flex-direction: column; }
+.line-chart.expanded .chart-title { font-size: 1.8rem; }
+.line-chart.expanded .chart-tool { font-size: 1.1rem; padding: 6px 14px; }
+.line-chart.expanded .chart-box { flex: 1; height: auto; min-height: 0; }
+.line-chart.expanded .chart-help { font-size: 1rem; }
 .chart-card { display: flex; flex-direction: column; gap: 6px; }
 .chart-card .link { align-self: flex-end; }
 
@@ -415,7 +434,7 @@ table.summary td.val { text-align: right; }
 .tec-home { display: inline-flex; flex: none; border-radius: 6px; }
 .tec-home:focus-visible { outline: 3px solid var(--tec-blue); outline-offset: 4px; }
 /* Clear space around the Tec logo: at least half the symbol's height */
-.tec-logo { height: 38px; width: auto; margin: 6px 0; display: block; }
+.tec-logo { height: 49px; width: auto; margin: 6px 0; display: block; }
 .main-nav { display: flex; gap: 4px; justify-content: flex-end; }
 .main-nav button {
   display: inline-flex; align-items: center; gap: 7px; height: 38px; white-space: nowrap;
@@ -444,7 +463,7 @@ table.summary td.val { text-align: right; }
 .site-hero.compact { padding: 14px 16px 16px; }
 .site-hero.compact h1 { font-size: clamp(1.3rem, 2.6vw, 1.7rem); }
 main:has(> .start) { padding-top: 28px; }
-@media (max-width: 900px) {
+@media (max-width: 1080px) {
   .topbar { flex-direction: column; align-items: stretch; gap: 4px; padding-bottom: 6px; }
   .tec-home { align-self: center; }
   /* One row of tabs that scrolls sideways instead of wrapping */
@@ -542,3 +561,443 @@ table.parts td { vertical-align: middle; }
   background: var(--tec-blue-soft); color: var(--tec-blue); font-weight: 700;
 }
 a.btn { display: inline-block; text-decoration: none; }
+
+/* Rocket Tec phase 0: static test */
+.static-test .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 12px; margin: 8px 0; }
+.chart-notes { margin: 10px 0; padding-left: 18px; font-size: 0.88rem; }
+input[type="file"] { max-width: 100%; min-width: 0; }
+.thrust-model { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+.thrust-model .btn { flex: 1 1 220px; }
+
+/* Rocket Tec phase I: free-body diagram, simplified model and notation */
+.fbd-row-rocket { grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); }
+@media (max-width: 640px) { .fbd-row-rocket { grid-template-columns: 1fr; } }
+.fbd-rocket { width: 100%; max-width: 300px; }
+.simplified-model { border: 1px solid #e0701b; background: #fff7ef; border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+.simplified-model ul { margin: 6px 0; padding-left: 18px; }
+.simplified-model .thrust-model { margin: 8px 0 4px; }
+.thrust-model.chart-range { display: inline-flex; gap: 6px; margin: 0 0 10px; width: auto; }
+.thrust-model.chart-range .btn { flex: 0 0 auto; min-width: 9rem; }
+.maxq { border: 1px solid #0751b5; background: #eef4fd; border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; }
+.maxq > b { color: #0751b5; }
+.maxq p { margin: 6px 0; }
+.notation { margin: 14px 0 0; padding: 10px 12px; border-top: 1px solid var(--line); display: grid; gap: 6px; font-size: 0.88rem; }
+.notation > div { display: grid; grid-template-columns: 120px 1fr; gap: 8px; align-items: baseline; }
+.notation dt { font-weight: 700; color: var(--ink); }
+.notation dd { margin: 0; color: var(--muted); }
+.fbd-row.fbd-row-rocket { grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); }
+@media (max-width: 1100px) { .fbd-row.fbd-row-rocket { grid-template-columns: 1fr; justify-items: center; } .fbd-equations { width: 100%; } }
+.fbd-rocket { width: 100%; max-width: 320px; }
+.fbd-forces { list-style: none; padding: 0; margin: 6px 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.fbd-equations .katex-display { overflow-x: auto; overflow-y: hidden; }
+
+/* Lessons on phones: each block shrinks to the screen; long equations, code and tables scroll inside it */
+.stage-body, .stage > header, .lesson-grid, .lesson > *, .facts > *, .fbd-row > * { min-width: 0; }
+@media (max-width: 800px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.stage-body .katex-display, .card .katex-display, .your-rocket .katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+@media (max-width: 800px) { .stage-body table, .facts table.summary { display: block; max-width: 100%; overflow-x: auto; } }
+.stage-body img, .stage-body svg { max-width: 100%; }
+/* Step-by-step derivations */
+.derivation h4 { display: flex; align-items: center; gap: 8px; margin: 18px 0 6px; font-size: 1rem; color: var(--tec-blue); }
+.derivation .step-n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--tec-blue); color: #fff; font-size: 0.8rem; flex: none; }
+.derivation .result-eq { border: 2px solid var(--tec-blue); border-radius: 8px; background: #fff; margin: 8px auto; max-width: 420px; }
+
+/* Phase I, average thrust: the four results shown as big numbers */
+.big-results { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 6px; }
+.big-results .kpi { padding: 14px 16px; border: 1px solid var(--line, #e2e5ea); }
+.big-results .kpi .label { font-size: 0.85rem; font-weight: 600; }
+.big-results .kpi .value { font-size: 2.1rem; line-height: 1.15; margin: 4px 0; }
+.big-results .kpi .value small { font-size: 1rem; }
+.big-results .kpi .sub { font-size: 0.95rem; }
+.big-results .kpi .sub .katex { font-size: 1.05em; }
+.big-results .kpi.hero .sub .katex { color: #dbe4f6; }
+
+/* Phase I: tree infographic "one differential equation, two methods" */
+.method-tree { margin: 10px 0 14px; display: flex; flex-direction: column; align-items: center; }
+.method-tree .mt-kicker { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.method-tree .mt-root { background: var(--tec-blue); color: #fff; border-radius: 10px; padding: 8px 18px; text-align: center; position: relative; }
+.method-tree .mt-root .mt-kicker { color: #dbe4f6; }
+.method-tree .mt-root .katex { font-size: 1.15em; }
+.method-tree .mt-branches { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; width: 100%; max-width: 640px; margin-top: 30px; position: relative; }
+/* connectors: a stem down from the root, a horizontal bar, and a drop into each branch */
+.method-tree .mt-branches::before { content: ""; position: absolute; top: -30px; left: 50%; height: 15px; border-left: 2px solid #9aa3b2; }
+.method-tree .mt-branches::after { content: ""; position: absolute; top: -15px; left: 25%; right: 25%; border-top: 2px solid #9aa3b2; }
+.method-tree .mt-branch { display: flex; flex-direction: column; align-items: stretch; gap: 0; position: relative; }
+.method-tree .mt-branch::before { content: ""; position: absolute; top: -15px; left: 50%; height: 15px; border-left: 2px solid #9aa3b2; }
+.method-tree .mt-node { border: 2px solid var(--mt-color); background: var(--mt-soft); border-radius: 10px; padding: 8px 10px; text-align: center; position: relative; }
+.method-tree .mt-node + .mt-node, .method-tree .mt-node + .mt-tag { margin-top: 18px; }
+.method-tree .mt-node + .mt-node::before, .method-tree .mt-node + .mt-tag::before { content: "▼"; position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 11px; line-height: 18px; color: var(--mt-color); }
+.method-tree .mt-node > span:not(.mt-kicker):not(.mt-icon) { display: block; font-size: 0.82rem; color: var(--muted); }
+.method-tree .mt-head { background: var(--mt-color); color: #fff; font-weight: 800; }
+.method-tree .mt-icon { display: inline-block; min-width: 1.6em; font-style: italic; font-family: Georgia, serif; }
+.method-tree .mt-leaf { background: #fff; }
+.method-tree .mt-table { margin: 2px auto 0; border-collapse: collapse; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.method-tree .mt-table th, .method-tree .mt-table td { padding: 1px 10px; border-bottom: 1px solid #e2e5ea; text-align: center; }
+.method-tree .mt-table th { font-weight: 600; color: var(--muted); }
+.method-tree .mt-tag { position: relative; text-align: center; font-size: 0.85rem; font-weight: 700; color: var(--mt-color); }
+.method-tree .mt-analytic { --mt-color: #c2410c; --mt-soft: #fff4ec; }
+.method-tree .mt-numeric { --mt-color: #1d7a3e; --mt-soft: #eef8f1; }
+@media (max-width: 520px) {
+  .method-tree .mt-branches { gap: 10px; }
+  .method-tree .mt-node { padding: 6px 6px; }
+}
+
+/* Phase I: Euler worked by hand and the algorithm steps */
+.euler-hand { border-left: 3px solid #1d7a3e; background: #f5fbf7; border-radius: 0 8px 8px 0; padding: 6px 12px 10px; margin: 6px 0 12px; }
+.euler-table { max-width: 420px; margin-top: 6px; }
+.algorithm-steps { padding-left: 1.4em; margin: 4px 0 10px; }
+.algorithm-steps li { margin: 3px 0; }
+.algorithm-steps li::marker { font-weight: 800; color: #1d7a3e; }
+
+/* Phase I Computación: section headings */
+.comp-step { margin: 18px 0 6px; color: var(--ink); font-size: 1rem; }
+
+/* Phase I Computación: number of Euler steps */
+.euler-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
+.euler-steps > span { font-weight: 600; }
+.euler-step-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.euler-step-buttons .btn { min-width: 52px; }
+
+/* Phase I (average thrust): section 4 "Resultados" groups the table, the charts and the questions */
+.stage.stage-resultados { grid-template-columns: 1fr; border-left: 5px solid #7a4fb0; }
+.stage-resultados > header { flex-direction: row; align-items: center; border-right: 0; border-bottom: 1px solid var(--line); }
+.stage-resultados .stage-n { background: #ece3f7; color: #5b2f94; }
+.stage-resultados .stage-body { padding: 4px 14px 14px; }
+.stage-resultados .stage-body > .card { border: 0; box-shadow: none; padding: 10px 0 4px; margin: 0; background: transparent; }
+.stage-resultados .stage-body > .card + .card { border-top: 1px solid var(--line); }
+.stage-resultados .stage-body > .card h2 { font-size: 1rem; }
+.stage-resultados .think { margin-top: 12px; }
+@media (max-width: 1180px) { .stage-resultados .facts { grid-template-columns: 1fr; } }
+
+/* Rocket Tec: "¿Qué cambió en esta fase?" as a row of change cards */
+.change-table { width: 100%; max-width: none; }
+table.summary.change-table td, table.summary.change-table th, table.summary.change-table td.num, table.summary.change-table th.num { text-align: center; }
+table.summary.change-table td:first-child { text-align: left; font-weight: 600; }
+.change-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; margin-top: 12px; }
+.change-card { --c: #5b6270; --soft: #f3f4f7; background: var(--soft); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 10px; padding: 8px 10px 9px; min-width: 0; }
+.change-card.q-s { --c: var(--q-s); --soft: #eef3fc; }
+.change-card.q-v { --c: var(--q-v); --soft: #eef8f1; }
+.change-card.q-a { --c: var(--q-a); --soft: #fdf0ef; }
+.change-card.q-n { --c: #5b6270; --soft: #f3f4f7; }
+.change-card .change-value { color: var(--c); }
+.change-head { display: flex; align-items: baseline; gap: 6px; font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+.change-head .katex { font-size: 1.15rem; color: var(--c); }
+.change-card.rate .change-head .katex { font-size: 1rem; }
+.change-value { font-size: 1.55rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 2px; }
+.change-value small { font-size: 0.8rem; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.change-span { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.change-note { font-size: 0.8rem; font-weight: 700; color: var(--c); margin-top: 2px; }
+.change-arrow { font-size: 0.7rem; }
+
+/* Rocket Tec: what each stage of the methodology is for (beside the stage title) */
+.stage header p.stage-explain { color: var(--ink); font-size: 0.86rem; line-height: 1.4; margin-top: 4px; }
+
+/* Rocket Tec quantity colours on the numbers: big results and the change table. */
+.kpi.q-F { --q: var(--q-F); } .kpi.q-a { --q: var(--q-a); } .kpi.q-v { --q: var(--q-v); } .kpi.q-s { --q: var(--q-s); } .kpi.q-n { --q: #5b6270; }
+/* Only the number takes the colour; every card keeps the same background (the main result too). */
+.kpi.hero[class*="q-"] { background: var(--page); }
+.kpi.hero[class*="q-"] .label, .kpi.hero[class*="q-"] .sub, .kpi.hero[class*="q-"] .value small, .big-results .kpi.hero[class*="q-"] .sub .katex { color: var(--muted); }
+.kpi[class*="q-"] .value { color: var(--q); }
+table.summary th.q-s, table.summary td.q-s { color: var(--q-s); }
+table.summary th.q-v, table.summary td.q-v { color: var(--q-v); }
+table.summary th.q-a, table.summary td.q-a { color: var(--q-a); }
+table.summary th.q-F, table.summary td.q-F { color: var(--q-F); }
+
+/* Rocket Tec parachute builder: the computed drag coefficient. */
+.chute-cd { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--line, #d8dde6); border-radius: 8px; background: var(--page, #f6f8fb); }
+.chute-cd > span { font-size: 0.8rem; color: var(--muted, #5b6270); }
+.chute-cd > b { font-size: 1.05rem; color: var(--q-F); }
+.chute-cd > small { color: var(--muted, #5b6270); line-height: 1.35; }
+.chute-table { margin: 6px 0; }
+
+/* Parachute measures: drawn to scale, each measure appears in turn. */
+.chute-diagram { margin: 8px 0; grid-column: 1 / -1; }
+.chute-diagram svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.chute-diagram .cd-title { font-size: 15px; font-weight: 700; fill: var(--muted); }
+.chute-diagram .cd-canopy-top path, .chute-diagram .cd-canopy-top circle { fill: #e0701b26; stroke: #e0701b; stroke-width: 2; }
+.chute-diagram .cd-canopy-side { fill: #e0701b40; stroke: #e0701b; stroke-width: 2; }
+.chute-diagram .cd-knot { fill: #5b6270; }
+.chute-diagram .cd-center { fill: #072f70; }
+.chute-diagram .cd-line { stroke: #5b6270; stroke-width: 1.4; }
+.chute-diagram .cd-rocket { fill: #0751b5; opacity: 0.75; }
+.chute-diagram .cd-r, .chute-diagram .cd-l { stroke: #c0262d; stroke-width: 3; }
+.chute-diagram .cd-measure { stroke: #072f70; stroke-width: 1.6; }
+.chute-diagram .cd-ext { stroke: #072f70; stroke-width: 1; stroke-dasharray: 3 3; }
+.chute-diagram .cd-arrowhead { fill: #072f70; }
+.chute-diagram .cd-label { font-size: 18px; font-weight: 700; fill: #072f70; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
+.chute-diagram .cd-area { font-size: 16px; font-weight: 700; fill: #a34a0f; paint-order: stroke; stroke: #fff; stroke-width: 4px; }
+.chute-diagram .cd-small { font-size: 14px; fill: var(--muted); paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+.chute-diagram .cd-breathe { transform-box: fill-box; transform-origin: 50% 100%; animation: cd-breathe 2.4s ease-in-out infinite alternate; }
+.chute-diagram .cd-dim { animation: cd-show 8s ease-in-out infinite both; }
+.chute-diagram .cd-step-r { animation-delay: 0s; }
+.chute-diagram .cd-step-d { animation-delay: 1.4s; }
+.chute-diagram .cd-step-a { animation-delay: 2.8s; }
+.chute-diagram .cd-step-l { animation-delay: 4.2s; }
+.chute-diagram figcaption { margin-top: 4px; }
+@keyframes cd-show { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes cd-breathe { from { transform: scaleX(0.94); } to { transform: scaleX(1.03); } }
+@media (prefers-reduced-motion: reduce) { .chute-diagram .cd-dim, .chute-diagram .cd-breathe { animation: none; } }
+@media print { .chute-diagram .cd-dim { animation: none; } }
+
+/* A whole script in one window: fixed height, scrolls inside (prints in full). */
+.code.scroll { max-height: min(460px, 65vh); overflow-y: auto; }
+@media print { .code.scroll { max-height: none; overflow: visible; } }
+
+/* Results card: the analytic and the numeric (Euler) value of each quantity. */
+.kpi-methods { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 0.8rem; color: var(--muted); }
+.kpi-methods span { display: flex; justify-content: space-between; gap: 6px; }
+.kpi-methods b { color: var(--q, var(--ink, #1a1a1a)); }
+.kpi-methods small { font-weight: 400; }
+
+/* Motor spec sheet (phase 0): a badge with the motor's name and two symmetric rows of five values. */
+.motor-sheet { --perf: #6b3fa0; --body: #0751b5; display: grid; gap: 12px; margin: 12px 0; }
+.motor-group h3 { margin: 0 0 6px; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tone); }
+.motor-group.perf { --tone: var(--perf); }
+.motor-group.body { --tone: var(--body); }
+.motor-specs { margin: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.motor-specs > div { display: flex; flex-direction: column; border: 1px solid var(--line); border-top: 4px solid var(--tone); border-radius: 8px;
+  padding: 8px 10px; background: #fff; min-height: 92px; }
+.motor-specs dt { font-size: 0.76rem; color: var(--muted); line-height: 1.25; min-height: 2.5em; }
+.motor-specs dd { margin: 4px 0 0; font-size: 1.55rem; font-weight: 800; color: var(--tone); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.motor-specs dd small { font-size: 0.8rem; font-weight: 700; margin-left: 3px; color: var(--muted); }
+.motor-alt { font-size: 0.75rem; color: var(--muted); margin-top: auto; }
+@media (max-width: 680px) { .motor-specs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .motor-specs > div:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+
+/* Expandable derivation: ODE ⟹ solution, with a full-screen step-by-step procedure. */
+.dz { margin: 10px 0 6px; }
+.dz-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; gap: 10px; }
+.dz-box { position: relative; border: 1px solid var(--line); border-radius: 10px; background: #f7f9fc; padding: 18px 12px 6px; display: grid; align-items: center; overflow-x: auto; }
+.dz-box.dz-result { border: 2px solid var(--tec-blue); background: #fff; }
+.dz-label { position: absolute; top: 6px; left: 10px; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.dz-result .dz-label { color: var(--tec-blue); }
+.dz-arrow { align-self: center; font-size: 1.6rem; color: var(--tec-blue); font-weight: 700; }
+.dz-open { display: flex; justify-content: center; margin: 8px 0 4px; }
+.dz-open .chart-tool { font-size: 0.9rem; padding: 6px 14px; }
+.dz-steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 12px; }
+.dz-step { border-left: 4px solid var(--tec-blue); background: #fff; border-radius: 0 8px 8px 0; padding: 6px 14px 8px; }
+.dz-step h5 { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 1rem; color: var(--tec-blue); }
+.dz-n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--tec-blue); color: #fff; font-size: 0.8rem; flex: none; }
+.dz-modal { position: fixed; inset: 0; z-index: 1000; background: #eef2f8; display: flex; flex-direction: column; font-size: 1.2rem; }
+.dz-modal .dz-head, .dz-modal .dz-foot { display: flex; align-items: center; gap: 10px; padding: 12px 28px; background: #fff; border-bottom: 1px solid var(--line); }
+.dz-modal .dz-head h3 { margin: 0; flex: 1; color: var(--tec-blue); font-size: 1.5rem; }
+.dz-modal .dz-foot { border-top: 1px solid var(--line); border-bottom: 0; flex-wrap: wrap; }
+.dz-modal .dz-body { flex: 1; overflow-y: auto; padding: 18px 28px 40px; max-width: 1100px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+.dz-modal .dz-step { animation: dz-in 0.35s ease-out; box-shadow: 0 1px 3px #0000001a; }
+.dz-modal .dz-step h5 { font-size: 1.2rem; }
+.dz-modal .chart-tool { font-size: 1rem; padding: 6px 14px; }
+.dz-modal .dz-next { background: var(--tec-blue); color: #fff; border-color: var(--tec-blue); }
+.dz-modal .chart-tool:disabled { opacity: 0.4; cursor: default; }
+.dz-count { font-weight: 800; color: var(--tec-blue); }
+.dz-help { margin-left: auto; font-size: 0.85rem; color: var(--muted); }
+@keyframes dz-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .dz-modal .dz-step { animation: none; } }
+@media (max-width: 680px) {
+  .dz-summary { grid-template-columns: 1fr; }
+  .dz-arrow { justify-self: center; transform: rotate(90deg); }
+  .dz-modal { font-size: 1rem; }
+  .dz-modal .dz-head, .dz-modal .dz-foot, .dz-modal .dz-body { padding-left: 14px; padding-right: 14px; }
+  .dz-help { display: none; }
+}
+
+/* Phase tabs show when each phase happens (the lessons no longer repeat the phases as cards). */
+.phase-tab-text { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.15; text-align: left; }
+.phase-tab-text small { font-size: 0.7rem; font-weight: 500; color: var(--muted); }
+.menu-row.phases button[aria-selected="true"] .phase-tab-text small { color: #ffffffd9; }
+.menu-row.phases button.missing { opacity: 0.6; }
+.menu-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+.menu-row.phases .sim-tab .phase-dot { font-size: 0.65rem; padding-left: 2px; }
+
+/* Simulaciones: the flight results grouped by quantity, with the phase-card colours. */
+.change-card.q-F { --c: var(--q-F); --soft: #f1f1f2; }
+.flight-results { display: grid; gap: 10px; }
+.flight-group { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.flight-group.q-F { --c: var(--q-F); } .flight-group.q-a { --c: var(--q-a); } .flight-group.q-v { --c: var(--q-v); }
+.flight-group.q-s { --c: var(--q-s); } .flight-group.q-n { --c: #5b6270; }
+.flight-group h3 { margin: 0; display: flex; align-items: center; padding-left: 10px; border-left: 4px solid var(--c); color: var(--c);
+  font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+.flight-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
+.flight-cards .change-card { margin: 0; }
+@media (max-width: 640px) { .flight-group { grid-template-columns: 1fr; } .flight-group h3 { padding: 2px 0 2px 8px; } }
+
+/* Simulaciones: the borrego's verdict and the GO / NO-GO launch checklist. */
+.flight-badge { --lv: #1d7a3e; --lv-soft: #eef8f1; position: relative; overflow: hidden; border-top: 6px solid var(--lv); }
+.flight-badge.lvl-2 { --lv: #b7791f; --lv-soft: #fdf6e7; }
+.flight-badge.lvl-3 { --lv: #c05621; --lv-soft: #fdf0e8; }
+.flight-badge.lvl-4 { --lv: #c0262d; --lv-soft: #fdf0ef; }
+.fb-hero { display: flex; align-items: center; gap: 20px; padding: 14px 18px; border-radius: 12px; background: var(--lv-soft); position: relative; z-index: 1; }
+.fb-emoji { position: relative; font-size: 4.2rem; line-height: 1; flex: none; animation: fb-bounce 0.9s cubic-bezier(.3,1.6,.5,1) both; }
+.fb-mark { position: absolute; right: -10px; bottom: -6px; font-size: 1.9rem; animation: fb-pop 0.4s 0.7s ease-out both; }
+.fb-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fb-kicker { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.fb-label { font-size: 2.1rem; font-weight: 900; line-height: 1.05; color: var(--lv); animation: fb-stamp 0.5s 0.35s cubic-bezier(.2,1.4,.4,1) both; }
+.fb-term { font-size: 0.85rem; font-style: italic; color: var(--muted); }
+.fb-summary { margin: 6px 0 0; font-size: 0.95rem; }
+.fb-list-title { margin: 16px 0 8px; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--tec-blue); position: relative; z-index: 1; }
+.fb-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; position: relative; z-index: 1; }
+.fb-check { --c: #1d7a3e; display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; column-gap: 12px; align-items: center;
+  padding: 8px 12px; border: 1px solid var(--line); border-left: 5px solid var(--c); border-radius: 8px; background: #fff;
+  animation: fb-row 0.35s ease-out both; }
+.fb-check.lvl-2 { --c: #b7791f; } .fb-check.lvl-3 { --c: #c05621; } .fb-check.lvl-4 { --c: #c0262d; }
+.fb-status { font-weight: 900; font-size: 0.85rem; letter-spacing: 0.04em; color: var(--c); font-family: ui-monospace, Consolas, monospace; }
+.fb-name { font-weight: 700; }
+.fb-value { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--c); text-align: right; }
+.fb-target { grid-column: 2 / -1; font-size: 0.78rem; color: var(--muted); }
+.fb-advice { grid-column: 2 / -1; margin-top: 6px; padding: 8px 10px; border-radius: 6px; background: #f7f8fa; font-size: 0.88rem; }
+.fb-advice p { margin: 0 0 4px; }
+.fb-hint { color: var(--ink); }
+.fb-note { margin-top: 10px; position: relative; z-index: 1; }
+.flight-badge.lvl-4 .fb-hero { animation: fb-shake 0.6s 0.9s ease-in-out both; }
+.fb-confetti { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.fb-confetti span { position: absolute; top: -14px; width: 8px; height: 14px; border-radius: 2px; opacity: 0;
+  animation-name: fb-fall; animation-timing-function: ease-in; animation-fill-mode: forwards; }
+.fb-confetti span.round { width: 9px; height: 9px; border-radius: 50%; }
+@keyframes fb-bounce { 0% { transform: translateY(-40px) scale(.6); opacity: 0; } 60% { transform: translateY(6px) scale(1.08); opacity: 1; } 100% { transform: none; } }
+@keyframes fb-pop { from { transform: scale(0); } 70% { transform: scale(1.3); } to { transform: scale(1); } }
+@keyframes fb-stamp { from { transform: scale(2.2) rotate(-6deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fb-row { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+@keyframes fb-shake { 0%, 100% { transform: none; } 15%, 55% { transform: translateX(-9px) rotate(-1deg); } 35%, 75% { transform: translateX(9px) rotate(1deg); } }
+@keyframes fb-fall { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 100% { opacity: 0; transform: translate(var(--drift), 420px) rotate(var(--rot)); } }
+@media (prefers-reduced-motion: reduce) {
+  .fb-emoji, .fb-mark, .fb-label, .fb-check, .flight-badge.lvl-4 .fb-hero { animation: none; }
+  .fb-confetti { display: none; }
+}
+@media print { .fb-emoji, .fb-mark, .fb-label, .fb-check, .fb-hero { animation: none !important; } .fb-confetti { display: none; } }
+@media (max-width: 640px) {
+  .fb-hero { flex-direction: column; text-align: center; }
+  .fb-label { font-size: 1.6rem; }
+  .fb-check { grid-template-columns: 1fr auto; }
+  .fb-status { grid-column: 1 / -1; }
+  .fb-target, .fb-advice { grid-column: 1 / -1; }
+}
+
+/* Centered verdict; the Shaky Borrego trembles and sweats. */
+.fb-hero { justify-content: center; text-align: center; flex-direction: column; gap: 10px; }
+.fb-text { align-items: center; }
+.fb-sheep { display: inline-block; }
+.flight-badge.lvl-2 .fb-sheep { animation: fb-tremble 2.4s 1.2s ease-in-out infinite; }
+.fb-sweat { position: absolute; font-size: 1.1rem; opacity: 0; animation: fb-sweat 2.4s 1.2s ease-in infinite; }
+.fb-sweat.s1 { left: -14px; top: 4px; }
+.fb-sweat.s2 { right: -6px; top: -4px; animation-delay: 1.5s; }
+@keyframes fb-tremble {
+  0%, 45%, 100% { transform: none; }
+  5% { transform: translateX(-3px) rotate(-4deg); } 10% { transform: translateX(3px) rotate(4deg); }
+  15% { transform: translateX(-3px) rotate(-3deg); } 20% { transform: translateX(3px) rotate(3deg); }
+  25% { transform: translateX(-2px) rotate(-2deg); } 30% { transform: translateX(2px) rotate(2deg); }
+  35% { transform: translateX(-1px) rotate(-1deg); } 40% { transform: translateX(1px) rotate(1deg); }
+}
+@keyframes fb-sweat { 0% { opacity: 0; transform: translateY(0) scale(.6); } 15% { opacity: 1; transform: translateY(2px) scale(1); } 45% { opacity: 0; transform: translateY(22px) scale(.8); } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .flight-badge.lvl-2 .fb-sheep, .fb-sweat { animation: none; } .fb-sweat { opacity: 1; } }
+@media print { .fb-sheep, .fb-sweat { animation: none !important; } .fb-sweat { opacity: 1; } }
+.tab-icon { font-size: 1.15rem; line-height: 1; }
+/* Main menu: big step buttons, so it is clear the rocket is built first. */
+.menu-row.main button { min-width: 260px; padding: 12px 22px; gap: 14px; justify-content: flex-start; border-width: 2px; }
+.menu-row.main .tab-icon { font-size: 2.4rem; }
+.tab-text { display: flex; flex-direction: column; align-items: flex-start; font-size: 1.3rem; font-weight: 800; line-height: 1.15; }
+.tab-text small { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+.menu-row.main button[aria-selected="true"] .tab-text small { color: #dbe4f6; }
+@media (max-width: 640px) { .menu-row.main button { min-width: 0; flex: 1 1 100%; } }
+
+/* Workspace: one title bar with the program (left), the app title (centre) and the actions (right). */
+.program-banner { display: grid !important; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; }
+.banner-program { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.banner-title { margin: 0; color: #fff; font-size: clamp(1.25rem, 2.4vw, 1.7rem); font-weight: 700; letter-spacing: -0.02em; text-align: center; white-space: nowrap; }
+.banner-title span { color: #9cc4ff; }
+.program-banner .banner-actions { margin-left: 0; }
+@media (max-width: 980px) {
+  .program-banner { grid-template-columns: 1fr auto; }
+  .banner-title { grid-column: 1 / -1; grid-row: 1; }
+  .banner-actions { justify-content: flex-end; }
+}
+@media (max-width: 700px) {
+  .program-banner { grid-template-columns: 1fr; }
+  .banner-title { white-space: normal; }
+  .banner-actions { justify-content: flex-start; }
+}
+
+/* ---------- Balanced header: [logo | tabs | save status] and [program | title | actions] ---------- */
+.topbar { display: grid; grid-template-columns: 1fr auto 1fr; grid-template-areas: "logo nav status"; align-items: center; gap: 8px 24px; }
+.topbar .tec-home { grid-area: logo; justify-self: start; }
+.topbar .main-nav { grid-area: nav; justify-self: center; background: var(--page); border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+.topbar .save-status { grid-area: status; justify-self: end; margin-left: 0; }
+@media (max-width: 1080px) { .topbar .tec-home { align-self: center; } }
+@media (max-width: 900px) {
+  .topbar { grid-template-columns: 1fr auto; grid-template-areas: "logo status" "nav nav"; flex-direction: initial; }
+  .topbar .tec-home { align-self: center; }
+  .topbar .main-nav { justify-self: stretch; }
+}
+@media (max-width: 560px) {
+  .topbar { grid-template-columns: 1fr; grid-template-areas: "logo" "status" "nav"; }
+  .topbar .tec-home, .topbar .save-status { justify-self: center; }
+}
+
+.program-banner {
+  grid-template-columns: 1fr auto 1fr; gap: 12px 24px; padding: 14px 20px; border-radius: 14px; margin-bottom: 14px;
+  background:
+    radial-gradient(circle at 8% 25%, rgba(255,255,255,0.28) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 38% 78%, rgba(255,255,255,0.22) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 63% 18%, rgba(255,255,255,0.25) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 88% 70%, rgba(255,255,255,0.22) 0 1px, transparent 1.5px),
+    linear-gradient(120deg, #001e5c 0%, var(--tec-blue) 55%, #2a63d4 100%);
+  border-bottom: 3px solid #6ea8ff; box-shadow: 0 6px 18px rgba(0, 43, 127, 0.18);
+}
+.banner-program { justify-self: start; }
+.program-banner img { width: 54px; height: 54px; box-shadow: 0 0 0 3px rgba(255,255,255,0.35); }
+.program-banner h2 { font-size: 1.25rem; line-height: 1.1; }
+.program-banner .program-fuel { font-size: 0.7rem; color: #b9cdf3; }
+.banner-title { font-size: clamp(1.2rem, 2.2vw, 1.6rem); text-shadow: 0 1px 2px rgba(0,0,0,0.25); }
+.program-banner .banner-actions { justify-self: end; flex-wrap: nowrap; gap: 8px; }
+.bar-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  font-weight: 700; font-size: 0.86rem; color: #fff; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.4);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.bar-btn:hover { background: rgba(255,255,255,0.22); }
+.bar-btn:active { transform: translateY(1px); }
+.bar-btn:focus-visible { outline: 3px solid #9cc4ff; outline-offset: 2px; }
+.bar-btn:disabled { opacity: 0.6; cursor: default; }
+.bar-btn.primary { background: #fff; color: var(--tec-blue); border-color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.18); }
+.bar-btn.primary:hover { background: #e8eef9; }
+.banner-notice { position: absolute; margin-top: 64px; right: 24px; font-size: 0.8rem; background: #fff; color: var(--tec-blue); padding: 3px 10px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+.program-banner { position: relative; }
+/* Medium screens: the secondary actions keep only their icon (the tooltip names them). */
+@media (max-width: 1180px) { .bar-btn:not(.primary) .bar-label { display: none; } .bar-btn:not(.primary) { width: 36px; padding: 0; justify-content: center; } }
+@media (max-width: 860px) {
+  .program-banner { grid-template-columns: 1fr auto; }
+  .banner-title { grid-column: 1 / -1; grid-row: 1; }
+  .program-banner .banner-actions { width: auto; }
+}
+@media (max-width: 520px) {
+  .program-banner { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+  .banner-program, .program-banner .banner-actions { justify-self: center; }
+}
+
+/* Rocket Tec wordmark in the banner: the logo has a white background, so it sits on a white plaque. */
+.banner-wordmark { display: inline-flex; align-items: center; overflow: hidden; background: #fff; border-radius: 10px; padding: 2px 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); }
+.program-banner .banner-wordmark img { display: block; height: 83px; margin: -10px -6px -12px; width: auto; max-width: 100%; border-radius: 0; background: none; padding: 0; box-shadow: none; }
+@media (max-width: 520px) { .program-banner .banner-wordmark img { height: 68px; margin: -8px -5px -9px; } }
+
+/* Banner title: centred in the space between the logo and the actions, in the Rocket Tec typeface (Bahnschrift, a system font; nothing is shipped). */
+@media (min-width: 981px) {
+  .program-banner { grid-template-columns: auto minmax(0, 1fr) auto; }
+}
+.banner-title { font-family: Bahnschrift, "DIN Alternate", "DIN Pro", "Barlow", "Arial Narrow", sans-serif; font-weight: 600; font-stretch: normal; letter-spacing: 0.01em; font-size: clamp(1.4rem, 2.6vw, 1.95rem); }
+/* The title is an image of the Rocket Tec typeface, so no font file is needed. */
+.banner-title { display: flex; justify-content: center; line-height: 0; }
+.program-banner .banner-title img { border-radius: 0; background: none; padding: 0; box-shadow: none; border: 0; display: block; height: clamp(24px, 2.5vw, 32px); width: auto; max-width: 100%; }
+@media print { .banner-title img { filter: invert(1); } }
+/* Bigger two-line title (name + the three methods). */
+.program-banner .banner-title img { height: clamp(24px, 2.6vw, 34px); }
+@media (max-width: 520px) { .program-banner .banner-title img { height: auto; width: 100%; max-width: 320px; } }
+
+/* Topbar right: the Rocket Tec event logo (and the save status outside the workspaces). */
+.topbar .topbar-end { grid-area: status; justify-self: end; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.topbar .topbar-end .save-status { margin-left: 0; }
+.event-logo { display: block; height: 88px; width: auto; margin: -12px -6px -13px; }
+@media (max-width: 560px) { .topbar .topbar-end { justify-self: center; } .event-logo { height: 65px; } }
+/* The banner: save status (left), the name (centre), the actions (right). */
+.program-banner .banner-program { justify-self: start; }
+.program-banner .save-status { margin: 0; }
+@media (min-width: 981px) { .program-banner { grid-template-columns: 1fr auto 1fr; column-gap: 16px; } .program-banner .banner-actions { justify-self: end; } }
+@media (max-width: 520px) { .program-banner .banner-program { justify-self: center; } }
+/* The title is plain text in the app typeface, the same as the Rocket Tec and Rocket Challenge tabs. */
+.program-banner .banner-title { display: block; line-height: 1.15; font-family: inherit; font-weight: 700; letter-spacing: -0.01em; font-size: clamp(1.5rem, 2.6vw, 2.1rem); color: #fff; }
