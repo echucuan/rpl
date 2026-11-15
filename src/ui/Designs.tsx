@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PROGRAMS } from "./StartScreen";
+import { AVAILABLE, PROGRAMS, SOON_TEXT, soonMessage } from "./StartScreen";
 import type { Design } from "../model";
 import { deleteDesign, downloadDesign, listDesigns, readDesignFile, saveDesign } from "./storage";
 
@@ -10,6 +10,7 @@ export function Designs({ onOpen }: { onOpen: (d: Design, id: string | undefined
   const upload = async (file: File) => {
     const d = await readDesignFile(file);
     if (typeof d === "string") { setError(d); return; }
+    if (!AVAILABLE[d.type]) { setError(soonMessage(d.type)); return; }
     setError("");
     const entry = saveDesign(d);
     setList(listDesigns());
@@ -38,7 +39,9 @@ export function Designs({ onOpen }: { onOpen: (d: Design, id: string | undefined
               <small>{PROGRAMS[s.design.type].name} · {PROGRAMS[s.design.type].fuel.toLowerCase()} · {new Date(s.savedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}</small>
             </div>
             <div className="btn-row">
-              <button type="button" className="btn small primary" onClick={() => onOpen(s.design, s.id, "opened")}>Abrir</button>
+              {AVAILABLE[s.design.type]
+                ? <button type="button" className="btn small primary" onClick={() => onOpen(s.design, s.id, "opened")}>Abrir</button>
+                : <span className="soon-tag" title={soonMessage(s.design.type)}>{SOON_TEXT}</span>}
               <button type="button" className="btn small" onClick={() => downloadDesign(s.design)}>Descargar</button>
               <button type="button" className="btn small danger" onClick={() => {
                 if (!confirm(`¿Borrar "${s.design.name}" de este navegador?`)) return;

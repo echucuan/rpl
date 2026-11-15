@@ -344,6 +344,21 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0 
   background: var(--tec-blue); color: #fff; font-weight: 700; transition: background 0.18s ease;
 }
 .program-card:hover .program-go, .program-card:focus-visible .program-go { background: var(--tec-blue-dark); }
+/* A program that is not open yet (AVAILABLE in StartScreen.tsx): blurred, with a "Muy pronto" label. */
+.program-card.soon { position: relative; cursor: default; overflow: hidden; }
+.program-card.soon:hover { transform: none; border-color: var(--line); box-shadow: 0 1px 2px rgba(0, 43, 127, 0.05), 0 4px 14px rgba(0, 43, 127, 0.05); }
+.program-blur { display: flex; flex-direction: column; align-items: center; height: 100%; filter: blur(5px) grayscale(.35); opacity: .55; user-select: none; pointer-events: none; }
+.soon-ribbon {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-4deg);
+  display: grid; gap: 2px; text-align: center; padding: 12px 26px; border-radius: 12px;
+  background: var(--tec-blue); color: #fff; box-shadow: 0 10px 26px rgba(0, 43, 127, 0.3);
+}
+.soon-ribbon b { font-size: 1.5rem; letter-spacing: .01em; }
+.soon-ribbon small { font-size: .8rem; opacity: .85; white-space: nowrap; }
+.main-nav button.soon { opacity: .55; cursor: default; filter: blur(.4px); }
+.main-nav button.soon:hover { color: inherit; background: none; }
+.main-nav .soon-tag { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; background: var(--tec-blue-soft); color: var(--tec-blue); filter: none; }
+.design-row .soon-tag { font-size: .75rem; font-weight: 700; color: var(--tec-blue); background: var(--tec-blue-soft); border-radius: 999px; padding: 4px 10px; }
 .start-foot { text-align: center; color: var(--muted); font-size: 0.88rem; margin: 20px 0 0; }
 .start-foot b { color: var(--ink); }
 

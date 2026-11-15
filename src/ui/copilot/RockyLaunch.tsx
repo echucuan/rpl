@@ -137,17 +137,22 @@ export function RockyLaunch({ fab, reads, onFlying, onChute, onDone }: Props) {
         }
         onChute("open");
         up.cancel();
-        const down = el.animate(
-          [
-            { transform: `translateY(${from}px) rotate(-7deg)` },
-            { transform: `translateY(${from * 0.68}px) rotate(6deg)`, offset: 0.33 },
-            { transform: `translateY(${from * 0.34}px) rotate(-5deg)`, offset: 0.66 },
-            { transform: "translateY(0) rotate(0)" },
-          ],
-          { duration: full ? 3000 : 2600, easing: "cubic-bezier(.2,.6,.4,1)", fill: "forwards" },
+        // Under the parachute: a slow, steady fall (half the speed it used to have) while he swings
+        // from side to side like a pendulum hanging from the canopy, each swing a little smaller.
+        const fall = full ? 6000 : 5200;
+        el.style.transformOrigin = "50% -55%"; // pivot near the parachute, above Rocky
+        const down = el.animate([{ translate: `0 ${from}px` }, { translate: "0 0" }], {
+          duration: fall, easing: "cubic-bezier(.25,.4,.45,1)", fill: "forwards",
+        });
+        const swing = [0, -24, 21, -18, 14, -10, 6, 0];
+        const sway = el.animate(
+          swing.map((x) => ({ transform: `translateX(${x}px) rotate(${(-x * 0.45).toFixed(1)}deg)` })),
+          { duration: fall, easing: "ease-in-out", fill: "forwards" },
         );
-        await settle(down, full ? 3000 : 2600);
+        await settle(down, fall);
         down.cancel();
+        sway.cancel();
+        el.style.transformOrigin = "";
         if (!alive) return;
         onChute("fold");
         await wait(450);

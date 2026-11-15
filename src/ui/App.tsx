@@ -9,7 +9,7 @@ import { RockyGuide } from "./rocky/RockyGuide";
 import { Dialog } from "./Dialog";
 import { Workspace, SUB_TABS, type SubTab } from "./Workspace";
 import { designFileName, loadDraft, readDesignFile, saveDesign, saveProjectFile, storeDraft } from "./storage";
-import { PROGRAMS, StartScreen, logoUrl } from "./StartScreen";
+import { AVAILABLE, PROGRAMS, SOON_TEXT, StartScreen, logoUrl, soonMessage } from "./StartScreen";
 import {
   STATUS_TEXT, afterExport, discard, draftOf, exportSnapshot, fingerprint, guardFor, isDirty, project, readDraft, saveStatus, shouldWarnOnUnload,
   type Intent, type ProgramType, type Project, type SaveStatus, type Tab,
@@ -30,11 +30,14 @@ const fresh = (t: ProgramType) => project(t === "water" ? newWaterDesign() : new
 
 type Route = { tab: Tab; sub: SubTab };
 
+/** A program marked "Muy pronto" (AVAILABLE in StartScreen.tsx) cannot be entered. */
+const isOpen = (tab: Tab) => !(tab === "estes" || tab === "water") || AVAILABLE[tab];
+
 /** Location hash: "#estes/graficas" → tab and sub-tab. */
 function parseHash(): Route {
   const [t, s] = location.hash.slice(1).split("/");
   return {
-    tab: TABS.some((x) => x.id === t) ? (t as Tab) : "inicio",
+    tab: TABS.some((x) => x.id === t) && isOpen(t as Tab) ? (t as Tab) : "inicio",
     sub: SUB_TABS.includes(s as SubTab) ? (s as SubTab) : "cohete",
   };
 }
@@ -51,7 +54,8 @@ function initialState() {
     if (r.action === "resume") projects[t] = r.project;
     else {
       projects[t] = fresh(t);
-      if (r.action === "ask") pending[t] = { project: r.project, updatedAt: r.updatedAt };
+      // A closed program ("Muy pronto") keeps its draft untouched and does not ask about it.
+      if (r.action === "ask" && AVAILABLE[t]) pending[t] = { project: r.project, updatedAt: r.updatedAt };
     }
   }
   return { projects, pending };
@@ -83,7 +87,8 @@ export function App() {
   }, [route]);
   useEffect(() => {
     // A draft waiting for "¿Recuperar?" is not overwritten until the student answers.
-    for (const t of TYPES) if (!pending[t]) storeDraft(t, draftOf(projects[t]));
+    // A closed program's draft is never overwritten: the student finds it again when it opens.
+    for (const t of TYPES) if (!pending[t] && AVAILABLE[t]) storeDraft(t, draftOf(projects[t]));
   }, [projects, pending]);
 
   // The browser's own prompt on close, reload or leaving the site; only while there is something to lose.
@@ -99,6 +104,8 @@ export function App() {
   }, [warnOnUnload]);
 
   const perform = (intent: Intent) => {
+    if (intent.kind === "tab" && !isOpen(intent.to)) return;
+    if (intent.kind === "open" && !AVAILABLE[intent.design.type]) return;
     if (intent.kind === "tab") setRoute((r) => ({ tab: intent.to, sub: (intent.sub as SubTab | undefined) ?? r.sub }));
     else if (intent.kind === "open") {
       const t = intent.design.type;
@@ -185,6 +192,7 @@ export function App() {
           // Same as Abrir archivo in Mis diseños: keep a copy in the browser, then open it (asking first about unsaved work).
           const d = await readDesignFile(file);
           if (typeof d === "string") return d;
+          if (!AVAILABLE[d.type]) return soonMessage(d.type);
           const entry = saveDesign(d);
           request({ kind: "open", design: d, id: entry?.id, source: "imported" });
           return null;
@@ -206,10 +214,16 @@ export function App() {
             <img className="event-logo" src={`${import.meta.env.BASE_URL}rocket-tec/rocket-tec-logo.webp`} alt="Rocket Tec Sinaloa 2026" />
           </div>
           <nav className="main-nav" role="tablist" aria-label="Secciones de la aplicación">
-            {TABS.map((t) => (
+            {TABS.map((t) => isOpen(t.id) ? (
               <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => tab !== t.id && request({ kind: "tab", to: t.id })}>
                 {t.logo && <img className="tab-logo" src={logoUrl(t.logo)} alt="" />}
                 {t.label}
+              </button>
+            ) : (
+              <button key={t.id} role="tab" aria-selected={false} aria-disabled="true" className="soon" title={`${t.label}: ${SOON_TEXT.toLowerCase()}`}>
+                {t.logo && <img className="tab-logo" src={logoUrl(t.logo)} alt="" />}
+                {t.label}
+                <span className="soon-tag">{SOON_TEXT}</span>
               </button>
             ))}
           </nav>

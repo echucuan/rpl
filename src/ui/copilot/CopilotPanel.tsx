@@ -2,6 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { useEffect, useRef, useState } from "react";
 import type { Design } from "../../model";
 import { Mascot, type MascotMood } from "../mascot/Mascot";
+import { AVAILABLE } from "../StartScreen";
 import { CopilotError, MAX_MESSAGES, ask, type Phase } from "./conversation";
 import { COPILOT_GROUPS } from "./groups";
 import { OPEN_ROCKY } from "./openRocky";
@@ -39,7 +40,7 @@ interface Bubble {
 const SUGGESTIONS: Record<"estes" | "water" | "none", string[]> = {
   estes: ["¿Mi cohete es estable?", "¿Qué pasa si agrando las aletas?", "¿Qué retardo de eyección me conviene?"],
   water: ["¿Cuánta agua le pongo?", "¿Qué pasa con menos presión?", "¿Mi cohete es estable?"],
-  none: ["¿Qué es el centro de presión?", "¿Cómo funciona un motor Estes?", "¿Por qué vuela un cohete de agua?"],
+  none: ["¿Qué es el centro de presión?", "¿Cómo funciona un motor Estes?", AVAILABLE.water ? "¿Por qué vuela un cohete de agua?" : "¿Qué es el apogeo?"],
 };
 
 const TOOL_LABEL: Record<string, string> = {
@@ -226,7 +227,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
   const kind = design?.type ?? "none";
   const greeting = design
     ? `¡Hola! Soy Rocky, tu copiloto. Puedo revisar tu cohete «${design.name}», simular cambios y explicarte la física. ¿Qué quieres saber?`
-    : "¡Hola! Soy Rocky, tu copiloto. Abre Rocket Tec o Rocket Challenge para que revise tu cohete, o pregúntame sobre la física del vuelo.";
+    : `¡Hola! Soy Rocky, tu copiloto. Abre ${AVAILABLE.water ? "Rocket Tec o Rocket Challenge" : "Rocket Tec"} para que revise tu cohete, o pregúntame sobre la física del vuelo.`;
 
   return (
     <>

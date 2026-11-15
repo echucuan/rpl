@@ -5,6 +5,15 @@ export const PROGRAMS: Record<Design["type"], { name: string; fuel: string; logo
   water: { name: "Rocket Challenge", fuel: "Agua y aire a presión", logo: "brand/rocket-challenge.png" },
 };
 
+/**
+ * Programs students can enter. One set to false shows as "Muy pronto": blurred card and tab, its
+ * address (#water) goes to Inicio, and its designs cannot be opened. Set it back to true to open it.
+ */
+export const AVAILABLE: Record<Design["type"], boolean> = { estes: true, water: false };
+export const SOON_TEXT = "Muy pronto";
+/** Shown when a closed program's design is opened from Mis diseños or a file. */
+export const soonMessage = (type: Design["type"]) => `${PROGRAMS[type].name} estará disponible muy pronto. Por ahora no se pueden abrir sus diseños.`;
+
 export const logoUrl = (type: Design["type"]) => `${import.meta.env.BASE_URL}${PROGRAMS[type].logo}`;
 
 const CARDS: { type: Design["type"]; tone: string; alt: string; text: string }[] = [
@@ -31,7 +40,7 @@ export function StartScreen({ onPick }: { onPick: (type: Design["type"]) => void
         <p>Selecciona el sistema de propulsión para comenzar a diseñar y simular.</p>
       </div>
       <div className="start-cards">
-        {CARDS.map((c) => (
+        {CARDS.map((c) => AVAILABLE[c.type] ? (
           <button key={c.type} type="button" className={`program-card ${c.tone}`} onClick={() => onPick(c.type)}>
             <span className="program-logo"><img src={logoUrl(c.type)} alt={c.alt} /></span>
             <span className="program-fuel">{PROGRAMS[c.type].fuel}</span>
@@ -39,6 +48,20 @@ export function StartScreen({ onPick }: { onPick: (type: Design["type"]) => void
             <span className="program-text">{c.text}</span>
             <span className="program-go">Diseñar cohete <span aria-hidden="true">→</span></span>
           </button>
+        ) : (
+          <div key={c.type} className={`program-card ${c.tone} soon`} aria-label={`${PROGRAMS[c.type].name}: ${SOON_TEXT.toLowerCase()}`}>
+            <div className="program-blur" aria-hidden="true">
+              <span className="program-logo"><img src={logoUrl(c.type)} alt="" /></span>
+              <span className="program-fuel">{PROGRAMS[c.type].fuel}</span>
+              <span className="program-name">{PROGRAMS[c.type].name}</span>
+              <span className="program-text">{c.text}</span>
+              <span className="program-go">Diseñar cohete <span aria-hidden="true">→</span></span>
+            </div>
+            <span className="soon-ribbon">
+              <b>{SOON_TEXT}…</b>
+              <small>{PROGRAMS[c.type].name} está en preparación</small>
+            </span>
+          </div>
         ))}
       </div>
       <p className="start-foot">
