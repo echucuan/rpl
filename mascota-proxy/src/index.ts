@@ -9,7 +9,7 @@
  * The tools run in the browser (they call the RPL simulator); the Worker only declares them.
  */
 import Anthropic from "@anthropic-ai/sdk";
-import { allowedOrigin, checkBody, dayKey, validGroup } from "./guard";
+import { allowedOrigin, checkBody, dayKey, studentKey, validGroup } from "./guard";
 import { SYSTEM_PROMPT } from "./prompt";
 import { TOOLS } from "./tools";
 
@@ -35,6 +35,7 @@ export interface Env {
   DAILY_TOTAL: string;
   /** Bindings. */
   PER_MINUTE: RateLimiter;
+  PER_IP: RateLimiter;
   QUOTA: KVStore;
 }
 
@@ -52,7 +53,7 @@ function corsHeaders(origin: string | null, request: Request): Record<string, st
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     // The SDK sends several x-stainless-* headers; they are ignored, so the requested ones are allowed.
-    "Access-Control-Allow-Headers": request.headers.get("Access-Control-Request-Headers") ?? "content-type, x-rpl-group",
+    "Access-Control-Allow-Headers": request.headers.get("Access-Control-Request-Headers") ?? "content-type, x-rpl-group, x-rpl-device",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
@@ -91,10 +92,12 @@ export default {
     const group = validGroup(request.headers.get("x-rpl-group"), env.GROUPS);
     if (!group) return apiError(400, "Elige tu grupo para hablar con el copiloto.", cors);
 
-    // One student = one IP address (in a classroom many students can share one; the limits allow for that).
-    const student = request.headers.get("CF-Connecting-IP") ?? "local";
-    const { success } = await env.PER_MINUTE.limit({ key: student });
-    if (!success) return apiError(429, "Vas muy rápido. Espera un minuto y vuelve a preguntar.", cors);
+    // One student = one browser (its anonymous id), not one IP: a whole classroom can share one IP.
+    // The IP keeps only a wide per-minute cap, against scripts that invent a new id each time.
+    const ip = request.headers.get("CF-Connecting-IP") ?? "local";
+    const student = studentKey(request.headers.get("x-rpl-device"), ip);
+    if (!(await env.PER_IP.limit({ key: ip })).success) return apiError(429, "El copiloto está muy ocupado en tu red. Espera un minuto y vuelve a preguntar.", cors);
+    if (!(await env.PER_MINUTE.limit({ key: student })).success) return apiError(429, "Vas muy rápido. Espera un minuto y vuelve a preguntar.", cors);
 
     const checked = checkBody(await request.text());
     if (!checked.ok) return apiError(checked.status, checked.error, cors);

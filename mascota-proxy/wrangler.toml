@@ -17,16 +17,22 @@ MAX_TOKENS = "2000"
 EFFORT = "low"
 # Grupos que pueden usar el copiloto (deben coincidir con COPILOT_GROUPS en src/ui/copilot/groups.ts de la app).
 GROUPS = "501,502,503,504"
-# Preguntas por día: por alumno (IP), por cada grupo y en total.
+# Preguntas por día: por alumno (cada navegador), por cada grupo y en total.
 DAILY_PER_STUDENT = "40"
 DAILY_PER_GROUP = "900"
 DAILY_TOTAL = "3000"
 
-# Máximo de preguntas por minuto por alumno (IP). period solo puede ser 10 o 60 segundos.
+# Máximo de preguntas por minuto por alumno (cada navegador). period solo puede ser 10 o 60 segundos.
 [[ratelimits]]
 name = "PER_MINUTE"
 namespace_id = "1001"
 simple = { limit = 8, period = 60 }
+
+# Tope por minuto por red (IP): todo un salón comparte una. Súbelo si un salón lleno ve "muy ocupado en tu red".
+[[ratelimits]]
+name = "PER_IP"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
 
 # Contadores diarios. Crea el namespace con: npx wrangler kv namespace create QUOTA
 # y pega aquí el id que te dé (en local funciona con cualquier valor).

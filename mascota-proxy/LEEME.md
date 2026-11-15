@@ -24,12 +24,12 @@ Del navegador solo toma la conversación (`messages`), y la revisa en `src/guard
 
 1. **Grupo**: el alumno elige su grupo (501, 502, 503 o 504) y el navegador lo manda en el encabezado `x-rpl-group`; si no está en `GROUPS`, responde 400. No es una contraseña: sirve para repartir y contar las preguntas por grupo.
 2. **Origen**: solo responde a las páginas de `ALLOWED_ORIGINS`.
-3. **Por minuto**: 8 preguntas por alumno (IP); se cambia en `[[ratelimits]]`.
+3. **Por minuto**: 8 preguntas por alumno (`PER_MINUTE`) y 60 por red/IP (`PER_IP`); se cambian en `[[ratelimits]]`.
 4. **Por día**, con el día de Culiacán: 40 por alumno (`DAILY_PER_STUDENT`), 900 por grupo (`DAILY_PER_GROUP`) y 3000 en total (`DAILY_TOTAL`).
 5. **Tamaño**: máximo 40 mensajes, 64 KB y 4000 caracteres por pregunta; solo texto y resultados de herramientas (nada de imágenes ni documentos).
 6. **Tope de gasto**: ponlo también en la consola de Claude (Settings → Limits). Es el freno definitivo.
 
-> En un salón, varios alumnos pueden salir por la misma IP del Tec. Si se topan con el límite, sube `DAILY_PER_STUDENT` y el `limit` por minuto.
+> **Quién es "un alumno"**: cada navegador guarda un identificador anónimo al azar (`rpl.copilot.device`) y lo manda en `x-rpl-device`. Así un salón entero que sale por la misma IP del Tec no comparte un solo límite. Si un alumno borra los datos del navegador obtiene otro identificador; los topes por grupo, el total y el tope por IP siguen protegiendo el saldo. Sin identificador válido (una copia vieja de la página) se cuenta por IP. Si un salón lleno ve "muy ocupado en tu red", sube el `limit` de `PER_IP`.
 
 > Como no hay contraseña, cualquiera que abra la página puede usar el copiloto. Lo que acota el gasto son los límites de arriba y el tope en la consola de Claude.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LIMITS, allowedOrigin, checkBody, dayKey, validGroup } from "./guard";
+import { LIMITS, allowedOrigin, checkBody, dayKey, studentKey, validGroup } from "./guard";
 
 const body = (messages: unknown) => JSON.stringify({ messages });
 
@@ -64,6 +64,20 @@ describe("validGroup", () => {
     expect(validGroup("50", groups)).toBeNull();
     expect(validGroup("", groups)).toBeNull();
     expect(validGroup(null, groups)).toBeNull();
+  });
+});
+
+describe("studentKey", () => {
+  it("counts each browser on a shared IP as its own student", () => {
+    const id = "3f2b8c1e-9a4d-4e7b-8c2f-1a2b3c4d5e6f";
+    expect(studentKey(id, "1.2.3.4")).toBe(`dev:${id}`);
+    expect(studentKey("otro-navegador-123456", "1.2.3.4")).toBe("dev:otro-navegador-123456");
+  });
+  it("falls back to the IP without a valid id", () => {
+    expect(studentKey(null, "1.2.3.4")).toBe("ip:1.2.3.4");
+    expect(studentKey("corto", "1.2.3.4")).toBe("ip:1.2.3.4");
+    expect(studentKey("tiene espacios y ; raros 123", "1.2.3.4")).toBe("ip:1.2.3.4");
+    expect(studentKey("x".repeat(65), null)).toBe("ip:local");
   });
 });
 

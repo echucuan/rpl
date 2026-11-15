@@ -30,6 +30,26 @@ export class CopilotError extends Error {
 
 let sdk: Promise<typeof import("@anthropic-ai/sdk")> | null = null;
 
+const DEVICE_KEY = "rpl.copilot.device";
+let deviceId = "";
+/**
+ * Anonymous random id of this browser: the Worker counts each student's limits with it, because a
+ * whole classroom usually shares one IP address. It says nothing about the student.
+ */
+function device(): string {
+  if (deviceId) return deviceId;
+  try {
+    deviceId = localStorage.getItem(DEVICE_KEY) ?? "";
+    if (!/^[A-Za-z0-9-]{16,64}$/.test(deviceId)) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem(DEVICE_KEY, deviceId);
+    }
+  } catch {
+    deviceId ||= crypto.randomUUID(); // private mode: one id for this visit
+  }
+  return deviceId;
+}
+
 async function client(group: string): Promise<Anthropic> {
   sdk ??= import("@anthropic-ai/sdk");
   const { default: Anthropic } = await sdk;
@@ -37,7 +57,7 @@ async function client(group: string): Promise<Anthropic> {
     baseURL: COPILOT_URL,
     apiKey: "rpl", // the real key lives in the Worker
     dangerouslyAllowBrowser: true,
-    defaultHeaders: { "x-rpl-group": group },
+    defaultHeaders: { "x-rpl-group": group, "x-rpl-device": device() },
     maxRetries: 0, // the Worker already retries towards Claude; a retry here would spend the student's quota twice
   });
 }

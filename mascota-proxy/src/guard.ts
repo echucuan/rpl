@@ -67,6 +67,15 @@ export function validGroup(given: string | null, list: string): string | null {
   return list.split(",").map((s) => s.trim()).filter(Boolean).includes(given) ? given : null;
 }
 
+/**
+ * Who counts as one student for the per-student limits: the anonymous id the app keeps in each
+ * browser (x-rpl-device), so a classroom sharing one IP address is not counted as one student.
+ * Without a valid id (an old copy of the page, or a hand-made request) it falls back to the IP.
+ */
+export function studentKey(device: string | null, ip: string | null): string {
+  return device && /^[A-Za-z0-9-]{16,64}$/.test(device) ? `dev:${device}` : `ip:${ip ?? "local"}`;
+}
+
 /** Day key in Culiacán time (UTC-7, no DST), so quotas reset at local midnight. */
 export function dayKey(now: Date): string {
   return new Date(now.getTime() - 7 * 3600_000).toISOString().slice(0, 10);
