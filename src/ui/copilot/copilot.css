@@ -17,10 +17,7 @@
   animation: cp-in .18s ease-out;
 }
 @keyframes cp-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
-@media (max-width: 520px) {
-  .cp-panel { right: 16px; left: 16px; width: auto; bottom: 100px; height: calc(100vh - 124px); }
-  .cp-fab { right: 16px; bottom: 16px; }
-}
+
 
 .cp-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #072F70; color: #fff; }
 .cp-avatar { width: 46px; height: 46px; border-radius: 50%; background: #fff; display: grid; place-items: center; flex: none; }
@@ -76,3 +73,97 @@
 .cp-icon.cp-group { width: auto; padding: 0 8px; font-size: .78rem; font-weight: 700; border: 1px solid rgba(255, 255, 255, .5); }
 a.cp-icon.cp-help { display: grid; place-items: center; text-decoration: none; font-weight: 800; font-size: 1rem; }
 .cp-guide { font-size: .85rem; color: #0751B5; }
+
+/* ---------- easter egg on ✕ (RockyLaunch.tsx; not in Rocky's guide on purpose) ---------- */
+/* Reading clock on each answer. */
+.cp-read { display: block; margin-top: 6px; text-align: right; font-size: .68rem; color: #8a94a6; font-variant-numeric: tabular-nums; }
+.cp-read.done { color: #1d7a3e; }
+/* Hint: a faint engine glow under Rocky that grows with the answers read. */
+.cp-fab.fuel-1 { box-shadow: 0 8px 22px rgba(7, 47, 112, .32), 0 10px 14px -6px rgba(224, 112, 27, .4); }
+.cp-fab.fuel-2 { box-shadow: 0 8px 22px rgba(7, 47, 112, .32), 0 12px 18px -6px rgba(224, 112, 27, .55); }
+.cp-fab.fuel-3 { box-shadow: 0 8px 22px rgba(7, 47, 112, .32), 0 14px 22px -5px rgba(224, 112, 27, .7); }
+.cp-fab.launching { pointer-events: none; z-index: 71; }
+
+/* The window being sucked into Rocky's corner (genie). */
+.cp-panel.closing { pointer-events: none; }
+
+.cp-chute { position: absolute; left: 50%; bottom: 62%; width: 96px; height: 78px; margin-left: -48px; transform-origin: 50% 100%; pointer-events: none; }
+.cp-chute.open { animation: cp-chute-open .35s cubic-bezier(.3, 1.5, .5, 1) both; }
+.cp-chute.fold { animation: cp-chute-fold .45s ease-in forwards; }
+@keyframes cp-chute-open { from { transform: scale(.1, .3); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes cp-chute-fold { to { transform: translateX(26px) rotate(70deg) scale(.4); opacity: 0; } }
+
+.rl-layer { position: fixed; inset: 0; z-index: 70; pointer-events: none; overflow: hidden; }
+.rl-count {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  font-size: clamp(7rem, 30vw, 15rem); font-weight: 900; line-height: 1; color: #072F70;
+  -webkit-text-stroke: 4px #fff; paint-order: stroke fill; text-shadow: 0 10px 40px rgba(7, 47, 112, .35);
+  animation: rl-pop .78s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.rl-count.go { font-size: clamp(3rem, 13vw, 7.5rem); color: #E0701B; white-space: nowrap; animation-duration: .9s; }
+@keyframes rl-pop {
+  0% { transform: translate(-50%, -50%) scale(.3); opacity: 0; }
+  35% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+  80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.25); opacity: 0; }
+}
+/* Smoke drawn like the Rocket Tec logo's clouds: white, shaded light blue underneath. */
+.rl-trail, .rl-billow {
+  position: absolute; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle at 40% 32%, #fff 0 38%, #eef5ff 52%, #cfe1fb 68%, #b3cdf3 74%, transparent 75%);
+}
+/* The puffs of a cloud share one outline and shadow, so on a white page they read as one cloud. */
+.rl-smoke { position: absolute; inset: 0; }
+.rl-smoke, .rl-front { filter: drop-shadow(0 0 1.5px rgba(7, 47, 112, .45)) drop-shadow(0 4px 8px rgba(7, 47, 112, .22)); }
+/* Trail: born small behind Rocky, it widens and fades as it ages (TRAIL_LIFE in RockyLaunch.tsx). */
+.rl-trail { animation: rl-trail 3.2s ease-out both; }
+@keyframes rl-trail {
+  0% { opacity: 0; transform: scale(.45); }
+  6% { opacity: .95; transform: scale(.6); }
+  60% { opacity: .75; }
+  100% { opacity: 0; transform: translateY(-12px) scale(2.3); }
+}
+/* Launch-pad cloud: billows roll out sideways from the pad, linger, then rise and fade. */
+.rl-front { z-index: 72; }
+.rl-billow { animation: rl-billow 4.4s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes rl-billow {
+  0% { opacity: 0; transform: translate(0, 0) scale(.15); }
+  5% { opacity: 1; }
+  28% { opacity: 1; transform: translate(var(--x), var(--y)) scale(1); }
+  70% { opacity: .95; transform: translate(calc(var(--x) * 1.1), calc(var(--y) - 10px)) scale(1.12); }
+  100% { opacity: 0; transform: translate(calc(var(--x) * 1.2), calc(var(--y) - 26px)) scale(1.25); }
+}
+.rl-eject {
+  position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, .95) 0 20%, rgba(255, 196, 120, .7) 40%, rgba(220, 228, 240, .5) 65%, transparent 70%);
+  animation: rl-eject .9s ease-out forwards;
+}
+@keyframes rl-eject { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
+.rl-badge {
+  position: absolute; right: 20px; bottom: 112px; display: grid; gap: 2px;
+  padding: 10px 16px; border-radius: 14px; background: #fff; border: 2px solid #E0701B; color: #072F70;
+  box-shadow: 0 10px 30px rgba(7, 47, 112, .25); font-size: .9rem;
+  animation: rl-badge 3.4s ease both;
+}
+.rl-badge b { font-size: 1.05rem; }
+.rl-badge span { color: #5b6270; font-size: .8rem; }
+@keyframes rl-badge { 0% { transform: translateY(16px) scale(.9); opacity: 0; } 10%, 85% { transform: none; opacity: 1; } 100% { transform: translateY(-8px); opacity: 0; } }
+
+/* ---------- phones (last, so it overrides the rules above) ----------
+   Phones: a full-screen sheet sized to the visible area (CopilotPanel keeps --cp-top/--cp-h in step
+   with the on-screen keyboard and Safari's toolbars), so the header with ✕ never leaves the screen. */
+@media (max-width: 520px) {
+  .cp-panel {
+    left: 0; right: 0; bottom: auto; width: auto; border-radius: 0; border: 0;
+    top: var(--cp-top, 0px); height: var(--cp-h, 100dvh);
+  }
+  .cp-head { padding-top: max(10px, env(safe-area-inset-top)); padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .cp-head .cp-icon { width: 40px; height: 40px; font-size: 1.25rem; }
+  .cp-foot { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+  /* 16px or more: iPhone does not zoom into the field when it gets focus. */
+  .cp-input textarea { font-size: 16px; }
+  .cp-fab { right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); }
+  .cp-fab.open { display: none; }
+  .rl-badge { right: 16px; bottom: 104px; }
+}
+.cp-list { overscroll-behavior: contain; }

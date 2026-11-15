@@ -1,6 +1,6 @@
 // One-dimensional vertical flight (the lab launches straight up), integrated with RK4.
 import type { Design } from "../model";
-import { MAX_PRESSURE_PSI } from "../model";
+import { MAX_PRESSURE_PSI, hasMotor } from "../model";
 import { makerName, motorFor, motorSpec, type Motor } from "../motor";
 import { air, G } from "./atmosphere";
 import { dragModel } from "./drag";
@@ -109,6 +109,24 @@ function setup(d: Design, groundPressure: number, groundTemperature: number): Se
   };
 }
 
+export const NO_MOTOR = "El cohete no tiene motor: agrégalo en el menú Motor para simular el vuelo.";
+
+/**
+ * Masses and stability without flying: what the Cohete tab draws, also when there is no flight (e.g. no motor).
+ * With a motor, the same values as the simulation.
+ */
+export function designStatics(d: Design): { items: MassItem[]; loaded: Stability; empty: Stability; mass: number } | string {
+  if (hasMotor(d)) {
+    const ground = air(0, d.launch.altitude, d.launch.temperature);
+    const s = setup(d, ground.pressure, ground.temperature);
+    if (typeof s === "string") return s;
+    return { items: s.items, loaded: s.stabilityLoaded, empty: s.stabilityEmpty, mass: s.items.reduce((m, i) => m + i.mass, 0) };
+  }
+  const items = structureItems(d);
+  const st = stability(d, items);
+  return { items, loaded: st, empty: st, mass: items.reduce((m, i) => m + i.mass, 0) };
+}
+
 export function simulate(d: Design, options: SimulationOptions = {}): FlightResult | string {
   const { method = "rk4", noDrag = false } = options;
   if (d.type === "water") {
@@ -117,6 +135,7 @@ export function simulate(d: Design, options: SimulationOptions = {}): FlightResu
   }
   const site = d.launch;
   const ground = air(0, site.altitude, site.temperature);
+  if (!hasMotor(d)) return NO_MOTOR;
   const s = setup(d, ground.pressure, ground.temperature);
   if (typeof s === "string") return s;
   const drag = dragModel(d, s.propulsion.exhaustDiameter);

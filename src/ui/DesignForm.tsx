@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Design, EstesDesign, FinProfile, NoseShape, WaterDesign } from "../model";
-import { ALTIMETER_MM, EXTRA_KINDS, LETTER, MAX_PRESSURE_PSI, MOUNT_MATERIALS, NOSE_MATERIALS, OPALINA_GSM, WEIGHED, noseMaterialLabel, sheetLength, sheetMass, sheetWrap } from "../model";
+import { ALTIMETER_MM, EXTRA_KINDS, hasMotor, LETTER, MAX_PRESSURE_PSI, MOUNT_MATERIALS, NOSE_MATERIALS, OPALINA_GSM, WEIGHED, noseMaterialLabel, sheetLength, sheetMass, sheetWrap } from "../model";
 import { makerName, motorFor, motorSpec, impulseClass } from "../motor";
 import { MotorPicker } from "./MotorPicker";
 import { finArea, layout, noseRadius } from "../physics/geometry";
@@ -292,6 +292,7 @@ function MotorSection({ d, update }: { d: EstesDesign; update: Update }) {
   const motor = motorFor(d.motor);
   const spec = motorSpec(d.motor.id);
   const setE = (fn: (p: EstesDesign) => EstesDesign) => update((p) => fn(p as EstesDesign));
+  const on = hasMotor(d);
   return (
     <>
     <Section title="Porta motor" summary={`${noseMaterialLabel(d.motorMount.material)} · ${format(d.motorMount.mass, 1)} g`}>
@@ -299,35 +300,47 @@ function MotorSection({ d, update }: { d: EstesDesign; update: Update }) {
       <NumField label="Masa" unit="g" min={0} value={d.motorMount.mass} onChange={(mass) => setE((p) => ({ ...p, motorMount: { ...p.motorMount, mass } }))} />
     </Section>
 
-    <Section title="Motor" summary={`${makerName(spec.maker)} ${spec.name} · ${format(d.motor.mass, 1)} g`}>
-      {/* For now the catalogue has a single motor; new ones appear here when they are added to motor.ts. */}
-      <MotorPicker d={d} onChange={(next) => setE(() => next)} />
-      <p className="hint full">Por ahora el reto usa solo el motor Estes A10-3T. Sus datos completos y la prueba estática están en la pestaña Motor.</p>
-      {d.motor.thrust === "average" && <div className="alert warning full">Estás usando el <b>empuje promedio constante</b> ({format(motor.averageThrust, 2)} N durante {format(motor.burnTime, 2)} s): las predicciones no son tan correctas como con el empuje real. Se cambia en la pestaña Motor.</div>}
-      <NumField
-        label="Masa con combustible"
-        unit="g"
-        min={1}
-        max={20}
-        value={d.motor.mass}
-        onChange={(mass) => setE((p) => ({ ...p, motor: { ...p.motor, mass, propellant: Math.max(mass - (p.motor.mass - p.motor.propellant), 0.1) } }))}
-        title="Motor nuevo, antes de encenderlo"
-      />
-      <NumField
-        label="Masa ya quemado"
-        unit="g"
-        min={0.5}
-        max={20}
-        value={round(d.motor.mass - d.motor.propellant)}
-        onChange={(burnt) => setE((p) => ({ ...p, motor: { ...p.motor, propellant: Math.max(p.motor.mass - burnt, 0.1) } }))}
-        title="El mismo motor después del vuelo (casquillo vacío)"
-      />
-      <p className="hint full">
-        Pierde {format(d.motor.propellant, 1)} g al quemarse (pesados en el laboratorio: {WEIGHED.motorLoaded} g nuevo y {WEIGHED.motorBurnt} g quemado). {spec.diameter} × {spec.length} mm ·
-        clase {impulseClass(motor.totalImpulse)} · retardo de {spec.delay} s. Curva de empuje medida en la prueba de certificación: impulso{" "}
-        {format(motor.totalImpulse, 2)} N·s, empuje máximo {format(motor.maxThrust, 1)} N, {format(motor.burnTime, 2)} s. {makerName(spec.maker)} publica valores nominales de{" "}
-        {spec.rated.impulse} N·s, {spec.rated.maxThrust} N y {spec.rated.burnTime} s, y un máximo de {spec.rated.maxLiftoffMass} g de cohete al despegar.
-      </p>
+    <Section title="Motor" summary={on ? `${makerName(spec.maker)} ${spec.name} · ${format(d.motor.mass, 1)} g` : "sin motor"}>
+      <div className="full">
+        <Segmented
+          value={on ? "yes" : "no"}
+          options={[{ value: "no", label: "Sin motor" }, { value: "yes", label: "Con motor" }]}
+          onChange={(v) => setE((p) => ({ ...p, motor: { ...p.motor, included: v === "yes" } }))}
+        />
+      </div>
+      {!on && <p className="hint full">Sin motor el cohete no vuela: puedes revisar sus masas y su estabilidad, pero las fases y las simulaciones necesitan el motor.</p>}
+      {on && (
+        <>
+          {/* For now the catalogue has a single motor; new ones appear here when they are added to motor.ts. */}
+          <MotorPicker d={d} onChange={(next) => setE(() => next)} />
+          <p className="hint full">Por ahora el reto usa solo el motor Estes A10-3T. Sus datos completos y la prueba estática están en la pestaña Motor.</p>
+          {d.motor.thrust === "average" && <div className="alert warning full">Estás usando el <b>empuje promedio constante</b> ({format(motor.averageThrust, 2)} N durante {format(motor.burnTime, 2)} s): las predicciones no son tan correctas como con el empuje real. Se cambia en la pestaña Motor.</div>}
+          <NumField
+            label="Masa con combustible"
+            unit="g"
+            min={1}
+            max={20}
+            value={d.motor.mass}
+            onChange={(mass) => setE((p) => ({ ...p, motor: { ...p.motor, mass, propellant: Math.max(mass - (p.motor.mass - p.motor.propellant), 0.1) } }))}
+            title="Motor nuevo, antes de encenderlo"
+          />
+          <NumField
+            label="Masa ya quemado"
+            unit="g"
+            min={0.5}
+            max={20}
+            value={round(d.motor.mass - d.motor.propellant)}
+            onChange={(burnt) => setE((p) => ({ ...p, motor: { ...p.motor, propellant: Math.max(p.motor.mass - burnt, 0.1) } }))}
+            title="El mismo motor después del vuelo (casquillo vacío)"
+          />
+          <p className="hint full">
+            Pierde {format(d.motor.propellant, 1)} g al quemarse (pesados en el laboratorio: {WEIGHED.motorLoaded} g nuevo y {WEIGHED.motorBurnt} g quemado). {spec.diameter} × {spec.length} mm ·
+            clase {impulseClass(motor.totalImpulse)} · retardo de {spec.delay} s. Curva de empuje medida en la prueba de certificación: impulso{" "}
+            {format(motor.totalImpulse, 2)} N·s, empuje máximo {format(motor.maxThrust, 1)} N, {format(motor.burnTime, 2)} s. {makerName(spec.maker)} publica valores nominales de{" "}
+            {spec.rated.impulse} N·s, {spec.rated.maxThrust} N y {spec.rated.burnTime} s, y un máximo de {spec.rated.maxLiftoffMass} g de cohete al despegar.
+          </p>
+        </>
+      )}
     </Section>
     </>
   );

@@ -1,5 +1,6 @@
 import type { Design } from "../model";
-import type { FlightResult } from "../physics/simulate";
+import { useMemo } from "react";
+import { designStatics, type FlightResult } from "../physics/simulate";
 import type { MassItem } from "../physics/geometry";
 import { DesignForm } from "./DesignForm";
 import { RocketView } from "./RocketView";
@@ -18,26 +19,29 @@ interface Props {
 
 export function RocketTab({ design, shown, result, onChange, onGo }: Props) {
   const r = typeof result === "string" ? null : result;
+  // The drawing and the masses also show when there is no flight (e.g. a rocket without its motor).
+  const statics = useMemo(() => (r ? { items: r.massItems, loaded: r.stabilityLoaded, empty: r.stabilityEmpty, mass: r.liftoffMass } : designStatics(shown)), [r, shown]);
+  const s = typeof statics === "string" ? null : statics;
   return (
     <div className="designer">
       <DesignForm design={design} update={(fn) => onChange(fn(design))} />
       <div className="results">
-        {!r && <div className="card"><div className="alert error">{result as string}</div></div>}
-        {r && (
+        {!s && <div className="card"><div className="alert error">{result as string}</div></div>}
+        {s && (
           <>
             <div className="card rocket-card">
               <div className="card-head">
                 <div>
                   <h2>{shown.name}</h2>
-                  <p className="hint">{format(r.liftoffMass, 1)} g al despegar</p>
+                  <p className="hint">{format(s.mass, 1)} g{r ? " al despegar" : ""}</p>
                 </div>
               </div>
-              <RocketView design={shown} loaded={r.stabilityLoaded} empty={r.stabilityEmpty} />
+              <RocketView design={shown} loaded={s.loaded} empty={s.empty} />
             </div>
 
             <div className="card">
               <div className="card-head"><h2>¿Dónde está la masa?</h2></div>
-              <MassBudget items={r.massItems} />
+              <MassBudget items={s.items} />
             </div>
 
             <div className="card">
@@ -45,6 +49,8 @@ export function RocketTab({ design, shown, result, onChange, onGo }: Props) {
                 <h2>Vuelo en resumen</h2>
                 <button type="button" className="link" onClick={() => onGo("graficas")}>Ver todas en Simulaciones</button>
               </div>
+              {!r && <div className="alert error">{result as string}</div>}
+              {r && (<>
               <div className="kpis">
                 <div className="kpi hero"><div className="label">{design.type === "estes" ? "Apogeo" : "Altura máxima"}</div><div className="value">{format(r.apogee.h, 1)}<small>m</small></div><div className="sub">a los {format(r.apogee.t, 1)} s</div></div>
                 <div className="kpi"><div className="label">Velocidad máxima</div><div className="value">{format(r.maxVelocity, 1)}<small>m/s</small></div><div className="sub">{format(r.maxVelocity * 3.6, 0)} km/h</div></div>
@@ -56,6 +62,7 @@ export function RocketTab({ design, shown, result, onChange, onGo }: Props) {
                   {r.warnings.map((w, i) => <div key={i} className={`alert ${w.level}`}>{w.text}</div>)}
                 </div>
               )}
+              </>)}
             </div>
           </>
         )}

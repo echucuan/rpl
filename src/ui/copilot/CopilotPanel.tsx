@@ -5,7 +5,9 @@ import { Mascot, type MascotMood } from "../mascot/Mascot";
 import { CopilotError, MAX_MESSAGES, ask, type Phase } from "./conversation";
 import { COPILOT_GROUPS } from "./groups";
 import { OPEN_ROCKY } from "./openRocky";
+import { readingSeconds } from "./readingTime";
 import { RichText } from "./RichText";
+import { RockyLaunch, genie, type Chute } from "./RockyLaunch";
 import "./copilot.css";
 
 const GROUP_KEY = "rpl.copilot.group";
@@ -26,6 +28,12 @@ interface Bubble {
   from: "me" | "bot";
   text: string;
   error?: boolean;
+  /** Answers only: seconds to read it, seconds read so far, whether it counts as read… */
+  need?: number;
+  done?: number;
+  read?: boolean;
+  /** …and whether a launch already used it. */
+  spent?: boolean;
 }
 
 const SUGGESTIONS: Record<"estes" | "water" | "none", string[]> = {
@@ -54,14 +62,69 @@ export function CopilotPanel({ design }: { design: Design | null }) {
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const moodTimer = useRef<number>(0);
+  const panel = useRef<HTMLElement>(null);
+  const fab = useRef<HTMLButtonElement>(null);
+  const [closing, setClosing] = useState(false);
+  const [launch, setLaunch] = useState<number | null>(null);
+  const [chute, setChute] = useState<Chute>("off");
+  const [flying, setFlying] = useState(false);
+  /** Answers read since the last launch: what the easter egg on ✕ is worth. */
+  const reads = bubbles.filter((b) => b.read && !b.spent).length;
 
+  // Follow the conversation only while the student is already at the bottom: scrolling up to read
+  // the start of a long answer must not be undone by new text or by the reading clock ticking.
+  const atBottom = useRef(true);
+  const lastText = bubbles.at(-1)?.text.length ?? 0;
   useEffect(() => {
-    list.current?.scrollTo({ top: list.current.scrollHeight });
-  }, [bubbles, status]);
+    if (atBottom.current) list.current?.scrollTo({ top: list.current.scrollHeight });
+  }, [bubbles.length, lastText, status]);
+  useEffect(() => {
+    // A new question always brings the view down to it.
+    if (bubbles.at(-1)?.from === "bot" && !bubbles.at(-1)?.text) {
+      atBottom.current = true;
+      list.current?.scrollTo({ top: list.current.scrollHeight });
+    }
+  }, [bubbles.length]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (open) input.current?.focus();
   }, [open, group]);
   useEffect(() => () => abort.current?.abort(), []);
+  useEffect(() => {
+    // Reading clock: the oldest unread answer counts down while the chat is open and on screen.
+    if (!open || busy || closing) return;
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      setBubbles((bs) => {
+        const i = bs.findIndex((b) => b.need && !b.read);
+        if (i < 0) return bs;
+        const b = bs[i];
+        const done = (b.done ?? 0) + 1;
+        const next = [...bs];
+        next[i] = { ...b, done, read: done >= b.need! };
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [open, busy, closing]);
+  useEffect(() => {
+    // Phones: fit the sheet to the part of the screen that is really visible (iPhone keeps the page
+    // height when its keyboard or toolbars appear), so the header with ✕ always stays on screen.
+    const vv = window.visualViewport;
+    if (!open || !vv) return;
+    const fit = () => {
+      const el = panel.current;
+      if (!el) return;
+      el.style.setProperty("--cp-top", `${vv.offsetTop}px`);
+      el.style.setProperty("--cp-h", `${vv.height}px`);
+    };
+    fit();
+    vv.addEventListener("resize", fit);
+    vv.addEventListener("scroll", fit);
+    return () => {
+      vv.removeEventListener("resize", fit);
+      vv.removeEventListener("scroll", fit);
+    };
+  }, [open, group]);
   useEffect(() => {
     // Rocky's guide (#rocky) opens the chat, sometimes with an example question ready to send.
     const onOpen = (e: Event) => {
@@ -101,6 +164,10 @@ export function CopilotPanel({ design }: { design: Design | null }) {
     try {
       const next = await ask([...history, { role: "user", content: q }], group, design, { onPhase, onText: append }, ctrl.signal);
       setHistory(next);
+      setBubbles((b) => {
+        const last = b.at(-1);
+        return last?.from === "bot" && last.text ? [...b.slice(0, -1), { ...last, need: readingSeconds(last.text), done: 0 }] : b;
+      });
       flashMood("happy", 1800);
     } catch (e) {
       if (ctrl.signal.aborted) {
@@ -131,6 +198,24 @@ export function CopilotPanel({ design }: { design: Design | null }) {
     setMood("idle");
   }
 
+  /** ✕: the window is sucked into Rocky's corner (Mac genie) and, if answers were read, Rocky launches. */
+  async function closeWithShow() {
+    if (closing) return;
+    const n = reads;
+    const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (panel.current && !calm) {
+      setClosing(true);
+      const f = fab.current?.getBoundingClientRect();
+      const target = f && f.width ? { x: f.left + f.width / 2, y: f.top + f.height / 2 } : { x: innerWidth - 54, y: innerHeight - 54 };
+      await genie(panel.current, target);
+    }
+    setClosing(false);
+    setOpen(false);
+    if (n === 0 || calm) return;
+    setBubbles((bs) => bs.map((b) => (b.read ? { ...b, spent: true } : b)));
+    setLaunch(n);
+  }
+
   function pickGroup(g: string) {
     saveGroup(g);
     setGroup(g);
@@ -146,19 +231,25 @@ export function CopilotPanel({ design }: { design: Design | null }) {
   return (
     <>
       <button
-        className={`cp-fab${open ? " open" : ""}`}
-        onClick={() => setOpen((o) => !o)}
+        ref={fab}
+        className={`cp-fab${open ? " open" : ""}${launch !== null ? " launching" : ""} fuel-${Math.min(reads, 3)}`}
+        onClick={() => launch === null && !closing && setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="copilot-panel"
         aria-label={open ? "Cerrar a Rocky" : "Hablar con Rocky"}
       >
-        <Mascot size={58} mood={open ? mood : "idle"} title="" />
+        {chute !== "off" && <Parachute state={chute} />}
+        <Mascot size={58} mood={flying ? "talking" : open ? mood : "idle"} title="" />
       </button>
+      {launch !== null && (
+        <RockyLaunch fab={fab} reads={launch} onFlying={setFlying} onChute={setChute} onDone={() => setLaunch(null)} />
+      )}
 
       {open && (
         <section
           id="copilot-panel"
-          className="cp-panel"
+          ref={panel}
+          className={`cp-panel${closing ? " closing" : ""}`}
           aria-label="Rocky, tu copiloto"
           onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
         >
@@ -177,7 +268,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
             )}
             <a className="cp-icon cp-help" href="#rocky" title="Guía de Rocky" aria-label="Guía de Rocky">?</a>
             {bubbles.length > 0 && <button className="cp-icon" onClick={restart} title="Nueva conversación" aria-label="Nueva conversación">↺</button>}
-            <button className="cp-icon" onClick={() => setOpen(false)} aria-label="Cerrar">✕</button>
+            <button className="cp-icon" onClick={closeWithShow} aria-label="Cerrar" title={reads ? "¿Listo para despegar?" : "Cerrar"}>✕</button>
           </header>
 
           {!group ? (
@@ -193,11 +284,24 @@ export function CopilotPanel({ design }: { design: Design | null }) {
             </div>
           ) : (
             <>
-              <div className="cp-list" ref={list} aria-live="polite">
+              <div
+                className="cp-list"
+                ref={list}
+                aria-live="polite"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+                }}
+              >
                 <div className="cp-msg bot"><RichText text={greeting} /></div>
                 {bubbles.map((b, i) => (
                   <div key={i} className={`cp-msg ${b.from}${b.error ? " error" : ""}`}>
                     {b.text ? (b.from === "bot" ? <RichText text={b.text} /> : b.text) : <span className="cp-dots" aria-label="Pensando"><i /><i /><i /></span>}
+                    {b.need && (
+                      <span className={`cp-read${b.read ? " done" : ""}`} title="Tiempo de lectura">
+                        {b.read ? "✓" : `📖 ${b.need - (b.done ?? 0)} s`}
+                      </span>
+                    )}
                   </div>
                 ))}
                 {busy && status && bubbles.at(-1)?.text && <div className="cp-status">{status}</div>}
@@ -241,5 +345,16 @@ export function CopilotPanel({ design }: { design: Design | null }) {
         </section>
       )}
     </>
+  );
+}
+
+/** Rocky's parachute, drawn above his button while he comes down. */
+function Parachute({ state }: { state: Chute }) {
+  return (
+    <svg className={`cp-chute ${state}`} viewBox="0 0 80 64" aria-hidden="true">
+      <path d="M4 26 C4 6 76 6 76 26 C70 22 64 22 58 26 C52 22 46 22 40 26 C34 22 28 22 22 26 C16 22 10 22 4 26 Z" fill="#E0701B" stroke="#072F70" strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M22 26 C24 12 30 9 40 8 M58 26 C56 12 50 9 40 8" fill="none" stroke="#fff" strokeWidth="2" opacity=".7" />
+      <path d="M4 26 L40 62 M22 26 L40 62 M40 26 L40 62 M58 26 L40 62 M76 26 L40 62" stroke="#072F70" strokeWidth="1.3" />
+    </svg>
   );
 }

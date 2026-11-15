@@ -1,4 +1,4 @@
-import { ALTIMETER_MM, type Design } from "../model";
+import { ALTIMETER_MM, hasMotor, type Design } from "../model";
 import { motorFor } from "../motor";
 import { chuteProperties } from "../physics/parachute";
 import { layout, noseRadius, waterFill } from "../physics/geometry";
@@ -35,7 +35,7 @@ export function RocketView({ design: d, loaded, empty }: { design: Design; loade
     [le, rb], [le + f.sweep, rb + f.span], [le + f.sweep + f.tipChord, rb + f.span], [le + f.rootChord, rb],
   ].map(([x, y]) => `${X(x).toFixed(1)},${Y(sign * y).toFixed(1)}`).join(" ");
 
-  const motor = d.type === "estes" ? motorFor(d.motor) : undefined;
+  const motor = d.type === "estes" && hasMotor(d) ? motorFor(d.motor) : undefined;
   const water = d.type === "water" && d.water.waterVolume > 0 ? waterFill(d, d.water.waterVolume) : null;
 
   return (

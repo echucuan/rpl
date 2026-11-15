@@ -120,7 +120,7 @@ export interface EstesDesign extends DesignBase {
    * coastDrag: whether air drag acts from burnout to apogee (phase II), with either thrust model.
    * fallDrag: whether air drag acts from apogee to the ejection (phase III, falling without the parachute).
    */
-  motor: { id: MotorId; mass: number; propellant: number; thrust: ThrustModel; burnDrag: boolean; coastDrag: boolean; fallDrag: boolean };
+  motor: { id: MotorId; mass: number; propellant: number; thrust: ThrustModel; burnDrag: boolean; coastDrag: boolean; fallDrag: boolean; included?: boolean };
   sheet: PaperSheet;
   motorMount: { mass: number; material?: MountMaterial }; // printed mount at the aft end (older designs: PLA)
   altimeter: { included: boolean; mass: number; position: number; brand?: string }; // inside the nose; Estes unless another brand is given
@@ -145,6 +145,9 @@ export const MAX_PRESSURE_PSI = 90;
 export const PSI = 6894.757; // Pa
 
 export const CULIACAN: LaunchSite = { altitude: 55, temperature: 30, guideLength: 0.9 };
+
+/** Whether a Rocket Tec design carries its motor (older designs always do). Without it there is no flight. */
+export const hasMotor = (d: Design) => d.type !== "estes" || d.motor.included !== false;
 
 /** Estes altimeter size from its manual: 55 × 18 mm, including the clip tab. */
 export const ALTIMETER_MM = { length: 55, height: 18, tab: 9 };

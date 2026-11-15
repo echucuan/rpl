@@ -63,9 +63,11 @@ interface Props {
   exportError: string | null;
   /** Both go through the app's unsaved-changes check. */
   onNew: () => void;
+  /** Opens a downloaded project file; resolves to an error message when the file cannot be read. */
+  onOpenFile: (file: File) => Promise<string | null>;
 }
 
-export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDownload, exporting, exportError, onNew, status }: Props) {
+export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDownload, exporting, exportError, onNew, onOpenFile, status }: Props) {
   const deferred = useDeferredValue(design);
   const result = useMemo(() => simulate(deferred), [deferred]);
   const phaseSpans = useMemo(() => (typeof result === "string" ? null : flightPhases(result)), [result]);
@@ -100,6 +102,22 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
           <button type="button" className="bar-btn" onClick={onDownload} disabled={exporting} title="Guarda el archivo del proyecto en tu computadora" aria-label="Descargar">
             <span aria-hidden="true">⬇</span><span className="bar-label">{exporting ? "Preparando…" : "Descargar"}</span>
           </button>
+          <label className="bar-btn" title="Abre un diseño que descargaste (archivo .rpl.json)" aria-label="Abrir">
+            <span aria-hidden="true">📂</span><span className="bar-label">Abrir</span>
+            <input
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = ""; // the same file can be opened again
+                if (!file) return;
+                const error = await onOpenFile(file);
+                setNotice(error ? `No se pudo abrir: ${error}` : "");
+                if (error) setTimeout(() => setNotice(""), 6000);
+              }}
+            />
+          </label>
           <button type="button" className="bar-btn" onClick={onNew} title="Empieza un diseño nuevo" aria-label="Nuevo"><span aria-hidden="true">＋</span><span className="bar-label">Nuevo</span></button>
         </div>
       </div>

@@ -8,7 +8,7 @@ import { Designs } from "./Designs";
 import { RockyGuide } from "./rocky/RockyGuide";
 import { Dialog } from "./Dialog";
 import { Workspace, SUB_TABS, type SubTab } from "./Workspace";
-import { designFileName, loadDraft, saveProjectFile, storeDraft } from "./storage";
+import { designFileName, loadDraft, readDesignFile, saveDesign, saveProjectFile, storeDraft } from "./storage";
 import { PROGRAMS, StartScreen, logoUrl } from "./StartScreen";
 import {
   STATUS_TEXT, afterExport, discard, draftOf, exportSnapshot, fingerprint, guardFor, isDirty, project, readDraft, saveStatus, shouldWarnOnUnload,
@@ -181,6 +181,14 @@ export function App() {
         exporting={p.exporting !== null}
         exportError={p.error}
         onNew={() => request({ kind: "new", type: t })}
+        onOpenFile={async (file) => {
+          // Same as Abrir archivo in Mis diseños: keep a copy in the browser, then open it (asking first about unsaved work).
+          const d = await readDesignFile(file);
+          if (typeof d === "string") return d;
+          const entry = saveDesign(d);
+          request({ kind: "open", design: d, id: entry?.id, source: "imported" });
+          return null;
+        }}
         status={<SaveIndicator tab={tab} projects={projects} />}
       />
     );
