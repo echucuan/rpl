@@ -62,8 +62,8 @@ export function rateFlight(d: Design, r: FlightResult): Rating {
   checks.push({
     id: "margin", name: "Margen de estabilidad", value: `${margin.toFixed(2)} cal`, target: "1 calibre o más",
     level: margin < 0.5 ? 4 : margin < 1 ? 2 : 1,
-    why: margin < 0.5 ? "El centro de presión está casi en el centro de gravedad: el cohete da vueltas en el aire." : margin < 1 ? "Margen justo: con viento o una ráfaga puede cabecear." : undefined,
-    hint: margin < 1 ? "Mueve el centro de gravedad hacia la nariz (más peso adelante) o agranda las aletas." : undefined,
+    why: margin < 0.5 ? "El centro de presión está casi en el centro de masa: el cohete da vueltas en el aire." : margin < 1 ? "Margen justo: con viento o una ráfaga puede cabecear." : undefined,
+    hint: margin < 1 ? "Mueve el centro de masa hacia la ojiva (más peso adelante) o agranda las aletas." : undefined,
   });
 
   // 4. Parachute opening: it has to open, and the slower the better (fast openings tear the cord: a "zipper").

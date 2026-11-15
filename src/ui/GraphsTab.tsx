@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Design } from "../model";
+import { noseMaterialLabel } from "../model";
 import { motorFor } from "../motor";
 import { layout } from "../physics/geometry";
 import { WATER_DENSITY } from "../physics/propulsion";
@@ -234,7 +235,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
             <p className="hint" style={{ marginBottom: 8 }}>
               {d.type === "water"
                 ? "Sensor de altura: escribe la altura máxima que marcó. Del video, mide el tiempo hasta el apogeo y del apogeo al aterrizaje."
-                : "Altímetro Estes: escribe el apogeo que marcó."}
+                : `Altímetro ${d.altimeter.brand?.trim() || "Estes"}: escribe el apogeo que marcó.`}
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 110px", gap: 8 }}>
               <NumField label="Altura medida" min={0} value={comparison.altimeter} onChange={(altimeter) => onComparison({ ...comparison, altimeter })} unit={comparison.altimeterUnit} />
@@ -290,7 +291,7 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
           <tbody>
             <tr><td>Largo total</td><td className="val">{format(l.length / 10, 1)} cm</td></tr>
             <tr><td>Diámetro</td><td className="val">{format(l.refDiameter, 1)} mm</td></tr>
-            <tr><td>Nariz</td><td className="val">{d.type === "estes" ? "PLA" : "impresa"} · {format(d.nose.length)} mm · {format(d.nose.mass, 1)} g</td></tr>
+            <tr><td>Ojiva</td><td className="val">{noseMaterialLabel(d.nose.material)} · {format(d.nose.length)} mm · {format(d.nose.mass, 1)} g</td></tr>
             {d.type === "estes"
               ? <tr><td>Cuerpo</td><td className="val">opalina {d.sheet.gsm} g/m² · {format(d.body.length)} × Ø{format(d.body.diameter)} mm · {format(d.body.mass, 1)} g</td></tr>
               : <tr><td>Botella</td><td className="val">{format(d.water.bottleVolume, 2)} L · {format(d.water.bottleMass, 0)} g · {format(d.water.waterVolume * WATER_DENSITY / 1000, 3)} kg de agua a {format(d.water.pressure, 0)} psi</td></tr>}

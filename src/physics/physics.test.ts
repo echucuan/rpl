@@ -15,10 +15,17 @@ const fly = (d: Parameters<typeof simulate>[0], o?: SimulationOptions) => {
   return r as FlightResult;
 };
 
-// New Rocket Tec designs start with the average thrust and no drag in phases I, II and III; the flight tests use the measured curve with drag.
+// New Rocket Tec designs start with the average thrust, no drag in phases I, II and III, and no fins, altimeter or parachute.
+// The flight tests fly the lab rocket: measured thrust curve with drag, four fins, the Estes altimeter and the 24" parachute.
 const rocketTec = (): EstesDesign => {
   const d = newEstesDesign();
-  return { ...d, motor: { ...d.motor, thrust: "real", burnDrag: true, coastDrag: true, fallDrag: true } };
+  return {
+    ...d,
+    motor: { ...d.motor, thrust: "real", burnDrag: true, coastDrag: true, fallDrag: true },
+    altimeter: { ...d.altimeter, included: true },
+    recovery: { ...d.recovery, kind: "parachute" },
+    fins: { ...d.fins, count: 4 },
+  };
 };
 
 describe("Barrowman stability", () => {
@@ -169,7 +176,7 @@ describe("Rocket Tec with the constant average thrust", () => {
 
 describe("Rocket Tec parachute builder", () => {
   it("gives the Estes 24\" circular canopy with lines as long as its diameter a Cd of about 0.75", () => {
-    const c = chuteProperties(newEstesDesign());
+    const c = chuteProperties(rocketTec());
     expect(c.ratio).toBeCloseTo(1, 6);
     expect(c.cd).toBeCloseTo(0.8 * 0.94, 6);
     expect(c.area).toBeCloseTo(Math.PI * 0.305 ** 2, 6);

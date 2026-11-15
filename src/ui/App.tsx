@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { Design } from "../model";
 import { newEstesDesign, newWaterDesign } from "../model";
 import { About } from "./About";
+import { CopilotPanel } from "./copilot/CopilotPanel";
+import { COPILOT_URL } from "./copilot/conversation";
 import { Designs } from "./Designs";
 import { Dialog } from "./Dialog";
 import { Workspace, SUB_TABS, type SubTab } from "./Workspace";
@@ -214,6 +216,7 @@ export function App() {
         {tab === "designs" && <Designs onOpen={(design, id, source) => request({ kind: "open", design, id, source })} />}
         {tab === "about" && <About />}
       </main>
+      {COPILOT_URL && <CopilotPanel design={tab === "estes" || tab === "water" ? projects[tab].design : null} />}
       <footer>
         Rocket Physics Lab Sinaloa · Tecnológico de Monterrey, Campus Sinaloa · Software libre (GPL-3.0). Especificaciones de productos: Estes Industries.
       </footer>

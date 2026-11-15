@@ -201,7 +201,7 @@ function DelayBox({ M }: { M: Model3 }) {
       <p>
         El nombre del motor <b>{M.motor.name}</b> dice cuánto espera: el último número es el <b>retardo</b>, {format(M.delay, 0)} s. Cuando se acaba el
         propelente, el motor ya no empuja, pero sigue quemando una <b>carga de retardo</b> (deja la estela de humo). Al terminar, se enciende la{" "}
-        <b>carga de eyección</b>: un pequeño estallido que empuja hacia adelante, separa la nariz del cuerpo y saca el paracaídas.
+        <b>carga de eyección</b>: un pequeño estallido que empuja hacia adelante, separa la ojiva del cuerpo y saca el paracaídas.
       </p>
       <Eq block tex={r`t_{eyección} = t_b + \text{retardo} = ${n(M.tb, 2)} + ${n(M.delay, 0)} = ${n(M.tf, 2)}\ \text{s}`} />
       <p>

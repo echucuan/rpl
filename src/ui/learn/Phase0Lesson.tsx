@@ -100,7 +100,7 @@ export function Phase0Lesson({ design: d, result: res, onGo }: { design: WaterDe
           <dt>Boquilla <Eq tex={r`d`} /> <span className="unit-tag">mm</span></dt>
           <dd>Diámetro de la boca de la botella, por donde sale el agua. Con el lanzador de boca completa es el diámetro interior del cuello.</dd>
           <dt>Masa en seco <span className="unit-tag">kg</span></dt>
-          <dd>Todo lo que vuela sin contar agua ni aire: botella, nariz, aletas, paracaídas y lastre. Pesa tu cohete armado.</dd>
+          <dd>Todo lo que vuela sin contar agua ni aire: botella, ojiva, aletas, paracaídas y lastre. Pesa tu cohete armado.</dd>
         </dl>
         <YourRocket>
           <Eq block tex={r`V_w = \frac{${waterKg.toFixed(3)}\ \text{kg}}{${WATER_DENSITY}\ \text{kg/m}^3} = ${(w.waterVolume).toFixed(3)}\ \text{L} \qquad V_a = ${w.bottleVolume.toFixed(2)} - ${w.waterVolume.toFixed(3)} = ${airL.toFixed(3)}\ \text{L}`} />

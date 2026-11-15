@@ -1,5 +1,6 @@
 // Geometry, mass properties and Barrowman stability. Inputs in mm and g (design units).
 import type { Design, FinSet, NoseShape } from "../model";
+import { noseMaterialLabel } from "../model";
 
 /** Radius of the nose cone at distance x from its tip. */
 export function noseRadius(shape: NoseShape, x: number, length: number, radius: number): number {
@@ -94,14 +95,15 @@ export function structureItems(d: Design): MassItem[] {
   const l = layout(d);
   const nose = noseProperties(d.nose.shape, d.nose.length, d.nose.diameter);
   const items: MassItem[] = [
-    { name: d.type === "estes" ? "Nariz (PLA)" : "Nariz", mass: d.nose.mass, x: nose.surfaceCentroid },
-    { name: d.type === "water" ? "Piezas del cuerpo" : "Cuerpo de opalina", mass: d.body.mass, x: (l.bodyStart + l.bodyEnd) / 2 },
-    { name: d.type === "estes" ? "Aletas (PLA)" : "Aletas", mass: d.fins.mass, x: l.finLeading + finCentroid(d.fins) },
+    { name: `Ojiva (${noseMaterialLabel(d.nose.material)})`, mass: d.nose.mass, x: nose.surfaceCentroid },
+    { name: d.type === "water" ? "Piezas del cuerpo" : "Cuerpo", mass: d.body.mass, x: (l.bodyStart + l.bodyEnd) / 2 },
+    // No fins, no fin mass (the set mass is kept for when the fins are added back).
+    { name: `Aletas (${noseMaterialLabel(d.fins.material)})`, mass: d.fins.count > 0 ? d.fins.mass : 0, x: l.finLeading + finCentroid(d.fins) },
   ];
   if (d.recovery.kind === "parachute") items.push({ name: d.type === "estes" ? "Paracaídas Estes 24\"" : "Paracaídas", mass: d.recovery.mass, x: d.recovery.position });
   if (d.type === "estes") {
-    items.push({ name: "Porta motor (PLA)", mass: d.motorMount.mass, x: l.bodyEnd - 25 });
-    if (d.altimeter.included) items.push({ name: "Altímetro Estes", mass: d.altimeter.mass, x: d.altimeter.position });
+    items.push({ name: `Porta motor (${noseMaterialLabel(d.motorMount.material)})`, mass: d.motorMount.mass, x: l.bodyEnd - 25 });
+    if (d.altimeter.included) items.push({ name: `Altímetro ${d.altimeter.brand?.trim() || "Estes"}`, mass: d.altimeter.mass, x: d.altimeter.position });
   }
   for (const e of d.extras) items.push({ name: e.name || "Masa extra", mass: e.mass, x: e.position });
   if (d.type === "water") {
@@ -164,7 +166,7 @@ export interface PressureTerm {
 export function pressureTerms(d: Design): PressureTerm[] {
   const l = layout(d);
   const ref = l.refDiameter;
-  const terms: PressureTerm[] = [{ name: "Nariz", cn: 2 * (d.nose.diameter / ref) ** 2, x: NOSE_CP[d.nose.shape] * d.nose.length }];
+  const terms: PressureTerm[] = [{ name: "Ojiva", cn: 2 * (d.nose.diameter / ref) ** 2, x: NOSE_CP[d.nose.shape] * d.nose.length }];
   if (d.type === "water" && d.tail.length > 0) {
     const df = d.body.diameter, da = d.tail.aftDiameter;
     const cn = 2 * ((da / ref) ** 2 - (df / ref) ** 2); // negative for a boattail

@@ -255,7 +255,7 @@ function warnings(d: Design, r: FlightResult, lifted: boolean): Warning[] {
   // Water leaves the bottle in a fraction of a second, so the coasting (empty) margin is what
   // matters; the loaded margin only matters if thrust lasts beyond the guide.
   const minMargin = d.type === "water" ? r.stabilityEmpty.margin : Math.min(r.stabilityLoaded.margin, r.stabilityEmpty.margin);
-  if (minMargin < 1) w.push({ level: "error", text: `Inestable: el margen de estabilidad es ${minMargin.toFixed(2)} calibres (se recomienda entre 1 y 2). Mueve el centro de gravedad hacia la nariz o agranda las aletas.` });
+  if (minMargin < 1) w.push({ level: "error", text: `Inestable: el margen de estabilidad es ${minMargin.toFixed(2)} calibres (se recomienda entre 1 y 2). Mueve el centro de masa hacia la ojiva o agranda las aletas.` });
   if (d.type === "water" && r.stabilityLoaded.margin < 1 && r.burnout) {
     // A thrust phase of a few tenths of a second leaves no time for the rocket to turn.
     const pastGuide = r.burnout.h > d.launch.guideLength;

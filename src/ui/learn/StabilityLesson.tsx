@@ -3,7 +3,8 @@ import { layout, pressureTerms } from "../../physics/geometry";
 import type { FlightResult } from "../../physics/simulate";
 import { format } from "../fields";
 import { RocketView } from "../RocketView";
-import { Code, Eq, LessonHeader, StageBlock, Think, YourRocket, n } from "./common";
+import { StabilityAnimation } from "./StabilityAnimation";
+import { Code, Eq, StageBlock, Think, YourRocket, n } from "./common";
 
 const r = String.raw;
 
@@ -19,34 +20,36 @@ export function StabilityLesson({ design: d, result: res }: { design: Design; re
 
   return (
     <div className="lesson">
-      <LessonHeader
-        title="Estabilidad: ¿por qué vuela derecho?"
-        intro={<>Un cohete estable regresa solo a la vertical cuando algo lo inclina (una ráfaga, la salida de la guía). Depende de dos puntos: el <b>centro de gravedad</b> (CG) y el <b>centro de presión</b> (CP).</>}
+      <StabilityAnimation
+        title="Estabilidad"
+        // The fourth panel: the worst margin of the rocket being built (the same one the flight rating uses).
+        margin={d.type === "water" ? res.stabilityEmpty.margin : Math.min(res.stabilityLoaded.margin, res.stabilityEmpty.margin)}
+        intro={<>Un cohete estable regresa solo a la vertical cuando algo lo inclina (una ráfaga, la salida de la guía). Depende de dos puntos: el <b>centro de masa</b> (CM) y el <b>centro de presión</b> (CP).</>}
       />
       <div className="card"><RocketView design={d} loaded={res.stabilityLoaded} empty={res.stabilityEmpty} /></div>
       <div className="lesson-grid">
         <StageBlock stage="fisica">
           <ul>
-            <li>El cohete gira alrededor de su <b>centro de gravedad</b>, el punto donde se puede considerar concentrado su peso.</li>
+            <li>El cohete gira alrededor de su <b>centro de masa</b>, el punto donde se puede considerar concentrada toda su masa; ahí actúa el peso.</li>
             <li>Cuando el cohete se inclina un ángulo <Eq tex="\alpha" />, el aire lo empuja de lado. Esa fuerza actúa en el <b>centro de presión</b>.</li>
-            <li>Si el CP está <b>detrás</b> del CG, la fuerza del aire produce una torca que endereza al cohete, como una veleta. Si está delante, la torca lo voltea: inestable.</li>
-            <li>Por eso las aletas van atrás (mueven el CP hacia la cola) y a veces se agrega lastre en la nariz (mueve el CG hacia adelante).</li>
+            <li>Si el CP está <b>detrás</b> del CM, la fuerza del aire produce una torca que endereza al cohete, como una veleta. Si está delante, la torca lo voltea: inestable.</li>
+            <li>Por eso las aletas van atrás (mueven el CP hacia la cola) y a veces se agrega lastre en la ojiva (mueve el CM hacia adelante).</li>
           </ul>
           <p>
             La distancia entre ambos, medida en diámetros del cuerpo (calibres), es el <b>margen de estabilidad</b>. Lo recomendado es entre 1 y 2.
-            {d.type === "water" ? " En el cohete de agua el agua está en la cola, así que el CG se mueve hacia adelante conforme el agua sale." : " Al quemarse el propelente el CG se mueve un poco hacia la nariz."}
+            {d.type === "water" ? " En el cohete de agua el agua está en la cola, así que el CM se mueve hacia adelante conforme el agua sale." : " Al quemarse el propelente el CM se mueve un poco hacia la ojiva."}
           </p>
         </StageBlock>
 
         <StageBlock stage="matematicas">
-          <p>Centro de gravedad: promedio de las posiciones pesado por las masas (medidas desde la punta de la nariz):</p>
-          <Eq block tex={r`x_{CG} = \frac{\sum_i m_i\,x_i}{\sum_i m_i}`} />
+          <p>Centro de masa: promedio de las posiciones ponderado por las masas (medidas desde la punta de la ojiva):</p>
+          <Eq block tex={r`x_{CM} = \frac{\sum_i m_i\,x_i}{\sum_i m_i}`} />
           <p>
             Centro de presión con el <b>método de Barrowman</b>: cada parte aporta una fuerza normal proporcional a <Eq tex="C_{N\alpha}" /> en su propio
-            centro <Eq tex="x_i" />. La nariz siempre aporta <Eq tex="C_{N\alpha}=2" />; las aletas (N aletas, altura s, cuerdas <Eq tex="c_r, c_t" />):
+            centro <Eq tex="x_i" />. La ojiva siempre aporta <Eq tex="C_{N\alpha}=2" />; las aletas (N aletas, altura s, cuerdas <Eq tex="c_r, c_t" />):
           </p>
           <Eq block tex={r`C_{N\alpha,\,aletas} = \left(1 + \frac{R}{s+R}\right)\frac{4N\,(s/d)^2}{1+\sqrt{1+\left(\frac{2\ell_m}{c_r+c_t}\right)^2}}`} />
-          <Eq block tex={r`x_{CP} = \frac{\sum_i C_{N\alpha,i}\,x_i}{\sum_i C_{N\alpha,i}} \qquad \text{margen} = \frac{x_{CP}-x_{CG}}{d}`} />
+          <Eq block tex={r`x_{CP} = \frac{\sum_i C_{N\alpha,i}\,x_i}{\sum_i C_{N\alpha,i}} \qquad \text{margen} = \frac{x_{CP}-x_{CM}}{d}`} />
           {d.type === "water" && (
             <p>
               El hombro de la botella se angosta hacia atrás (como una cola de bote), así que su <Eq tex="C_{N\alpha}" /> es <b>negativo</b>: mueve el CP hacia
@@ -54,7 +57,7 @@ export function StabilityLesson({ design: d, result: res }: { design: Design; re
             </p>
           )}
           <YourRocket>
-            <Eq block tex={r`x_{CG} = \frac{${n(moment, 0)}\ \text{g·mm}}{${n(mass, 1)}\ \text{g}} = ${n(st.cg, 1)}\ \text{mm}`} />
+            <Eq block tex={r`x_{CM} = \frac{${n(moment, 0)}\ \text{g·mm}}{${n(mass, 1)}\ \text{g}} = ${n(st.cg, 1)}\ \text{mm}`} />
             <Eq block tex={r`x_{CP} = \frac{${n(cnMoment, 1)}}{${n(cnSum, 3)}} = ${n(st.cp, 1)}\ \text{mm}`} />
             <Eq block tex={r`\text{margen} = \frac{${n(st.cp, 1)} - ${n(st.cg, 1)}}{${n(ref, 1)}} = \mathbf{${n(st.margin, 2)}\ \text{calibres}}`} />
           </YourRocket>
@@ -80,7 +83,7 @@ export function StabilityLesson({ design: d, result: res }: { design: Design; re
 % Piezas: masa (g) y posición de su centro (mm desde la punta)
 masa = [${items.map((i) => i.mass.toFixed(1)).join(" ")}];
 x    = [${items.map((i) => i.x.toFixed(0)).join(" ")}];
-xCG  = sum(masa.*x)/sum(masa);          % centro de gravedad
+xCM  = sum(masa.*x)/sum(masa);          % centro de masa
 
 % Barrowman: C_Nalpha y posición de cada parte
 CN   = [${terms.map((t) => t.cn.toFixed(3)).join(" ")}];
@@ -88,15 +91,15 @@ xN   = [${terms.map((t) => t.x.toFixed(0)).join(" ")}];
 xCP  = sum(CN.*xN)/sum(CN);             % centro de presión
 
 d = ${ref.toFixed(1)};                       % diámetro (mm)
-margen = (xCP - xCG)/d;
-fprintf('CG = %.1f mm, CP = %.1f mm, margen = %.2f calibres\n', xCG, xCP, margen);
+margen = (xCP - xCM)/d;
+fprintf('CM = %.1f mm, CP = %.1f mm, margen = %.2f calibres\n', xCM, xCP, margen);
           `}</Code>
         </StageBlock>
       </div>
       <Think>
         <ul>
-          <li>Agrega 10 g de lastre en la nariz en la pestaña Cohete. ¿Cuánto cambia el margen? ¿Y {d.type === "estes" ? "el apogeo" : "la altura máxima"}?</li>
-          <li>Comprueba el CG de tu cohete real colgándolo de un hilo hasta que quede horizontal. ¿Coincide con el calculado?</li>
+          <li>Agrega 10 g de lastre en la ojiva en la pestaña Cohete. ¿Cuánto cambia el margen? ¿Y {d.type === "estes" ? "el apogeo" : "la altura máxima"}?</li>
+          <li>Comprueba el CM de tu cohete real colgándolo de un hilo hasta que quede horizontal. ¿Coincide con el calculado?</li>
           <li>¿Por qué un margen demasiado grande (más de 3) también es malo cuando hay viento?</li>
         </ul>
       </Think>

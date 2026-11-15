@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "5174", "--strictPort"],
       "port": 5174
+    },
+    {
+      "name": "copiloto",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "mascota-proxy", "run", "dev"],
+      "port": 8787
     }
   ]
 }

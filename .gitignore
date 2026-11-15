@@ -5,3 +5,10 @@ referencia/
 # Tipografía con licencia de escritorio (Linotype): nunca se publica
 *.ttf
 *.otf
+
+# Copiloto (Cloudflare Worker): secretos locales y caché de wrangler
+.dev.vars
+.wrangler/
+
+# Caché de TypeScript
+tsconfig.tsbuildinfo

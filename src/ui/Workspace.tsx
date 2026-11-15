@@ -27,7 +27,7 @@ const MAIN_TABS = (type: Design["type"]): { id: SubTab; label: string; icon: str
     ? { id: "fase0", label: "Experimento", icon: "🧪", sub: "Paso 1 · prepara el experimento" }
     : { id: "fase0", label: "Motor", icon: "🔥", sub: "Paso 1 · prueba estática del motor" },
   { id: "cohete", label: "Cohete", icon: "🚀", sub: "Paso 2 · arma tu cohete" },
-  { id: "estabilidad", label: "Estabilidad", icon: "⚖️", sub: "Paso 3 · revisa que vuele en línea recta" },
+  { id: "estabilidad", label: "Estabilidad", icon: "⚖️", sub: "Paso 3 · que vuele en línea recta" },
 ];
 
 /** Second menu row: one lesson per flight phase (names and numerals depend on the program). */
@@ -73,6 +73,9 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
   const [comparison, setComparison] = useState<Comparison>({ altimeter: 0, altimeterUnit: design.type === "water" ? "m" : "ft", apogeeTime: 0, descentTime: 0, csv: null });
   const [staticTest, setStaticTest] = useState<StaticTestFile | null>(null);
   const view: SubTab = sub;
+  // The flight phases only show during the flight: "Go for launch" takes off into Fase I, and going back to
+  // Motor, Cohete or Estabilidad hides them again.
+  const showPhases = view === SIM_TAB.id || /^fase[1-4]$/.test(view);
 
   const save = () => {
     const entry = saveDesign(design, savedId);
@@ -106,7 +109,12 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
           {MAIN_TABS(design.type).map((t) => (
             <button key={t.id} role="tab" aria-selected={view === t.id} onClick={() => go(t.id)}><span className="tab-icon" aria-hidden="true">{t.icon}</span><span className="tab-text">{t.label}<small>{t.sub}</small></span></button>
           ))}
+          <button type="button" className={`launch-btn${showPhases ? " launched" : ""}`} aria-pressed={showPhases} aria-expanded={showPhases} onClick={() => go("fase1")}>
+            <span className="tab-icon" aria-hidden="true">{showPhases ? "🚀" : "🟢"}</span>
+            <span className="tab-text">Go for launch<small>{showPhases ? "¡despegue! vuelo por fases" : "Paso 4 · despega y sigue el vuelo"}</small></span>
+          </button>
         </div>
+        {showPhases && (
         <div className="menu-row phases" role="tablist" aria-label="El vuelo por fases">
           <span className="menu-label">El vuelo por fases</span>
           {phaseTabs(design.type).map((t) => {
@@ -130,6 +138,7 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
             </span>
           </button>
         </div>
+        )}
       </nav>
 
       <ErrorBoundary key={view}>
@@ -179,7 +188,9 @@ function LessonNav({ sub, type, go }: { sub: SubTab; type: Design["type"]; go: (
   return (
     <div className="lesson-nav no-print">
       {prev ? <button className="btn" onClick={() => go(prev.id)}>← {prev.label}</button> : <span />}
-      {next ? <button className="btn primary" onClick={() => go(next.id)}>{next.label} →</button> : <button className="btn primary" onClick={() => go("cohete")}>Volver al cohete</button>}
+      {next && sub === "estabilidad"
+        ? <button className="btn primary" onClick={() => go(next.id)}>🟢 Go for launch →</button>
+        : next ? <button className="btn primary" onClick={() => go(next.id)}>{next.label} →</button> : <button className="btn primary" onClick={() => go("cohete")}>Volver al cohete</button>}
     </div>
   );
 }

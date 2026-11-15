@@ -32,7 +32,7 @@ export function FreeBody({ sample: s }: { sample: Sample }) {
 export function CdBars({ parts }: { parts: { friction: number; nose: number; fins: number; base: number; total: number } }) {
   const rows = [
     { name: "Fricción con la superficie", v: parts.friction, color: "#0039a6" },
-    { name: "Presión en la nariz", v: parts.nose, color: "#7a4fb0" },
+    { name: "Presión en la ojiva", v: parts.nose, color: "#7a4fb0" },
     { name: "Bordes de las aletas", v: parts.fins, color: "#1d7a3e" },
     { name: "Base (cola)", v: parts.base, color: "#e0701b" },
   ];

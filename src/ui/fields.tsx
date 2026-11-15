@@ -102,9 +102,19 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
   );
 }
 
-export function Section({ title, summary, children, open = true }: { title: string; summary?: string; children: ReactNode; open?: boolean }) {
+export function Section({ title, summary, children, open = false }: { title: string; summary?: string; children: ReactNode; open?: boolean }) {
   return (
-    <details className="panel" open={open}>
+    // Sections sharing a name form an accordion: opening one closes the others.
+    <details
+      className="panel"
+      open={open}
+      name="design-sections"
+      onToggle={(e) => {
+        // When a long section above closes, the one just opened can jump off screen: bring its title back into view.
+        const el = e.currentTarget;
+        if (el.open && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: "start", behavior: "smooth" });
+      }}
+    >
       <summary>
         {title}
         {summary && <small>{summary}</small>}
