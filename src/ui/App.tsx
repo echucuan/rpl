@@ -5,6 +5,7 @@ import { About } from "./About";
 import { CopilotPanel } from "./copilot/CopilotPanel";
 import { COPILOT_URL } from "./copilot/conversation";
 import { Designs } from "./Designs";
+import { RockyGuide } from "./rocky/RockyGuide";
 import { Dialog } from "./Dialog";
 import { Workspace, SUB_TABS, type SubTab } from "./Workspace";
 import { designFileName, loadDraft, saveProjectFile, storeDraft } from "./storage";
@@ -19,6 +20,8 @@ const TABS: { id: Tab; label: string; logo?: Design["type"] }[] = [
   { id: "estes", label: PROGRAMS.estes.name, logo: "estes" },
   { id: "water", label: PROGRAMS.water.name, logo: "water" },
   { id: "designs", label: "Mis diseños" },
+  // Rocky's guide (#rocky) exists only where the copilot does.
+  ...(COPILOT_URL ? [{ id: "rocky" as const, label: "Rocky" }] : []),
   { id: "about", label: "Acerca de" },
 ];
 
@@ -204,7 +207,7 @@ export function App() {
           </nav>
         </div>
         {/* In a workspace the program banner carries the title, so the page has a single title bar. */}
-        {tab !== "estes" && tab !== "water" && <div className={`site-hero ${tab === "inicio" ? "" : "compact"}`}>
+        {tab !== "estes" && tab !== "water" && tab !== "rocky" && <div className={`site-hero ${tab === "inicio" ? "" : "compact"}`}>
           <h1>Rocket Physics Lab <span>Sinaloa</span></h1>
           {tab === "inicio" && <p>Diseña tu cohete, simula su vuelo y descubre la física detrás de cada vuelo.</p>}
         </div>}
@@ -214,6 +217,7 @@ export function App() {
         {tab === "estes" && workspace("estes")}
         {tab === "water" && workspace("water")}
         {tab === "designs" && <Designs onOpen={(design, id, source) => request({ kind: "open", design, id, source })} />}
+        {tab === "rocky" && <RockyGuide />}
         {tab === "about" && <About />}
       </main>
       {COPILOT_URL && <CopilotPanel design={tab === "estes" || tab === "water" ? projects[tab].design : null} />}

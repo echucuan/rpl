@@ -89,7 +89,7 @@ export function MascotLab() {
 
   return (
     <main className="mlab">
-      <h1>Estudio de la mascota Rocket Tec</h1>
+      <h1>Estudio de Rocky</h1>
       <p>
         Edita en vivo. Para conservar los cambios: <b>Copiar diseño</b> y pégalo en <code>src/ui/mascot/mascotDesign.ts</code>.
         Lo que mueves aquí se guarda solo en este navegador.
@@ -197,7 +197,7 @@ export function MascotLab() {
           <header>
             <div className="mlab-avatar"><Mascot design={design} size={36} mood={mood} title="" /></div>
             <div>
-              <strong>Copiloto Rocket Tec</strong>
+              <strong>Rocky</strong>
               <small>{m.label}…</small>
             </div>
           </header>
@@ -213,7 +213,7 @@ export function MascotLab() {
         </div>
       </div>
 
-      <button className="mfab" aria-label="Abrir copiloto"><Mascot design={design} mood={mood} size={58} title="" /></button>
+      <button className="mfab" aria-label="Hablar con Rocky"><Mascot design={design} mood={mood} size={58} title="" /></button>
     </main>
   );
 }

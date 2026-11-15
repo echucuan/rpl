@@ -1,4 +1,4 @@
-# Mascota Rocket Tec — cómo editar su diseño
+# Rocky (la mascota) — cómo editar su diseño
 
 La mascota es el isotipo del logo (el cohete) convertido en personaje: la ventanilla es su ojo y la llama muestra qué tan "ocupado" está.
 

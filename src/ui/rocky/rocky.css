@@ -1,0 +1,182 @@
+/* "Conoce a Rocky" infographic (#rocky). Colors follow the mascot and the Tec palette. */
+.rocky {
+  --rk-navy: #072f70;
+  --rk-blue: #0751b5;
+  --rk-sky: #469aff;
+  --rk-cloud: #dcebff;
+  --rk-fis: #0751b5;
+  --rk-mat: #6b3fa0;
+  --rk-com: #1d7a3e;
+  --rk-ing: #e0701b;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 8px 16px 48px;
+  display: grid;
+  gap: 22px;
+}
+
+/* ---- hero ---- */
+.rk-hero {
+  display: flex; align-items: center; gap: 28px;
+  padding: 28px 32px;
+  border-radius: 22px;
+  background: radial-gradient(circle at 12% 30%, #fff 0 18%, transparent 60%), linear-gradient(135deg, var(--rk-cloud), #f6f9ff 70%);
+  border: 2px solid var(--rk-cloud);
+}
+.rk-hero-mascot { flex: none; }
+.rk-kicker { margin: 0; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--rk-blue); }
+.rk-hero h1 { margin: 4px 0 8px; font-size: clamp(2rem, 5vw, 2.9rem); line-height: 1.05; color: var(--rk-navy); }
+.rk-hero h1 span { color: var(--rk-blue); }
+.rk-lead { margin: 0; font-size: 1.08rem; line-height: 1.5; color: #24324a; max-width: 52ch; }
+.rk-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+/* ---- sections: Rocky + speech bubble, then the content ---- */
+.rk-sec {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line, #d9dde5);
+  border-radius: 18px;
+  padding: 22px 24px 24px;
+  break-inside: avoid;
+}
+.rk-sec-head { position: relative; display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.rk-num {
+  position: absolute; left: -6px; top: -6px; z-index: 1;
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--rk-blue); color: #fff; font-weight: 800; font-size: 0.95rem;
+  box-shadow: 0 0 0 3px #fff;
+}
+.rk-sec-mascot { flex: none; }
+.rk-bubble {
+  position: relative; flex: 1;
+  background: var(--rk-cloud); border-radius: 16px; padding: 12px 18px;
+}
+.rk-bubble::before {
+  content: ""; position: absolute; left: -10px; top: 50%; margin-top: -10px;
+  border: 10px solid transparent; border-left: 0; border-right-color: var(--rk-cloud);
+}
+.rk-bubble h2 { margin: 0; font-size: 1.35rem; color: var(--rk-navy); }
+.rk-bubble p { margin: 4px 0 0; color: #24324a; line-height: 1.45; }
+.rk-note { margin: 14px 0 0; font-size: 0.9rem; color: var(--muted, #5b6270); }
+.rk-sub { margin: 20px 0 10px; font-size: 1rem; color: var(--rk-navy); }
+.rk-sub small { font-weight: 400; color: var(--muted, #5b6270); }
+
+/* 1 · steps with little pictures */
+.rk-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; counter-reset: step; }
+.rk-steps li { counter-increment: step; display: grid; gap: 10px; align-content: start; line-height: 1.4; }
+.rk-steps p { margin: 0; }
+.rk-steps p > b::before { content: counter(step) ". "; color: var(--rk-blue); }
+.rk-screen {
+  position: relative; height: 96px; border-radius: 10px;
+  border: 2px solid var(--rk-navy); background: #f7f9fd; padding: 10px; display: grid; gap: 6px; align-content: start;
+}
+.rk-screen i { display: block; height: 8px; border-radius: 4px; background: #d6deeb; }
+.rk-screen i:nth-child(1) { width: 60%; background: var(--rk-blue); opacity: 0.5; }
+.rk-screen i:nth-child(3) { width: 75%; }
+.rk-screen-fab {
+  position: absolute; right: 8px; bottom: 8px; width: 38px; height: 38px; border-radius: 50%;
+  display: grid; place-items: center; background: #fff; border: 2px solid var(--rk-sky);
+  animation: rk-pulse 1.8s ease-out infinite;
+}
+@keyframes rk-pulse { 0% { box-shadow: 0 0 0 0 rgba(70, 154, 255, 0.55); } 100% { box-shadow: 0 0 0 14px rgba(70, 154, 255, 0); } }
+.rk-groups { height: 96px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: center; }
+.rk-groups span { padding: 8px 0; border-radius: 10px; text-align: center; font-weight: 800; color: var(--rk-blue); border: 2px solid var(--rk-sky); background: #fff; }
+.rk-groups span:first-child { background: var(--rk-blue); border-color: var(--rk-blue); color: #fff; }
+.rk-typing {
+  height: 96px; box-sizing: border-box; display: flex; align-items: center; padding: 0 14px;
+  border-radius: 10px; border: 2px solid var(--rk-navy); background: #fff; color: #24324a; font-size: 0.95rem;
+}
+.rk-typing i { width: 2px; height: 1.1em; margin-left: 2px; background: var(--rk-blue); animation: rk-blink 1s steps(1) infinite; }
+@keyframes rk-blink { 50% { opacity: 0; } }
+
+/* 2 · cards */
+.rk-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.rk-card { border-radius: 14px; padding: 16px; background: #f6f9ff; border: 1px solid var(--rk-cloud); }
+.rk-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; border: 2px solid var(--rk-cloud); font-size: 1.4rem; }
+.rk-card h3 { margin: 10px 0 4px; font-size: 1.05rem; color: var(--rk-navy); }
+.rk-card p { margin: 0; line-height: 1.45; color: #24324a; }
+
+/* 3 · Física → Matemáticas → Computación → Ingeniería */
+.rk-method { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+.rk-m { --c: var(--rk-fis); position: relative; border-radius: 14px; padding: 14px 14px 16px; border: 2px solid var(--c); background: #fff; counter-increment: m; }
+.rk-m.mat { --c: var(--rk-mat); }
+.rk-m.com { --c: var(--rk-com); }
+.rk-m.ing { --c: var(--rk-ing); }
+.rk-m h3 { margin: -14px -14px 10px; padding: 8px 14px; border-radius: 11px 11px 0 0; background: var(--c); color: #fff; font-size: 1rem; }
+.rk-m h3::before { content: counter(m) " · "; opacity: 0.8; }
+.rk-method { counter-reset: m; }
+.rk-m:not(:last-child)::after {
+  content: "→"; position: absolute; right: -19px; top: 50%; transform: translateY(-50%);
+  font-size: 1.3rem; font-weight: 800; color: var(--rk-navy);
+}
+.rk-m-q { margin: 0 0 8px; font-weight: 700; color: var(--c); }
+.rk-m-eg { margin: 0; font-size: 0.92rem; line-height: 1.4; color: #24324a; }
+.rk-m.mat .rk-m-eg { font-family: "Cambria Math", "Times New Roman", serif; font-size: 1.05rem; font-style: italic; }
+
+/* 4 · predict → ask → check */
+.rk-cycle { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; counter-reset: c; }
+.rk-cycle li { position: relative; counter-increment: c; display: grid; gap: 4px; padding: 14px 16px; border-radius: 14px; background: #f6f9ff; border: 2px dashed var(--rk-sky); }
+.rk-cycle b { color: var(--rk-navy); font-size: 1.05rem; }
+.rk-cycle b::before { content: counter(c) ". "; color: var(--rk-blue); }
+.rk-cycle span { line-height: 1.4; color: #24324a; }
+.rk-cycle li:not(:last-child)::after { content: "→"; position: absolute; right: -19px; top: 50%; transform: translateY(-50%); font-size: 1.3rem; font-weight: 800; color: var(--rk-navy); }
+.rk-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.rk-chips button {
+  font: inherit; font-size: 0.92rem; cursor: pointer;
+  padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--rk-sky); background: #fff; color: var(--rk-blue);
+}
+.rk-chips button:hover { background: var(--rk-cloud); }
+.rk-chips button:focus-visible { outline: 3px solid var(--rk-sky); outline-offset: 2px; }
+
+/* 5 · rules as big tiles */
+.rk-rules { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.rk-rule { display: grid; gap: 4px; align-content: start; padding: 16px; border-radius: 14px; background: #f6f9ff; border: 1px solid var(--rk-cloud); }
+.rk-big { font-size: 2.2rem; font-weight: 800; line-height: 1; color: var(--rk-blue); }
+.rk-rule b { color: var(--rk-navy); }
+.rk-rule span:last-child { font-size: 0.9rem; line-height: 1.4; color: #24324a; }
+
+/* 6 · messages */
+.rk-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.rk-table th { text-align: left; padding: 8px 12px; background: var(--rk-navy); color: #fff; }
+.rk-table th:first-child { border-radius: 10px 0 0 0; }
+.rk-table th:last-child { border-radius: 0 10px 0 0; }
+.rk-table td { padding: 9px 12px; border-bottom: 1px solid var(--line, #d9dde5); vertical-align: top; }
+.rk-table td:first-child { font-weight: 700; color: var(--rk-navy); width: 44%; }
+.rk-table tr:nth-child(even) td { background: #f8fafd; }
+
+.rk-end { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; padding: 8px 0; }
+.rk-end p { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--rk-navy); }
+.rk-end .print-only { font-weight: 400; color: var(--muted, #5b6270); }
+
+/* ---- narrow screens ---- */
+@media (max-width: 820px) {
+  .rk-method, .rk-rules { grid-template-columns: 1fr 1fr; }
+  .rk-m:nth-child(2)::after { display: none; }
+}
+@media (max-width: 640px) {
+  .rocky { padding: 4px 0 40px; gap: 16px; }
+  .rk-hero { flex-direction: column; text-align: center; padding: 22px 18px; }
+  .rk-actions { justify-content: center; }
+  .rk-sec { padding: 18px 16px 20px; }
+  .rk-sec-head { flex-direction: column; text-align: center; gap: 10px; }
+  .rk-bubble::before { left: 50%; top: -10px; margin: 0 0 0 -10px; border: 10px solid transparent; border-top: 0; border-bottom-color: var(--rk-cloud); }
+  .rk-steps, .rk-cards, .rk-cycle, .rk-method { grid-template-columns: 1fr; gap: 26px; }
+  .rk-rules { grid-template-columns: 1fr 1fr; }
+  .rk-m::after, .rk-cycle li::after { right: auto !important; left: 50%; top: auto !important; bottom: -24px; transform: translateX(-50%) rotate(90deg) !important; display: block !important; }
+  .rk-m:last-child::after, .rk-cycle li:last-child::after { display: none !important; }
+  .rk-table td:first-child { width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rk-screen-fab, .rk-typing i { animation: none; }
+}
+
+/* ---- print: one clean handout ---- */
+@media print {
+  .site-header { display: none !important; }
+  .rocky { max-width: none; padding: 0; gap: 10px; }
+  .rk-hero { padding: 14px 18px; }
+  .rk-sec { padding: 12px 16px; border-color: #bbb; }
+  .rk-hero, .rk-bubble, .rk-card, .rk-cycle li, .rk-rule, .rk-m h3, .rk-table th, .rk-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rk-screen-fab, .rk-typing i { animation: none; }
+}

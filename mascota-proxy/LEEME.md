@@ -1,4 +1,4 @@
-# Copiloto Rocket Tec — proxy en Cloudflare Workers
+# Rocky, el copiloto — proxy en Cloudflare Workers
 
 La página de RPL (GitHub Pages) **no puede guardar la clave de la API de Claude**: cualquiera la vería. Este Worker la guarda como secreto y reenvía las preguntas a Claude.
 

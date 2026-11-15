@@ -108,7 +108,7 @@ export const discard = (p: Project): Project => ({ ...p, design: p.baseline.desi
 
 // ---------- navigation guard ----------
 
-export type Tab = "inicio" | "estes" | "water" | "designs" | "about";
+export type Tab = "inicio" | "estes" | "water" | "designs" | "rocky" | "about";
 export type ProgramType = Design["type"];
 
 /** Something the student asked for that would leave or replace a project. */

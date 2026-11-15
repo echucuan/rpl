@@ -64,7 +64,7 @@ async function countAndCheck(env: Env, student: string, group: string): Promise<
   const keys = { student: `d:${day}:${student}`, group: `g:${day}:${group}`, total: `t:${day}` };
   const [s, g, t] = await Promise.all([env.QUOTA.get(keys.student), env.QUOTA.get(keys.group), env.QUOTA.get(keys.total)]);
   const used = { student: Number(s ?? 0), group: Number(g ?? 0), total: Number(t ?? 0) };
-  if (used.total >= Number(env.DAILY_TOTAL)) return "El copiloto ya respondió todas las preguntas de hoy. Vuelve mañana.";
+  if (used.total >= Number(env.DAILY_TOTAL)) return "Rocky ya respondió todas las preguntas de hoy. Vuelve mañana.";
   if (used.group >= Number(env.DAILY_PER_GROUP)) return `El grupo ${group} ya usó todas sus preguntas de hoy. Vuelve mañana.`;
   if (used.student >= Number(env.DAILY_PER_STUDENT)) return "Ya usaste tus preguntas de hoy. Vuelve mañana.";
   // KV is not atomic: under heavy parallel use the counts can fall a little short. The minute limiter
@@ -90,13 +90,13 @@ export default {
     if (request.method !== "POST") return apiError(400, "Usa POST.", cors);
 
     const group = validGroup(request.headers.get("x-rpl-group"), env.GROUPS);
-    if (!group) return apiError(400, "Elige tu grupo para hablar con el copiloto.", cors);
+    if (!group) return apiError(400, "Elige tu grupo para hablar con Rocky.", cors);
 
     // One student = one browser (its anonymous id), not one IP: a whole classroom can share one IP.
     // The IP keeps only a wide per-minute cap, against scripts that invent a new id each time.
     const ip = request.headers.get("CF-Connecting-IP") ?? "local";
     const student = studentKey(request.headers.get("x-rpl-device"), ip);
-    if (!(await env.PER_IP.limit({ key: ip })).success) return apiError(429, "El copiloto está muy ocupado en tu red. Espera un minuto y vuelve a preguntar.", cors);
+    if (!(await env.PER_IP.limit({ key: ip })).success) return apiError(429, "Rocky está muy ocupado en tu red. Espera un minuto y vuelve a preguntar.", cors);
     if (!(await env.PER_MINUTE.limit({ key: student })).success) return apiError(429, "Vas muy rápido. Espera un minuto y vuelve a preguntar.", cors);
 
     const checked = checkBody(await request.text());
@@ -124,13 +124,13 @@ export default {
         headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
       });
     } catch (error) {
-      if (error instanceof Anthropic.RateLimitError) return apiError(429, "El copiloto está muy ocupado. Intenta en unos segundos.", cors);
+      if (error instanceof Anthropic.RateLimitError) return apiError(429, "Rocky está muy ocupado. Intenta en unos segundos.", cors);
       if (error instanceof Anthropic.APIError) {
         console.error("Claude API error", error.status, error.message);
-        return apiError(502, "El copiloto no pudo responder. Intenta de nuevo.", cors);
+        return apiError(502, "Rocky no pudo responder. Intenta de nuevo.", cors);
       }
       console.error("Unexpected error", error);
-      return apiError(500, "Error inesperado en el copiloto.", cors);
+      return apiError(500, "Error inesperado en Rocky.", cors);
     }
   },
 };

@@ -19,7 +19,7 @@ interface Props {
   design?: MascotDesign;
 }
 
-export function Mascot({ mood = "idle", size = 120, title = "Mascota Rocket Tec", className, design = MASCOT_DESIGN }: Props) {
+export function Mascot({ mood = "idle", size = 120, title = "Rocky, la mascota de Rocket Tec", className, design = MASCOT_DESIGN }: Props) {
   const { colors: c, stroke, shapes: s, eye, cheeks, decorations: deco, animation: anim } = design;
   const m = design.moods[mood];
   const eyeClip = `mascot-eye-${useId().replace(/:/g, "")}`;

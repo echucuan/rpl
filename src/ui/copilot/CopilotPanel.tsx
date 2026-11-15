@@ -4,6 +4,7 @@ import type { Design } from "../../model";
 import { Mascot, type MascotMood } from "../mascot/Mascot";
 import { CopilotError, MAX_MESSAGES, ask, type Phase } from "./conversation";
 import { COPILOT_GROUPS } from "./groups";
+import { OPEN_ROCKY } from "./openRocky";
 import { RichText } from "./RichText";
 import "./copilot.css";
 
@@ -61,6 +62,16 @@ export function CopilotPanel({ design }: { design: Design | null }) {
     if (open) input.current?.focus();
   }, [open, group]);
   useEffect(() => () => abort.current?.abort(), []);
+  useEffect(() => {
+    // Rocky's guide (#rocky) opens the chat, sometimes with an example question ready to send.
+    const onOpen = (e: Event) => {
+      setOpen(true);
+      const q = (e as CustomEvent<string | undefined>).detail;
+      if (q) setDraft(q);
+    };
+    addEventListener(OPEN_ROCKY, onOpen);
+    return () => removeEventListener(OPEN_ROCKY, onOpen);
+  }, []);
 
   const flashMood = (m: MascotMood, ms: number) => {
     setMood(m);
@@ -129,8 +140,8 @@ export function CopilotPanel({ design }: { design: Design | null }) {
   const full = history.length >= MAX_MESSAGES;
   const kind = design?.type ?? "none";
   const greeting = design
-    ? `¡Hola! Soy tu copiloto. Puedo revisar tu cohete «${design.name}», simular cambios y explicarte la física. ¿Qué quieres saber?`
-    : "¡Hola! Soy tu copiloto. Abre Rocket Tec o Rocket Challenge para que revise tu cohete, o pregúntame sobre la física del vuelo.";
+    ? `¡Hola! Soy Rocky, tu copiloto. Puedo revisar tu cohete «${design.name}», simular cambios y explicarte la física. ¿Qué quieres saber?`
+    : "¡Hola! Soy Rocky, tu copiloto. Abre Rocket Tec o Rocket Challenge para que revise tu cohete, o pregúntame sobre la física del vuelo.";
 
   return (
     <>
@@ -139,7 +150,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls="copilot-panel"
-        aria-label={open ? "Cerrar copiloto" : "Abrir copiloto"}
+        aria-label={open ? "Cerrar a Rocky" : "Hablar con Rocky"}
       >
         <Mascot size={58} mood={open ? mood : "idle"} title="" />
       </button>
@@ -148,13 +159,13 @@ export function CopilotPanel({ design }: { design: Design | null }) {
         <section
           id="copilot-panel"
           className="cp-panel"
-          aria-label="Copiloto Rocket Tec"
+          aria-label="Rocky, tu copiloto"
           onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
         >
           <header className="cp-head">
             <div className="cp-avatar"><Mascot size={38} mood={mood} title="" /></div>
             <div className="cp-title">
-              <strong>Copiloto Rocket Tec</strong>
+              <strong>Rocky</strong>
               <small>
                 {busy ? status || "Escribiendo…" : group ? `Grupo ${group}${design ? ` · ${design.name}` : ""}` : "Pregúntame sobre cohetes"}
               </small>
@@ -164,6 +175,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
                 {group}
               </button>
             )}
+            <a className="cp-icon cp-help" href="#rocky" title="Guía de Rocky" aria-label="Guía de Rocky">?</a>
             {bubbles.length > 0 && <button className="cp-icon" onClick={restart} title="Nueva conversación" aria-label="Nueva conversación">↺</button>}
             <button className="cp-icon" onClick={() => setOpen(false)} aria-label="Cerrar">✕</button>
           </header>
@@ -177,6 +189,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
                   <button key={g} onClick={() => pickGroup(g)}>{g}</button>
                 ))}
               </div>
+              <a className="cp-guide" href="#rocky">¿Primera vez? Mira cómo trabajo</a>
             </div>
           ) : (
             <>
@@ -222,7 +235,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
                   <button type="submit" className="btn primary" disabled={!draft.trim() || full}>Enviar</button>
                 )}
               </form>
-              <p className="cp-foot">El copiloto puede equivocarse: compruébalo con el simulador y tu profesor.</p>
+              <p className="cp-foot">Rocky puede equivocarse: compruébalo con el simulador y tu profesor.</p>
             </>
           )}
         </section>
