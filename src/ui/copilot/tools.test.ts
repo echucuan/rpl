@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { newEstesDesign, newWaterDesign } from "../../model";
 import { runTool, simularCambio, verDiseno } from "./tools";
 
+// A new rocket starts without its motor; these fly it.
+const withMotor = () => { const d = newEstesDesign(); d.motor.included = true; return d; };
+
 describe("copilot tools", () => {
   it("ver_diseno returns the design and its flight summary", () => {
-    const d = newEstesDesign();
+    const d = withMotor();
     const out = verDiseno(d);
     expect(out.programa).toMatch(/Rocket Tec/);
     expect(out.diseno).toBe(d);
@@ -13,7 +16,7 @@ describe("copilot tools", () => {
   });
 
   it("simular_cambio compares before and after without touching the student's design", () => {
-    const d = newEstesDesign(); // starts without fins
+    const d = withMotor(); // starts without fins
     const span = d.fins.span;
     const out = simularCambio(d, {
       cambios: [{ ruta: "fins.count", valor: 3 }, { ruta: "fins.span", valor: span * 1.5 }],

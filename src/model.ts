@@ -160,6 +160,8 @@ export const ALTIMETER_MM = { length: 55, height: 18, tab: 9 };
 
 /** What an extra mass can be; the first is the default. Each one is drawn as it looks inside the rocket. */
 export const EXTRA_KINDS = ["Papel retardante", "Algodón", "Plastilina", "Pegamento", "Cinta", "Masa X"] as const;
+/** What the lab weighed of each kind (g), the mass an extra of that kind starts with; the team corrects it with its own. */
+export const EXTRA_WEIGHED: Partial<Record<(typeof EXTRA_KINDS)[number], number>> = { "Papel retardante": 1, "Algodón": 1 };
 
 /**
  * The printed motor mount (Pieza 04 PortaMotor A), the one part the students may not make or change, so it sets the
@@ -198,10 +200,8 @@ export const NOSE_SLEEVE = { diameter: 26, inner: 24, length: 30 } as const;
 export const altimeterRest = (d: Design) => d.nose.length + NOSE_SLEEVE.length - ALTIMETER_MM.length / 2;
 /** The gap between the plug and the altimeter (mm): how far the altimeter was moved toward the tip. */
 export const plugGap = (d: EstesDesign) => Math.max(altimeterRest(d) - d.altimeter.position, 0);
-/** Loose cotton in the 24 mm sleeve weighs about 0.03 g/cm³. */
-export const COTTON_DENSITY = 0.03;
-/** Mass of loose cotton filling `length` mm of the sleeve (g): an estimate until it is weighed. */
-export const cottonEstimate = (length: number) => Math.round(((Math.PI / 4) * NOSE_SLEEVE.inner ** 2 * length * COTTON_DENSITY) / 1000 * 100) / 100;
+/** Cotton packed in the 24 mm sleeve: about 0.11 g/cm³, so the lab's 1 g fills some 20 mm (used to draw it). */
+export const COTTON_DENSITY = 0.11;
 
 /**
  * What a Rocket Tec design cannot choose, because the motor mount sets it: the diameter (nose and body), and the fins'
@@ -268,7 +268,7 @@ export function massForMaterial(part: keyof typeof WEIGHED_PRINTS, mass: number,
 // Estes 24" printed parachute and Estes altimeter in the nose. The motor, parachute and altimeter masses were weighed
 // in the lab, and so were the printed parts (WEIGHED_PRINTS); each team replaces them with what its own parts weigh.
 export function newEstesDesign(): EstesDesign {
-  const sheet: PaperSheet = { orientation: "long", gsm: 120, thickness: 0.15 };
+  const sheet: PaperSheet = { orientation: "short", gsm: 120, thickness: 0.15 }; // a 21.6 cm tube: the 27.9 cm side is rolled
   return {
     type: "estes",
     name: "Mi cohete Rocket Tec",
@@ -286,7 +286,8 @@ export function newEstesDesign(): EstesDesign {
     altimeter: { included: false, mass: WEIGHED.altimeter, position: 120 - ALTIMETER_MM.length / 2, brand: "Estes" },
     extras: [],
     launch: { ...CULIACAN },
-    motor: { id: DEFAULT_MOTOR, thrust: "average", burnDrag: false, coastDrag: false, fallDrag: false, mass: WEIGHED.motorLoaded, propellant: WEIGHED.motorLoaded - WEIGHED.motorBurnt },
+    // A new rocket starts without its motor: the team designs it first and puts the motor in to fly it.
+    motor: { id: DEFAULT_MOTOR, included: false, thrust: "average", burnDrag: false, coastDrag: false, fallDrag: false, mass: WEIGHED.motorLoaded, propellant: WEIGHED.motorLoaded - WEIGHED.motorBurnt },
   };
 }
 

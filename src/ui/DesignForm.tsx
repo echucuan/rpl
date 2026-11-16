@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Design, EstesDesign, FinProfile, NoseShape, WaterDesign } from "../model";
-import { ALTIMETER_MM, EXTRA_KINDS, hasMotor, LETTER, MAX_PRESSURE_PSI, MOUNT_MATERIALS, NOSE_MATERIALS, OPALINA_GSM, WEIGHED, noseMaterialLabel, sheetLength, sheetMass, sheetWrap, MOTOR_MOUNT, fitToMotorMount, NOSE_SLEEVE, altimeterRest, cottonEstimate, plugGap, massForMaterial } from "../model";
+import { ALTIMETER_MM, EXTRA_KINDS, hasMotor, LETTER, MAX_PRESSURE_PSI, MOUNT_MATERIALS, NOSE_MATERIALS, OPALINA_GSM, WEIGHED, noseMaterialLabel, sheetLength, sheetMass, sheetWrap, MOTOR_MOUNT, fitToMotorMount, NOSE_SLEEVE, altimeterRest, EXTRA_WEIGHED, plugGap, massForMaterial } from "../model";
 import { makerName, motorFor, motorSpec, impulseClass } from "../motor";
 import { MotorPicker } from "./MotorPicker";
 import { DiameterZoom } from "./DiameterSketch";
@@ -716,20 +716,22 @@ function altimeterMaxGap(d: EstesDesign) {
  * the parachute, 150 mm from the rocket base. Water rockets: ballast just inside the body.
  */
 /**
- * An extra mass turned into another kind. Cotton goes where it is used: filling the gap between the nose's plug and
- * the altimeter (or 20 mm in front of the plug), with the mass of loose cotton for that length.
+ * An extra mass turned into another kind, with the lab's mass for it. Cotton goes where it is used: in the gap between
+ * the nose's plug and the altimeter (or 20 mm in front of the plug).
  */
 function withKind(d: Design, e: Design["extras"][number], name: string) {
-  if (name !== "Algodón" || d.type !== "estes") return { ...e, name };
+  // The lab's mass for that kind, if it was weighed; otherwise the mass stays.
+  const mass = EXTRA_WEIGHED[name as (typeof EXTRA_KINDS)[number]] ?? e.mass;
+  if (name !== "Algodón" || d.type !== "estes") return { ...e, name, mass };
   const gap = d.altimeter.included ? plugGap(d) : 0;
   const length = gap > 0 ? gap : 20;
   const plug = altimeterRest(d) + ALTIMETER_MM.length / 2;
-  return { name, mass: cottonEstimate(length), position: plug - length / 2 };
+  return { name, mass, position: plug - length / 2 };
 }
 
 function newExtra(d: Design) {
   if (d.type === "water") return { name: "Lastre", mass: 10, position: Math.round(layout(d).bodyStart + 20) };
-  return { name: EXTRA_KINDS[0] as string, mass: 3, position: layout(d).length - 150 };
+  return { name: EXTRA_KINDS[0] as string, mass: EXTRA_WEIGHED[EXTRA_KINDS[0]] ?? 1, position: layout(d).length - 150 };
 }
 
 /** Where the parachute sits, measured from the rocket base (its aft end) to the centre of the folded parachute. */

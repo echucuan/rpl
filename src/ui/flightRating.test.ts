@@ -6,6 +6,7 @@ import { rateFlight } from "./flightRating";
 const run = (change: (d: ReturnType<typeof newEstesDesign>) => void = () => {}) => {
   // The lab rocket: a new design starts bare (no fins, altimeter or parachute), so give it its flight hardware.
   const d = newEstesDesign();
+  d.motor.included = true;
   d.fins.count = 4;
   d.altimeter.included = true;
   d.recovery.kind = "parachute";

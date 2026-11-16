@@ -21,7 +21,7 @@ const rocketTec = (): EstesDesign => {
   const d = newEstesDesign();
   return {
     ...d,
-    motor: { ...d.motor, thrust: "real", burnDrag: true, coastDrag: true, fallDrag: true },
+    motor: { ...d.motor, included: true, thrust: "real", burnDrag: true, coastDrag: true, fallDrag: true },
     altimeter: { ...d.altimeter, included: true },
     recovery: { ...d.recovery, kind: "parachute" },
     fins: { ...d.fins, count: 4 },

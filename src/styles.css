@@ -1518,11 +1518,14 @@ main:has(> .program-banner) { min-height: calc(100vh + 160px); }
 .mass-kpi { position: relative; cursor: help; }
 .mass-kpi:focus-visible { outline: 3px solid #0039a666; outline-offset: 2px; }
 .mass-pop {
-  display: none; position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 30; width: min(440px, 80vw);
+  /* It opens to the left of the tile, over the form column, so it never covers the rocket. */
+  display: none; position: absolute; right: calc(100% + 30px); bottom: 0; z-index: 30; width: min(440px, 80vw);
   box-shadow: 0 12px 32px #0f1b3d40; color: var(--ink); text-align: left; cursor: default;
 }
 .mass-kpi:hover .mass-pop, .mass-kpi:focus-within .mass-pop { display: block; }
 .mass-pop .card-head { margin-bottom: 6px; }
+/* One column (narrow screens): no room at the left, so above the tile. */
+@media (max-width: 900px) { .mass-pop { right: auto; left: 0; bottom: calc(100% + 8px); } }
 .mass-pop table.summary td { padding-top: 3px; padding-bottom: 3px; }
 
 /*

@@ -13,6 +13,9 @@ export function normalize(d: Design): Design {
   for (const [k, v] of Object.entries(base)) {
     if (v && typeof v === "object" && !Array.isArray(v)) merged[k] = { ...v, ...((d as unknown as Record<string, object>)[k] ?? {}) };
   }
+  // Designs saved before the motor was optional always had it in (new designs start without it).
+  const savedMotor = (d as unknown as { motor?: { included?: boolean } }).motor;
+  if (d.type === "estes" && savedMotor && savedMotor.included === undefined) merged.motor = { ...(merged.motor as object), included: true };
   // What the motor mount sets (diameter, fins' place and shape); older designs could differ.
   const n = fitChute(fitToMotorMount(merged as unknown as Design));
   if (n.type === "estes") {
