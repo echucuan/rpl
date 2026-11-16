@@ -1,10 +1,15 @@
 import { CHUTE_SHAPES, type ChuteShape } from "../physics/parachute";
 import { format } from "./fields";
 
+/** Panels (gores) of a round canopy: 8, like the usual printed plastic parachutes. */
+const ROUND_GORES = 8;
+const ORANGE = "#ec6b16";
+
 /**
  * The parachute's measures, drawn to scale and animated one at a time: seen from above (shape, radius r to a corner,
  * diameter D = 2r and flat area A_p) and from the side, inflated, with the shroud lines of length L that meet at one
- * point above the rocket. Short lines pull the canopy edge in, so it opens narrower (the factor f(L/D)).
+ * point above the rocket. Short lines pull the canopy edge in, so it opens narrower (the factor f(L/D)). Both views
+ * follow the chosen shape: one panel per side (8 for a round one), orange and white in turn, a line at each corner.
  */
 export function ChuteDiagram({ shape, radius, lines, area, factor }: {
   shape: ChuteShape;
@@ -19,7 +24,14 @@ export function ChuteDiagram({ shape, radius, lines, area, factor }: {
   // Vertices at 0° and 180° so the diameter D is the horizontal line between two opposite corners.
   const corners = (count: number) => Array.from({ length: count }, (_, i) => (2 * Math.PI * i) / count).map((a) => [cx + R * Math.cos(a), cy - R * Math.sin(a)]);
   const outline = n === 0 ? null : corners(n).map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ") + " Z";
-  const attach = corners(n === 0 ? 8 : n); // where the lines are tied
+  const gores = n === 0 ? ROUND_GORES : n;
+  const attach = corners(gores); // where the lines are tied
+  // Top view: one panel from the centre to each side (a pie slice when round), orange and white in turn.
+  const panels = attach.map(([x0, y0], i) => {
+    const [x1, y1] = attach[(i + 1) % gores];
+    const edge = n === 0 ? `A${R},${R} 0 0 0 ${x1.toFixed(1)},${y1.toFixed(1)}` : `L${x1.toFixed(1)},${y1.toFixed(1)}`;
+    return `M${cx},${cy} L${x0.toFixed(1)},${y0.toFixed(1)} ${edge} Z`;
+  });
 
   // Side view: the inflated canopy is narrower than the flat one, and narrower still with short lines.
   const ratio = lines / (2 * radius);
@@ -35,8 +47,19 @@ export function ChuteDiagram({ shape, radius, lines, area, factor }: {
   const sx = 420, top = 34;
   const edge = top + dome; // canopy rim
   const knot = edge + hang; // where the lines meet
-  const xs = [-w / 2, -w / 6, w / 6, w / 2];
   const rocketH = 40 * sc + 6;
+  // Side view: the front half of the canopy. Its corners (where the lines are tied) are seen at x = w/2·cos(angle);
+  // between two of them a panel billows, its rim curving up a little (more on a polygon, whose sides spill air).
+  const apex = edge - dome;
+  const front = Array.from({ length: gores / 2 + 1 }, (_, i) => (Math.PI * i) / (gores / 2)).map((a) => sx + (w / 2) * Math.cos(a));
+  const scallop = dome * (n === 0 ? 0.08 : 0.1 + 0.4 / gores);
+  // A seam from the top of the canopy down to the rim at x (the outer ones are its outline).
+  const seam = (x: number) => `C${(sx + (x - sx) * 0.62).toFixed(1)},${(apex).toFixed(1)} ${x.toFixed(1)},${(apex + dome * 0.35).toFixed(1)} ${x.toFixed(1)},${edge.toFixed(1)}`;
+  const seamUp = (x: number) => `C${x.toFixed(1)},${(apex + dome * 0.35).toFixed(1)} ${(sx + (x - sx) * 0.62).toFixed(1)},${apex.toFixed(1)} ${sx},${apex.toFixed(1)}`;
+  const sidePanels = front.slice(0, -1).map((x0, i) => {
+    const x1 = front[i + 1];
+    return `M${sx},${apex.toFixed(1)} ${seam(x0)} Q${((x0 + x1) / 2).toFixed(1)},${(edge - scallop).toFixed(1)} ${x1.toFixed(1)},${edge.toFixed(1)} ${seamUp(x1)} Z`;
+  });
 
   return (
     <figure className="chute-diagram" aria-label={`Medidas del paracaídas: ${CHUTE_SHAPES[shape].label.toLowerCase()}, radio ${format(radius * 100, 1)} cm, hilos de ${format(lines * 100, 1)} cm`}>
@@ -46,13 +69,15 @@ export function ChuteDiagram({ shape, radius, lines, area, factor }: {
 
         {/* Top view: the flat canopy */}
         <g className="cd-canopy-top">
-          {outline ? <path d={outline} /> : <circle cx={cx} cy={cy} r={R} />}
+          {panels.map((p, i) => <path key={i} d={p} fill={i % 2 ? "#ffffff" : ORANGE} />)}
+          {outline ? <path d={outline} className="cd-rim" /> : <circle cx={cx} cy={cy} r={R} className="cd-rim" />}
         </g>
         {attach.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={3.2} className="cd-knot" />)}
         <g className="cd-dim cd-step-a">
           <text x={cx} y={cy + 24} textAnchor="middle" className="cd-area">A<tspan baselineShift="sub" fontSize="10">p</tspan> = {format(area * 1e4, 0)} cm²</text>
         </g>
         <g className="cd-dim cd-step-r">
+          <line x1={cx} y1={cy} x2={cx + R} y2={cy} className="cd-r-halo" />
           <line x1={cx} y1={cy} x2={cx + R} y2={cy} className="cd-r" />
           <circle cx={cx} cy={cy} r={3.5} className="cd-center" />
           <text x={cx + R / 2} y={cy - 8} textAnchor="middle" className="cd-label">r = {format(radius * 100, 1)} cm</text>
@@ -67,14 +92,15 @@ export function ChuteDiagram({ shape, radius, lines, area, factor }: {
         {/* Side view: inflated canopy, lines and rocket */}
         <g className="cd-side">
           <g className="cd-breathe">
-            <path d={`M${sx - w / 2},${edge} C${sx - w / 2},${edge - dome * 1.3} ${sx + w / 2},${edge - dome * 1.3} ${sx + w / 2},${edge} Q${sx},${edge - dome * 0.18} ${sx - w / 2},${edge} Z`} className="cd-canopy-side" />
+            {sidePanels.map((p, i) => <path key={i} d={p} fill={i % 2 ? "#ffffff" : ORANGE} className="cd-panel-side" />)}
           </g>
-          {xs.map((x, i) => <line key={i} x1={sx + x} y1={edge} x2={sx} y2={knot} className="cd-line" />)}
+          {front.map((x, i) => <line key={i} x1={x} y1={edge} x2={sx} y2={knot} className="cd-line" />)}
           <line x1={sx} y1={knot} x2={sx} y2={knot + 10} className="cd-line" />
           <rect x={sx - 5 * sc - 2} y={knot + 10} width={10 * sc + 4} height={rocketH} rx={3} className="cd-rocket" />
           <circle cx={sx} cy={knot} r={3} className="cd-knot" />
         </g>
         <g className="cd-dim cd-step-l">
+          <line x1={sx - w / 2} y1={edge} x2={sx} y2={knot} className="cd-l-halo" />
           <line x1={sx - w / 2} y1={edge} x2={sx} y2={knot} className="cd-l" />
           <text x={sx - w / 4 - 14} y={(edge + knot) / 2} textAnchor="end" className="cd-label">L = {format(lines * 100, 1)} cm</text>
           <text x={sx - w / 4 - 14} y={(edge + knot) / 2 + 19} textAnchor="end" className="cd-small">L/D = {format(ratio, 2)} → f = {format(factor, 3)}</text>

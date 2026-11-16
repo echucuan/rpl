@@ -87,7 +87,7 @@ details.panel > summary::-webkit-details-marker { display: none; }
 details.panel > summary::after { content: "▾"; color: var(--muted); }
 details.panel:not([open]) > summary::after { content: "▸"; }
 details.panel > summary small { color: var(--muted); font-weight: 400; margin-left: auto; }
-.panel-body { padding: 0 14px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.panel-body { padding: 0 14px 14px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
 .panel-body > .full { grid-column: 1 / -1; }
 .hint { color: var(--muted); font-size: 0.82rem; margin: 0; }
 
@@ -116,7 +116,11 @@ details.panel > summary small { color: var(--muted); font-weight: 400; margin-le
 .icon-btn { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 1.1rem; padding: 4px 6px; }
 .icon-btn:hover { color: var(--bad); }
 
-.extra-row { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 90px 100px auto; gap: 8px; align-items: end; }
+/* An extra mass: what it is (with its ✕) on top, then its mass and place in the same two equal columns as the other fields. */
+.extra-row { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px 12px; align-items: end; }
+.extra-row > :first-child { grid-column: 1 / 3; }
+.extra-row > .icon-btn { grid-column: 3; grid-row: 1; }
+.extra-row + .extra-row { border-top: 1px solid var(--line); padding-top: 10px; }
 
 /* ---------- results ---------- */
 .results { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
@@ -357,7 +361,8 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0 
 .soon-ribbon small { font-size: .8rem; opacity: .85; white-space: nowrap; }
 .main-nav button.soon { opacity: .55; cursor: default; filter: blur(.4px); }
 .main-nav button.soon:hover { color: inherit; background: none; }
-.main-nav .soon-tag { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; background: var(--tec-blue-soft); color: var(--tec-blue); filter: none; }
+.main-nav .soon-label { display: inline-flex; flex-direction: column; align-items: center; line-height: 1.1; gap: 2px; }
+.main-nav .soon-tag { padding: 1px 6px; line-height: 1.2; border-radius: 999px; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; background: var(--tec-blue-soft); color: var(--tec-blue); filter: none; }
 .design-row .soon-tag { font-size: .75rem; font-weight: 700; color: var(--tec-blue); background: var(--tec-blue-soft); border-radius: 999px; padding: 4px 10px; }
 .start-foot { text-align: center; color: var(--muted); font-size: 0.88rem; margin: 20px 0 0; }
 .start-foot b { color: var(--ink); }
@@ -729,13 +734,16 @@ table.summary th.q-F, table.summary td.q-F { color: var(--q-F); }
 .chute-diagram { margin: 8px 0; grid-column: 1 / -1; }
 .chute-diagram svg { width: 100%; height: auto; display: block; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
 .chute-diagram .cd-title { font-size: 15px; font-weight: 700; fill: var(--muted); }
-.chute-diagram .cd-canopy-top path, .chute-diagram .cd-canopy-top circle { fill: #e0701b26; stroke: #e0701b; stroke-width: 2; }
-.chute-diagram .cd-canopy-side { fill: #e0701b40; stroke: #e0701b; stroke-width: 2; }
+/* The canopy in orange and white panels, seams and rim in a darker orange. */
+.chute-diagram .cd-canopy-top path { stroke: #c4560d; stroke-width: 1; stroke-linejoin: round; }
+.chute-diagram .cd-canopy-top .cd-rim { fill: none; stroke: #c4560d; stroke-width: 2; }
+.chute-diagram .cd-panel-side { stroke: #c4560d; stroke-width: 1.2; stroke-linejoin: round; }
 .chute-diagram .cd-knot { fill: #5b6270; }
 .chute-diagram .cd-center { fill: #072f70; }
 .chute-diagram .cd-line { stroke: #5b6270; stroke-width: 1.4; }
 .chute-diagram .cd-rocket { fill: #0751b5; opacity: 0.75; }
-.chute-diagram .cd-r, .chute-diagram .cd-l { stroke: #c0262d; stroke-width: 3; }
+.chute-diagram .cd-r, .chute-diagram .cd-l { stroke: #072f70; stroke-width: 3; stroke-linecap: round; }
+.chute-diagram .cd-r-halo, .chute-diagram .cd-l-halo { stroke: #fff; stroke-width: 7; stroke-linecap: round; }
 .chute-diagram .cd-measure { stroke: #072f70; stroke-width: 1.6; }
 .chute-diagram .cd-ext { stroke: #072f70; stroke-width: 1; stroke-dasharray: 3 3; }
 .chute-diagram .cd-arrowhead { fill: #072f70; }
@@ -1170,8 +1178,8 @@ table.summary th.q-F, table.summary td.q-F { color: var(--q-F); }
 .sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
 .sub-grid > .full { grid-column: 1 / -1; }
 /* Altimeter mass and position on one row: a narrow mass field leaves room for the long position label. */
-.alt-row { display: grid; grid-template-columns: minmax(84px, 0.6fr) minmax(0, 1.4fr); gap: 10px 12px; }
-.alt-row label { white-space: nowrap; }
+.alt-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
+.alt-row label { white-space: normal; }
 @media (max-width: 420px) { .alt-row label { white-space: normal; } }
 /* A long summary (e.g. the rocket name) is cut with an ellipsis instead of pushing the arrow out. */
 details.panel > summary small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1183,3 +1191,433 @@ details.panel > summary small { min-width: 0; overflow: hidden; text-overflow: e
 .launch-location .hint { margin: 0; }
 .launch-coords { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
 .launch-error { color: #b3261e; }
+
+/* ---------- UX pass: lighter header, one main action, the steps as a path, stability at a glance ---------- */
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Header: Rocky and Acerca de are help, set apart from the main sections and lighter. */
+.main-nav button.nav-help { font-weight: 600; }
+.main-nav button.nav-help:not(.nav-help + .nav-help) { margin-left: 10px; position: relative; }
+.main-nav button.nav-help:not(.nav-help + .nav-help)::before { content: ""; position: absolute; left: -8px; top: 9px; bottom: 9px; width: 1px; background: var(--line); }
+.event-logo { height: 76px; margin: -8px -6px -9px; }
+
+/* Banner: Guardar is the one solid button; the rest of the file actions are in the Archivo menu. */
+.file-menu { position: relative; }
+.file-menu .caret { font-size: 0.7rem; opacity: 0.8; }
+.file-menu-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 270px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 30, 92, 0.22);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.file-menu-list > button, .file-menu-list > label {
+  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 12px; border: 0; border-radius: 8px; background: none;
+  color: var(--ink); font: inherit; font-weight: 700; text-align: left; cursor: pointer;
+}
+.file-menu-list > button:hover, .file-menu-list > label:hover, .file-menu-list > label:focus-visible { background: var(--tec-blue-soft); color: var(--tec-blue); outline: none; }
+.file-menu-list > button:disabled { opacity: 0.5; cursor: default; }
+.file-menu-list > * > span:nth-of-type(2) { display: flex; flex-direction: column; line-height: 1.2; }
+.file-menu-list small { font-weight: 500; font-size: 0.75rem; color: var(--muted); }
+.program-banner .bar-btn { min-height: 40px; }
+
+/* The four steps read as one path: an arrow between them and a check on the ones already seen. */
+.menu-row.main button { position: relative; }
+.menu-row.main button[data-done]::after {
+  content: "✓"; position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; background: #16a34a; color: #fff; font-size: 0.75rem; font-weight: 900; box-shadow: 0 0 0 2px var(--surface);
+}
+@media (min-width: 1100px) {
+  .menu-row.main { gap: 26px; }
+  .menu-row.main button + button::before {
+    content: "›"; position: absolute; left: -21px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-size: 1.6rem; font-weight: 400; line-height: 1; pointer-events: none;
+  }
+}
+.tab-title { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Stability verdict: on the Estabilidad step and on the rocket card. */
+.stab-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0; line-height: 1.4; border: 1px solid transparent;
+}
+.stab-chip.stable { background: #e3f5e9; color: #146c34; border-color: #a9dcb9; }
+.stab-chip.unstable { background: #fde8e7; color: #a4231c; border-color: #f2b4b0; }
+.stab-chip.over { background: #fff3dc; color: #8a5a00; border-color: #f1d08f; }
+.stab-chip.big { font-size: 0.95rem; padding: 6px 14px; cursor: pointer; min-height: 40px; }
+.stab-chip.big small { font-weight: 600; opacity: 0.85; font-size: 0.8rem; }
+.stab-chip.big:hover { filter: brightness(0.97); }
+.rocket-card .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+/* A problem inside a closed design section. */
+.section-warn { display: inline-grid; place-items: center; margin-left: 8px; width: 22px; height: 22px; border-radius: 50%; background: #fff3dc; color: #8a5a00; font-size: 0.8rem; }
+
+/* Touch: the main controls are at least 44 px tall on phones and tablets. */
+@media (pointer: coarse) {
+  .bar-btn, .main-nav button, .menu-row.phases button, .btn, .segmented button { min-height: 44px; }
+}
+@media (max-width: 700px) {
+  /* On a phone the Archivo menu drops under the whole banner, full width, instead of off the screen edge. */
+  .program-banner { position: relative; }
+  .file-menu { position: static; }
+  .file-menu-list { left: 12px; right: 12px; min-width: 0; }
+  .program-banner .bar-btn, .main-nav button { min-height: 44px; }
+}
+
+/* Inicio fits in one screen: spacing and logos shrink with the window height, so nothing needs a scroll. */
+body:has(main > .start) .site-hero { padding: clamp(12px, 2.4vh, 30px) 16px clamp(14px, 2.6vh, 34px); }
+body:has(main > .start) .site-hero p { margin-top: clamp(4px, 1vh, 10px); }
+main:has(> .start) { padding-top: clamp(10px, 2.4vh, 28px); padding-bottom: clamp(8px, 1.6vh, 20px); }
+.start-head { margin-bottom: clamp(8px, 1.8vh, 20px); }
+.start-cards { gap: clamp(14px, 2.4vh, 24px); }
+.start .program-card { padding: clamp(12px, 2.2vh, 24px) 28px; }
+.start .program-logo { height: clamp(70px, 15vh, 150px); margin-bottom: clamp(6px, 1.2vh, 14px); }
+.start .program-name { margin: 2px 0 clamp(4px, 0.8vh, 8px); }
+.start .program-text { margin-bottom: clamp(8px, 1.8vh, 20px); }
+.start-foot { margin-top: clamp(8px, 1.6vh, 20px); }
+body:has(main > .start) footer { padding-bottom: clamp(8px, 1.6vh, 30px); }
+/* Very short windows: the second subtitle repeats the hero's, so it goes. */
+@media (max-height: 680px) { .start-head p { display: none; } }
+
+/* ---------- Prueba tu motor (Rocket Tec, paso 1) ---------- */
+.static-test .key-specs .motor-specs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .static-test .key-specs .motor-specs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .static-test .key-specs .motor-specs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.motor-specs > div.ok { --tone: #146c34; background: #f1faf4; }
+.motor-specs > div.bad { --tone: #a4231c; background: #fdf1f0; }
+.static-test details.more { margin: 8px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--page); }
+.static-test details.more > summary { cursor: pointer; padding: 10px 14px; font-weight: 700; color: var(--tec-blue); min-height: 44px; display: flex; align-items: center; }
+.static-test details.more[open] > summary { border-bottom: 1px solid var(--line); }
+.static-test details.more > :not(summary) { margin: 10px 14px; }
+.static-test details.more ul { padding-left: 20px; }
+.static-test details.more li { margin-bottom: 4px; }
+.static-test details.more .motor-sheet { margin: 10px 14px; }
+.static-test details.safety { border-color: #f1d08f; background: #fffaf0; }
+.static-test details.safety > summary { color: #8a5a00; }
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center;
+  margin-top: 12px; padding: 22px 16px; border: 2px dashed #9db6e3; border-radius: 14px; background: var(--tec-blue-soft);
+  color: var(--ink); cursor: pointer; transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dropzone:hover, .dropzone:focus-visible, .dropzone.over { border-color: var(--tec-blue); background: #dfe9fb; outline: none; }
+.dropzone b { font-size: 1.1rem; color: var(--tec-blue); }
+.dropzone span:not(.dropzone-icon) { color: var(--muted); font-size: 0.9rem; }
+.dropzone-icon { font-size: 1.8rem; }
+.test-list { list-style: none; padding: 0; margin: 12px 0 4px; display: grid; gap: 8px; }
+.test-list > li { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--surface); }
+.test-list > li.bad { border-color: #f2b4b0; background: #fdf1f0; }
+.test-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.test-dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.test-name { display: flex; flex-direction: column; flex: 1 1 260px; min-width: 0; }
+.test-name small { color: var(--muted); }
+.test-list > li.bad .test-name small { color: #a4231c; }
+.motor-verdict { display: flex; gap: 14px; align-items: center; margin: 4px 0 14px; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--page); }
+.motor-verdict-class { flex: none; display: grid; place-items: center; width: 58px; height: 58px; border-radius: 12px; background: var(--tec-blue); color: #fff; font-size: 2rem; font-weight: 900; }
+.motor-verdict.ok { border-color: #a9dcb9; background: #f1faf4; }
+.motor-verdict.ok .motor-verdict-class { background: #16a34a; }
+.motor-verdict.warn { border-color: #f1d08f; background: #fffaf0; }
+.motor-verdict.warn .motor-verdict-class { background: #c98a0b; }
+.motor-verdict.bad { border-color: #f2b4b0; background: #fdf1f0; }
+.motor-verdict.bad .motor-verdict-class { background: #b3261e; }
+.diff { display: inline-block; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.diff.ok { background: #e3f5e9; color: #146c34; }
+.diff.warn { background: #fff3dc; color: #8a5a00; }
+.diff.bad { background: #fde8e7; color: #a4231c; }
+.compare-table .muted, .compare-table th.muted { color: var(--muted); font-weight: 500; }
+.thrust-model.three .btn { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; }
+.thrust-model.three .btn small { font-weight: 500; font-size: 0.78rem; opacity: 0.85; }
+.thrust-model.three .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+table.summary th.in-use, table.summary td.in-use { background: var(--tec-blue-soft); font-weight: 700; }
+
+/* Prueba tu motor: every page fits one screen, without scrolling. */
+.static-test .lesson-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; padding: 10px 16px; }
+.static-test .lesson-head h2 { margin: 0; font-size: 1.2rem; white-space: nowrap; }
+.static-test .lesson-head p { margin: 0; color: var(--muted); }
+.static-test .card { padding: 14px 16px; }
+.static-test .motor-sheet { margin: 8px 0; }
+.static-test .motor-specs > div { padding-top: 8px; padding-bottom: 8px; }
+.static-test .motor-specs dt { min-height: 0; }
+.static-test details.more { margin: 6px 0; }
+main:has(.static-test) { padding-bottom: 12px; }
+main:has(.static-test) .lesson-nav { margin-top: 12px; }
+body:has(.static-test) footer { padding-bottom: 10px; }
+.tips-row { display: grid; gap: 0 12px; align-items: start; }
+.cmp-grid, .decide-grid { display: grid; gap: 14px 20px; align-items: start; }
+.cmp-chart .chart-range { margin-bottom: 4px; }
+.cmp-side .table-scroll { margin-top: 0 !important; }
+.decide-grid .thrust-model.three { margin-top: 0; }
+@media (min-width: 900px) {
+  .tips-row { grid-template-columns: 1fr 1fr; }
+  .cmp-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+  .decide-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+  .decide-grid .thrust-model.three { flex-direction: column; }
+  .decide-grid .thrust-model.three .btn { flex: none; min-height: 50px; }
+}
+@media (min-width: 900px) { .decide-grid .thrust-model.three .btn { min-height: 44px; } }
+.static-test .motor-verdict { padding: 8px 12px; margin: 0 0 10px; }
+.static-test .motor-verdict-class { width: 44px; height: 44px; font-size: 1.5rem; }
+.static-test .compare-table td, .static-test .compare-table th { padding-top: 6px; padding-bottom: 6px; }
+@media (min-width: 900px) {
+  .mide-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 20px; align-items: start; }
+  .mide-grid .tips-row { grid-template-columns: 1fr; }
+  .mide-grid .dropzone { padding: 12px; margin-top: 6px; }
+  .mide-grid .dropzone-icon { display: none; }
+  .mide-grid .test-list { margin-top: 0; }
+}
+/* The Empuje / Temperatura switch sits on the chart's title line instead of taking a row. */
+.cmp-chart { position: relative; }
+.cmp-chart > .chart-range { position: absolute; top: -2px; right: 90px; z-index: 1; margin: 0; }
+.cmp-chart > .chart-range .btn { min-width: 0; padding: 2px 10px; }
+.static-test .compare-table td:first-child { white-space: nowrap; }
+/* "¿Qué muestra la gráfica?" as a small link under the table; it opens below. */
+.cmp-side details.more { border: 0; background: none; margin: 2px 0 0; }
+.cmp-side details.more > summary { min-height: 0; padding: 2px 0; font-size: 0.85rem; }
+.cmp-side details.more[open] > summary { border: 0; }
+.cmp-side details.more > :not(summary) { margin: 6px 0; }
+.cmp-side > p.hint { margin: 6px 0 0 !important; }
+.static-test .motor-verdict { margin-bottom: 6px; }
+main:has(.static-test) { padding-bottom: 6px; }
+main:has(.static-test) .lesson-nav { margin-top: 8px; }
+/* In a workspace the main area is at least one screen tall, so the page can scroll the Tec bar out of view. */
+main:has(> .program-banner) { min-height: 100vh; }
+
+/* ---------- Header scale for every workspace: banner 56 px · steps 64 px · sub-steps 40 px (≈ 0.9 : 1 : 0.6) ----------
+ * The banner is identity, so it stays compact; the steps are where the student decides, so they lead;
+ * the sub-steps (motor steps and flight phases) read as children of the step above. Spacing on an 8 px rhythm. */
+.program-banner { min-height: 56px; padding: 6px 16px 7px; margin-bottom: 8px; gap: 8px 16px; } /* 40 px buttons + 13 px padding + 3 px border */
+.banner-title { font-size: 1.5rem; }
+.program-banner .bar-btn { min-height: 40px; height: 40px; }
+.workspace-menu { padding: 8px 10px; gap: 8px; margin-bottom: 12px; }
+.menu-row.main button { height: 64px; padding-top: 0; padding-bottom: 0; }
+.menu-row.main .tab-icon { font-size: 2rem; }
+.menu-row.main .tab-text { font-size: 1.25rem; }
+.menu-row.phases { padding-top: 8px; gap: 8px; }
+.menu-row.phases button { height: 40px; padding: 0 14px 0 10px; gap: 8px; }
+.menu-row.phases .phase-tab-text { font-size: 0.95rem; line-height: 1.1; }
+.menu-row.phases .phase-tab-text small { font-size: 0.75rem; }
+/* The open sub-step is outlined in its colour, like the open main step: only Go for launch is a filled button. */
+.menu-row.phases button[aria-selected="true"] {
+  background: color-mix(in srgb, var(--phase) 9%, var(--surface)); color: var(--phase);
+  border-color: var(--phase); box-shadow: inset 0 0 0 1px var(--phase);
+}
+.menu-row.phases button[aria-selected="true"] .phase-dot { background: var(--phase); color: #fff; }
+.menu-row.phases button[aria-selected="true"] .phase-tab-text small { color: var(--muted); }
+
+/* A sub-row on its own (main steps scrolled away): its parent step as a small button at the left. */
+main:has(> .program-banner) { min-height: calc(100vh + 160px); }
+.sub-steps { position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+/* Sits in line before the first sub-step, so the whole group stays centered. */
+.sub-parent-wrap { margin-right: 4px; display: inline-flex; align-items: center; gap: 4px; animation: sub-parent-in .18s ease-out; }
+.menu-row.phases button.sub-parent {
+  height: 48px; display: inline-flex; align-items: center; gap: 10px; padding: 0 16px 0 12px;
+  border-radius: 12px; border: 2px solid var(--tec-blue); background: var(--surface); color: var(--tec-blue);
+  box-shadow: 0 2px 6px #0039a61f; cursor: pointer; white-space: nowrap;
+}
+.sub-parent-icon { font-size: 1.5rem; line-height: 1; }
+.sub-parent-text { display: flex; flex-direction: column; align-items: flex-start; font-weight: 800; font-size: 1.05rem; line-height: 1.1; }
+.sub-parent-text small { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.menu-row.phases button.sub-parent:hover { background: var(--tec-blue-soft); }
+.menu-row.phases button.sub-parent.launch { border-color: #0f7a35; background: #16a34a; color: #fff; }
+.menu-row.phases button.sub-parent.launch .sub-parent-text small { color: #ffffffcc; }
+.menu-row.phases button.sub-parent.launch:hover { filter: brightness(1.08); background: #16a34a; }
+.sub-parent-arrow { font-size: 1.8rem; font-weight: 700; color: var(--muted); line-height: 1; padding: 0 2px; }
+/* The parent already names the row, so its label steps aside (more room on narrow screens). */
+.sub-steps:has(> .sub-parent-wrap) > .menu-label { display: none; }
+@keyframes sub-parent-in { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 1099px) { .sub-parent-wrap { position: static; transform: none; margin: 0; } }
+@media (prefers-reduced-motion: reduce) { .sub-parent-wrap { animation: none; } }
+
+/* Motor pages with the menu out of view: room for the full sheet and open tips. */
+.static-test .sheet-sub { margin: 14px 0 6px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+
+/* Compara: a short key that always fits next to the chart; the long explanation stays folded. */
+.chart-key { margin-top: 10px; font-size: 0.85rem; color: var(--muted); }
+.chart-key > b { color: var(--text, inherit); font-size: 0.9rem; }
+.chart-key ul { list-style: none; margin: 4px 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; }
+.chart-key li { display: flex; align-items: center; gap: 6px; line-height: 1.3; }
+.chart-key i { flex: none; width: 18px; height: 4px; border-radius: 2px; }
+.chart-key i.dashed { height: 0; border-top: 3px dashed; border-radius: 0; }
+/* The comparison table fits its column without sideways scroll. */
+.compare-table th, .compare-table td { padding-left: 6px; padding-right: 6px; }
+.cmp-side .compare-table th, .cmp-side .compare-table th.num { white-space: normal; line-height: 1.15; }
+.cmp-side .compare-table { font-size: 0.92rem; }
+.cmp-side .compare-table td.num { white-space: nowrap; }
+
+/* Cohete by steps: the drawing, the masses and the flight fit one screen next to the step's form. */
+.designer.stepped .results { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.designer.stepped .results > .rocket-card { grid-column: 1 / -1; }
+.designer.stepped .results > .card:only-child { grid-column: 1 / -1; }
+.designer.stepped .results .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1099px) { .designer.stepped .results { grid-template-columns: minmax(0, 1fr); } }
+.designer.stepped .results > .warn-card { grid-column: 1 / -1; padding-top: 12px; padding-bottom: 12px; }
+.designer.stepped { grid-template-columns: minmax(360px, 1fr) minmax(0, 1.45fr); }
+.designer.stepped .warn-card .alerts { gap: 6px; }
+.designer.stepped .warn-card .alert { padding: 6px 10px; font-size: 0.88rem; }
+/* With warnings: masses, flight and warnings side by side under the drawing. */
+.designer.stepped .results:has(> .warn-card) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.designer.stepped .results > .warn-card { grid-column: auto; }
+.designer.stepped .results .kpis { gap: 8px; }
+/* A step's few sections take the room: three fields per row on wide screens. */
+@media (min-width: 1400px) { .designer.stepped .panel-body { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Balance: half the width each; masses and flight side by side, warnings below across. */
+.designer.stepped { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.designer.stepped .results:has(> .warn-card) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.designer.stepped .results > .warn-card { grid-column: 1 / -1; }
+.designer.stepped table.summary td { padding-top: 3px; padding-bottom: 3px; }
+.designer.stepped .results > .card { padding-top: 14px; padding-bottom: 14px; }
+
+/* Rocket name: edited in place on the drawing's card. */
+.name-edit { display: flex; align-items: center; gap: 6px; margin: 0; }
+.name-edit input { font: inherit; color: inherit; background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 2px 6px; margin-left: -7px; min-width: 0; width: 100%; max-width: 32ch; }
+.name-edit input:hover { border-color: var(--line); }
+.name-edit input:focus { outline: none; border-color: var(--tec-blue); background: var(--surface); box-shadow: 0 0 0 3px #0039a626; }
+.name-edit span { color: var(--muted); font-size: 0.9em; opacity: .6; }
+.name-edit:focus-within span { opacity: 0; }
+/* The input grows with the name, so the pencil sits right after it. */
+.name-edit input { field-sizing: content; width: auto; max-width: 100%; min-width: 8ch; }
+/* Rocket column 70 %, the step's data 30 %. */
+.designer.stepped { grid-template-columns: minmax(0, 3fr) minmax(0, 7fr); }
+@media (min-width: 1400px) { .designer.stepped .panel-body { grid-template-columns: 1fr 1fr; } }
+/* With the wide column, masses, flight and warnings fit side by side. */
+.designer.stepped .results:has(> .warn-card) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.designer.stepped .results > .warn-card { grid-column: auto; }
+@media (max-width: 1099px) { .designer.stepped, .designer.stepped .results, .designer.stepped .results:has(> .warn-card) { grid-template-columns: minmax(0, 1fr); } }
+.designer.stepped .sub-block { padding: 4px 10px 8px; }
+.designer.stepped .sub-block > legend small { display: none; }
+
+/*
+ * Cohete by steps fits the screen whatever its height: the cards are compact, and if the step's form is still
+ * taller than the space left (sub-row above, step buttons below), only that column scrolls.
+ */
+.designer.stepped .rocket-card .card-head { margin-bottom: 0; }
+.designer.stepped .results .kpi { padding: 6px 10px; }
+.designer.stepped .results .kpi .value { font-size: 1.35rem; line-height: 1.2; margin: 0; }
+.designer.stepped .results .kpi .label, .designer.stepped .results .kpi .sub { font-size: 0.75rem; }
+.designer.stepped .results .card-head { margin-bottom: 6px; }
+.designer.stepped .warn-card .alert { font-size: 0.82rem; line-height: 1.3; }
+@media (min-width: 1100px) {
+  .designer.stepped .form, .designer.stepped .results { max-height: calc(100vh - 160px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .designer.stepped .form { padding-right: 4px; }
+}
+/* The rocket as big as its column allows: the full width of the 70 %. */
+.designer.stepped .results { gap: 10px; }
+.designer.stepped .results > .card { padding-top: 10px; padding-bottom: 10px; }
+.designer.stepped .rocket-view .legend { margin-top: 0; }
+.designer.stepped .results .kpis { gap: 6px; }
+.designer.stepped .warn-card .alert { padding: 4px 8px; }
+.designer.stepped .warn-card .alerts { gap: 4px; }
+/* With fins the drawing gets taller: it shrinks to the height left over, so the whole rocket column still fits. */
+/* Without the warnings: masses and flight share the row, flight figures in one line. */
+.designer.stepped .results .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* Masses card a bit tighter, so the rocket gets the height. */
+.designer.stepped .results table.summary td { padding-top: 2px; padding-bottom: 2px; }
+.designer.stepped .results .mass-bar { margin-bottom: 6px; }
+.designer.stepped .rocket-card .card-head h2 { line-height: 1.15; }
+.designer.stepped .rocket-card .card-head .hint { margin: 0; }
+.designer.stepped .results { gap: 6px; }
+
+/* Cohete by steps: the rocket's figures as tiles; hovering (or focusing) the mass shows where it is. */
+.mass-kpi { position: relative; cursor: help; }
+.mass-kpi:focus-visible { outline: 3px solid #0039a666; outline-offset: 2px; }
+.mass-pop {
+  display: none; position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 30; width: min(440px, 80vw);
+  box-shadow: 0 12px 32px #0f1b3d40; color: var(--ink); text-align: left; cursor: default;
+}
+.mass-kpi:hover .mass-pop, .mass-kpi:focus-within .mass-pop { display: block; }
+.mass-pop .card-head { margin-bottom: 6px; }
+.mass-pop table.summary td { padding-top: 3px; padding-bottom: 3px; }
+
+/*
+ * The rocket takes all the height left in its column (whatever the screen): the column is as tall as the space
+ * between the step row and the step buttons, the figures below keep their size, and the drawing fills the rest.
+ */
+@media (min-width: 1100px) {
+  .designer.stepped .results { height: calc(100vh - 160px); max-height: none; overflow: visible; grid-template-rows: minmax(0, 1fr) auto; }
+  .designer.stepped .rocket-card { display: flex; flex-direction: column; min-height: 0; }
+  .designer.stepped .rocket-card .rocket-view { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+  .designer.stepped .rocket-card .rocket-view > svg { flex: 1 1 0; min-height: 120px; max-height: none; width: 100%; height: auto; }
+}
+/* Indicators: the number with its unit first, then what it is. */
+.designer.stepped .results .kpi { display: flex; flex-direction: column; }
+.designer.stepped .results .kpi .value { order: -1; }
+.designer.stepped .results .kpi .label { font-weight: 600; color: var(--ink); line-height: 1.2; }
+.designer.stepped .results .kpi.hero .label { color: #fff; }
+.designer.stepped .results .kpi .sub { line-height: 1.2; }
+
+/* Cohete steps: tighter fields, so Diseño (ojiva, cuerpo, porta motor) fits without scrolling. */
+.designer.stepped .form { gap: 8px; }
+.designer.stepped details.panel > summary { padding: 8px 12px; }
+.designer.stepped .panel-body { gap: 6px 10px; padding: 0 12px 10px; }
+.designer.stepped .field { gap: 1px; }
+.designer.stepped .field > span { font-size: 0.78rem; }
+.designer.stepped .field input, .designer.stepped .field select { padding: 5px 8px; }
+.sheet-note { margin: 0; }
+
+/* Number fields: − / + controls around the value and a unit that can be switched. */
+.field > label { font-size: 0.82rem; color: var(--muted); }
+.designer.stepped .field > label { font-size: 0.78rem; }
+.field .control .step-btn {
+  flex: none; width: 26px; align-self: stretch; border: 0; background: transparent; color: var(--tec-blue);
+  font-size: 1.05rem; font-weight: 700; line-height: 1; cursor: pointer; touch-action: manipulation; user-select: none;
+}
+.field .control .step-btn:hover:not(:disabled) { background: var(--tec-blue-soft); }
+.field .control .step-btn:first-child { border-radius: 6px 0 0 6px; }
+.field .control .step-btn:disabled { color: var(--line); cursor: default; }
+.field .control:has(.step-btn) input { text-align: center; padding-left: 2px; padding-right: 2px; min-width: 3.2em; }
+/* Labels wrap rather than widen their column: the two columns of a section stay the same width. */
+.field > label { overflow-wrap: anywhere; }
+.field select.unit-select {
+  flex: none; width: auto; border: 0; border-left: 1px solid var(--line); background: var(--page); color: var(--muted);
+  font-size: 0.8rem; padding: 0 2px 0 6px; align-self: stretch; border-radius: 0 6px 6px 0; cursor: pointer;
+}
+.field select.unit-select:hover { color: var(--tec-blue); }
+/* A fixed figure: looks like a value, not an input. */
+.field.readonly .control { background: var(--page); border-style: dashed; }
+.field.readonly input { color: var(--ink); font-weight: 700; cursor: default; }
+/* Aletas by steps: a smaller sketch (the A–D labels on the fields already name its measures). */
+.designer.stepped .fin-sketch { padding: 4px 8px; margin: 0; }
+.designer.stepped .fin-sketch svg { max-height: 120px; width: auto; max-width: 100%; }
+.designer.stepped .fin-sketch figcaption { display: none; }
+
+/* Cohete's six steps stay on one row: long notes are cut (the whole note is the button's tooltip). */
+
+/* Recuperación step: a shorter diagram so the whole parachute fits without scrolling. */
+.designer.stepped .chute-diagram { margin: 4px 0; }
+.designer.stepped .chute-diagram svg { height: 130px; }
+.designer.stepped .chute-diagram figcaption { display: none; }
+.chute-cd details.more summary { font-size: 0.8rem; }
+/* Cohete's six steps: equal buttons on a single row; long names and notes are cut (the whole note is the tooltip). */
+.rocket-steps .sub-steps { flex-wrap: nowrap; width: 100%; }
+.rocket-steps .sub-steps > button[role="tab"] { flex: 1 1 0; min-width: 0; padding: 0 8px 0 6px; gap: 6px; }
+.menu-row.phases.rocket-steps .phase-tab-text { font-size: 0.88rem; }
+.rocket-steps .phase-tab-text { display: flex; min-width: 0; flex: 1 1 auto; }
+.rocket-steps .phase-tab-text > .step-name,
+.rocket-steps .phase-tab-text > small { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rocket-steps .phase-dot { flex: none; }
+/* A step whose section holds one block: the section title already names it. */
+.designer.stepped .panel-body > .sub-block:only-child { border: 0; padding: 0; }
+.designer.stepped .panel-body > .sub-block:only-child > legend { display: none; }
+
+/* Notes: every explanation in RPL opens in this window, the same card as "¿Dónde está la masa?". */
+.note-window {
+  position: fixed; z-index: 1000; width: max-content; max-width: min(360px, calc(100vw - 16px));
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 12px 32px #0f1b3d40; padding: 12px 14px; text-align: left;
+  pointer-events: none; animation: note-in 0.12s ease-out;
+}
+.note-title { color: var(--tec-blue); font-weight: 700; font-size: 0.95rem; line-height: 1.25; margin-bottom: 6px; }
+.note-body { font-size: 0.85rem; line-height: 1.45; }
+.note-body p { margin: 0; }
+.note-body p + p { margin-top: 6px; }
+@keyframes note-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.note-mark { color: var(--tec-blue); opacity: 0.7; font-size: 0.85em; }
+.info-tip { cursor: help; color: var(--muted); font-size: 0.82rem; outline: none; border-radius: 4px; }
+.info-tip:focus-visible { box-shadow: 0 0 0 2px var(--tec-blue-soft); }
+.info-tip.full { grid-column: 1 / -1; }
+
+/* A close-up of the rocket drawing inside a note, with its key under it. */
+.diameter-zoom { margin: 2px 0 8px; }
+.rocket-zoom svg { display: block; max-width: 100%; height: auto; background: #fbfbf9; border: 1px solid var(--line); border-radius: 8px; }
+.zoom-key { list-style: none; margin: 6px 0 0; padding: 0; font-size: 0.8rem; color: var(--muted); }
+.zoom-key li { position: relative; padding-left: 14px; }
+.zoom-key li::before { content: ""; position: absolute; left: 0; top: 0.45em; width: 8px; height: 8px; border-radius: 2px; background: #5b6270; }
+.zoom-key li.main { color: var(--tec-blue); font-weight: 700; }
+.zoom-key li.main::before { background: var(--tec-blue); }

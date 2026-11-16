@@ -1,21 +1,39 @@
-import { ALTIMETER_MM, hasMotor, type Design } from "../model";
+import { useId } from "react";
+import { ALTIMETER_MM, COTTON_DENSITY, MOTOR_MOUNT, NOSE_SLEEVE, hasMotor, type Design, type MountMaterial } from "../model";
 import { motorFor } from "../motor";
-import { chuteProperties } from "../physics/parachute";
-import { layout, noseRadius, waterFill } from "../physics/geometry";
+import { layout, noseRadius, packedChute, waterFill } from "../physics/geometry";
 import type { Stability } from "../physics/geometry";
 import { format } from "./fields";
 
-/** Side view of the rocket, nose to the left, with CM and CP markers. */
-export function RocketView({ design: d, loaded, empty }: { design: Design; loaded: Stability; empty: Stability }) {
+/** A diameter marked on a zoomed view: where it is measured (mm from the tip) and how wide it is. */
+export interface ZoomDim { x: number; diameter: number; label: string; main?: boolean }
+/** A close-up of the drawing between two points (mm from the tip), with diameters marked. */
+export interface RocketZoom { from: number; to: number; dims: ZoomDim[]; width?: number }
+
+/**
+ * Side view of the rocket, nose to the left, with CM and CP markers. With `zoom`, the very same drawing cropped to a
+ * stretch of the rocket, without markers or legend, with the diameters marked where they are measured.
+ */
+export function RocketView({ design: d, loaded, empty, zoom }: { design: Design; loaded?: Stability; empty?: Stability; zoom?: RocketZoom }) {
   const l = layout(d);
   const f = d.fins;
+  const hullId = useId();
+  const motor = d.type === "estes" && hasMotor(d) ? motorFor(d.motor) : undefined;
+  // The motor goes 33 mm into the mount; the rest sticks out behind the rocket.
+  const motorFront = motor ? l.bodyEnd - MOTOR_MOUNT.motorDepth : 0;
   const r = l.refDiameter / 2;
-  const halfHeight = Math.max(r, d.body.diameter / 2 + f.span) + 6;
+  // Without fins their span leaves no room: the drawing hugs the body.
+  const halfHeight = Math.max(r, d.body.diameter / 2 + (f.count > 0 ? f.span : 0)) + 6;
   const width = 1000;
-  const scale = (width - 40) / l.length;
-  const height = Math.max(2 * halfHeight * scale + 110, 190);
-  const cy = height / 2 - 6;
-  const X = (x: number) => 20 + x * scale;
+  // Fins swept back past the tail (or forward past their root) stay in the drawing: it spans the whole outline.
+  const finFrom = f.count > 0 ? Math.min(l.finLeading, l.finLeading + f.sweep) : 0;
+  const finTo = f.count > 0 ? Math.max(l.finLeading + f.rootChord, l.finLeading + f.sweep + f.tipChord) : 0;
+  const xMin = Math.min(0, finFrom), xMax = Math.max(l.length, finTo, motor ? motorFront + motor.length : 0);
+  const scale = (width - 40) / (xMax - xMin);
+  // Just the room the labels need: names above (32), the length line below (36).
+  const height = Math.max(2 * halfHeight * scale + 72, 150);
+  const cy = height / 2 - 4;
+  const X = (x: number) => 20 + (x - xMin) * scale;
   const Y = (y: number) => cy - y * scale;
 
   // Outline: nose profile, body, tail (top half, then mirrored)
@@ -35,25 +53,49 @@ export function RocketView({ design: d, loaded, empty }: { design: Design; loade
     [le, rb], [le + f.sweep, rb + f.span], [le + f.sweep + f.tipChord, rb + f.span], [le + f.rootChord, rb],
   ].map(([x, y]) => `${X(x).toFixed(1)},${Y(sign * y).toFixed(1)}`).join(" ");
 
-  const motor = d.type === "estes" && hasMotor(d) ? motorFor(d.motor) : undefined;
   const water = d.type === "water" && d.water.waterVolume > 0 ? waterFill(d, d.water.waterVolume) : null;
 
+  // The close-up: px per drawing unit (k) once it is shown `zoom.width` px wide, and the crop around the body.
+  const z = zoom && (() => {
+    const shown = zoom.width ?? 330;
+    const x0 = X(zoom.from), x1 = X(zoom.to);
+    const k = shown / (x1 - x0);
+    const top = Math.max(rb, d.type === "estes" ? MOTOR_MOUNT.railDiameter / 2 : 0) + 1;
+    const y0 = Y(top) - 22 / k, y1 = Y(-top) + 6 / k;
+    return { k, x0, x1, y0, y1, top, shown };
+  })();
+  const marks = !zoom && loaded && empty ? { loaded, empty } : null;
+
   return (
-    <div className="rocket-view">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Vista lateral de ${d.name}`}>
+    <div className={zoom ? "rocket-zoom" : "rocket-view"}>
+      <svg
+        viewBox={z ? `${z.x0} ${z.y0} ${z.x1 - z.x0} ${z.y1 - z.y0}` : `0 0 ${width} ${height}`}
+        width={z ? z.shown : undefined}
+        role="img"
+        aria-label={z ? `Acercamiento de ${d.name}: ${zoom!.dims.map((m) => m.label).join(", ")}` : `Vista lateral de ${d.name}`}
+      >
         <defs>
-          <clipPath id="hull"><polygon points={outline} /></clipPath>
+          <clipPath id={hullId}><polygon points={outline} /></clipPath>
         </defs>
         {f.count > 0 && <polygon points={fin(1)} fill="#c9d6ef" stroke="#0039a6" strokeWidth={1.5} />}
         {f.count > 1 && <polygon points={fin(-1)} fill="#c9d6ef" stroke="#0039a6" strokeWidth={1.5} />}
         <polygon points={outline} fill={d.type === "water" ? "#eef6f1" : "#f3f1ec"} stroke="#1a1a1a" strokeWidth={1.5} />
         {water && (
-          <rect x={X(water.surface)} y={Y(l.refDiameter)} width={X(l.length) - X(water.surface)} height={l.refDiameter * 2 * scale} fill="#7fb4e6" opacity={0.75} clipPath="url(#hull)" />
+          <rect x={X(water.surface)} y={Y(l.refDiameter)} width={X(l.length) - X(water.surface)} height={l.refDiameter * 2 * scale} fill="#7fb4e6" opacity={0.75} clipPath={`url(#${hullId})`} />
         )}
         <line x1={X(l.bodyStart)} x2={X(l.bodyStart)} y1={Y(rb)} y2={Y(-rb)} stroke="#1a1a1a" strokeWidth={1} opacity={0.4} />
-        {motor && (
-          <MotorCasing x={X(l.bodyEnd - motor.length)} y={cy} width={motor.length * scale} height={motor.diameter * scale} name={motor.name} />
+        {d.type === "estes" && (
+          <g aria-label="Manga de la ojiva">
+            {/* The nose's sleeve inside the tube, seen through the opalina, and a vent hole on its collar */}
+            <rect x={X(l.bodyStart)} y={Y(NOSE_SLEEVE.diameter / 2)} width={NOSE_SLEEVE.length * scale} height={NOSE_SLEEVE.diameter * scale} fill="#c9d6ef" opacity={0.35} stroke="#0039a6" strokeWidth={1} strokeDasharray="4 3" />
+            {d.nose.length > 8 && <circle cx={X(l.bodyStart - 5)} cy={cy} r={1.5 * scale} fill="#ffffff" stroke="#5b6270" strokeWidth={1} />}
+          </g>
         )}
+        {l.tubeEnd < l.bodyEnd && <line x1={X(l.tubeEnd)} x2={X(l.tubeEnd)} y1={Y(rb)} y2={Y(-rb)} stroke="#1a1a1a" strokeWidth={1} opacity={0.4} />}
+        {motor && (
+          <MotorCasing x={X(motorFront)} y={cy} width={motor.length * scale} height={motor.diameter * scale} name={motor.name} />
+        )}
+        {d.type === "estes" && <MotorMount tubeEnd={X(l.tubeEnd)} aftEnd={X(l.bodyEnd)} y={cy} scale={scale} material={d.motorMount.material ?? "pla"} />}
         {d.type === "estes" && d.altimeter.included && (
           <Altimeter x={X(d.altimeter.position)} y={cy} scale={scale} />
         )}
@@ -72,36 +114,60 @@ export function RocketView({ design: d, loaded, empty }: { design: Design; loade
             </g>
           );
         })}
+        {marks && <>
         <g fontSize={16} fill="#5b6270" textAnchor="middle">
           <text x={X(d.nose.length * 0.55)} y={Y(d.nose.diameter / 2) - 8}>Ojiva</text>
           <text x={X((l.bodyStart + Math.min(l.bodyEnd, l.finLeading)) / 2)} y={Y(rb) - 8}>{d.type === "water" ? "Botella" : "Cuerpo"}</text>
           {f.count > 0 && <text x={X(le + f.sweep + f.tipChord / 2)} y={Y(rb + f.span) - 8}>Aletas</text>}
           {/* Inside the body, just over the motor casing (below the rocket it sat on a fin). */}
-          {motor && <text x={X(l.bodyEnd - motor.length / 2)} y={Y(motor.diameter / 2) - 5} fontSize={14} fontWeight={700} fill="#6e5034">Motor</text>}
+          {motor && <text x={X(motorFront + motor.length / 2)} y={Y(motor.diameter / 2) - 5} fontSize={14} fontWeight={700} fill="#6e5034">Motor</text>}
           {water && <text x={X((water.surface + l.length) / 2)} y={Y(-rb) + 20}>Agua</text>}
         </g>
-        <Marker x={X(loaded.cg)} y={cy} kind="cg" />
-        {Math.abs(empty.cg - loaded.cg) > 1 && <Marker x={X(empty.cg)} y={cy} kind="cg-empty" />}
-        <Marker x={X(loaded.cp)} y={cy} kind="cp" />
+        <Marker x={X(marks.loaded.cg)} y={cy} kind="cg" />
+        {Math.abs(marks.empty.cg - marks.loaded.cg) > 1 && <Marker x={X(marks.empty.cg)} y={cy} kind="cg-empty" />}
+        <Marker x={X(marks.loaded.cp)} y={cy} kind="cp" />
         {/* Names over the markers: CM in black, CP in red */}
-        <text x={X(loaded.cg)} y={cy - 17} textAnchor="middle" fontSize={18} fontWeight={800} fill="#1a1a1a">CM</text>
-        <text x={X(loaded.cp)} y={cy - 17} textAnchor="middle" fontSize={18} fontWeight={800} fill="#b3261e">CP</text>
+        <text x={X(marks.loaded.cg)} y={cy - 17} textAnchor="middle" fontSize={18} fontWeight={800} fill="#1a1a1a">CM</text>
+        <text x={X(marks.loaded.cp)} y={cy - 17} textAnchor="middle" fontSize={18} fontWeight={800} fill="#b3261e">CP</text>
         <line x1={X(0)} x2={X(l.length)} y1={height - 22} y2={height - 22} stroke="#5b6270" strokeWidth={1} />
         <text x={X(l.length / 2)} y={height - 2} textAnchor="middle" fontSize={20} fill="#5b6270">{format(l.length / 10, 1)} cm</text>
+        </>}
+        {z && zoom!.dims.map((m, i) => {
+          // A dimension line across the rocket where the diameter is measured, its value over the drawing.
+          const px = (v: number) => v / z.k;
+          const color = m.main ? "#0039a6" : "#5b6270";
+          const x = X(m.x), ya = Y(m.diameter / 2), yb = Y(-m.diameter / 2), head = px(5), labelY = Y(z.top) - px(6);
+          return (
+            <g key={i} stroke={color} fill={color}>
+              <line x1={x} x2={x} y1={labelY + px(2)} y2={ya} strokeWidth={px(1)} strokeDasharray={`${px(2)} ${px(2)}`} opacity={0.7} />
+              <line x1={x} x2={x} y1={ya + head} y2={yb - head} strokeWidth={px(m.main ? 1.8 : 1.4)} />
+              <path d={`M${x} ${ya} l${-px(3.2)} ${head} h${px(6.4)} z`} stroke="none" />
+              <path d={`M${x} ${yb} l${-px(3.2)} ${-head} h${px(6.4)} z`} stroke="none" />
+              <line x1={x - px(5)} x2={x + px(5)} y1={ya} y2={ya} strokeWidth={px(1.2)} />
+              <line x1={x - px(5)} x2={x + px(5)} y1={yb} y2={yb} strokeWidth={px(1.2)} />
+              <text x={x} y={labelY} textAnchor="middle" fontSize={px(m.main ? 13 : 12)} fontWeight={700} stroke="#fff" strokeWidth={px(3)} paintOrder="stroke">{m.label}</text>
+            </g>
+          );
+        })}
       </svg>
-      <div className="legend">
-        <span><Swatch kind="cg" /> Centro de masa <b>{format(loaded.cg / 10, 1)} cm</b>{d.type === "water" ? " (con agua)" : " (con motor)"}</span>
-        {Math.abs(empty.cg - loaded.cg) > 1 && <span><Swatch kind="cg-empty" /> CM {d.type === "water" ? "sin agua" : "motor quemado"} <b>{format(empty.cg / 10, 1)} cm</b></span>}
-        <span><Swatch kind="cp" /> Centro de presión <b>{format(loaded.cp / 10, 1)} cm</b></span>
+      {marks && <div className="legend">
+        <span><Swatch kind="cg" /> Centro de masa <b>{format(marks.loaded.cg / 10, 1)} cm</b>{d.type === "water" ? " (con agua)" : " (con motor)"}</span>
+        {Math.abs(marks.empty.cg - marks.loaded.cg) > 1 && <span><Swatch kind="cg-empty" /> CM {d.type === "water" ? "sin agua" : "motor quemado"} <b>{format(marks.empty.cg / 10, 1)} cm</b></span>}
+        <span><Swatch kind="cp" /> Centro de presión <b>{format(marks.loaded.cp / 10, 1)} cm</b></span>
         {d.recovery.kind === "parachute" && <span><span style={{ color: "#e0701b" }}>▬</span> Paracaídas (doblado)</span>}
         {water && <span><span style={{ color: "#7fb4e6" }}>■</span> Agua</span>}
+        {d.type === "estes" && (
+          <span title="La única pieza que no se modifica: la imprime el laboratorio">
+            <span style={{ color: (d.motorMount.material ?? "pla") === "pla" ? "#8a9098" : "#d8d2c4" }}>■</span> Porta motor {(d.motorMount.material ?? "pla") === "pla" ? "PLA" : "PLA AERO"} 🔒
+          </span>
+        )}
         {d.type === "estes" && d.altimeter.included && <span><span style={{ color: "#1a1a1a" }}>■</span> Altímetro</span>}
         {d.extras.length > 0 && (
           <span>
             <b className="extra-chip">M</b> Masas adicionales: {d.extras.map((e, i) => `M${i + 1} ${e.name} (${format(e.mass, 1)} g)`).join(" · ")}
           </span>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -133,6 +199,22 @@ function Swatch({ kind }: { kind: "cg" | "cg-empty" | "cp" }) {
   );
 }
 
+
+/** Cotton packed behind the altimeter: a white, fluffy filling between x0 and x1 (px), h px each side of the axis. */
+function Cotton({ x0, x1, y, h }: { x0: number; x1: number; y: number; h: number }) {
+  const w = x1 - x0;
+  const n = Math.max(Math.round(w / (h * 0.7)), 1);
+  const puffs = Array.from({ length: n * 3 }, (_, i) => {
+    const col = i % n, row = Math.floor(i / n);
+    return { cx: x0 + (w * (col + 0.5)) / n, cy: y + (row - 1) * h * 0.62, r: Math.min(w / n, h) * 0.55 };
+  });
+  return (
+    <g aria-label="Algodón">
+      <rect x={x0} y={y - h} width={w} height={h * 2} rx={Math.min(h, w) * 0.3} fill="#f7f9fc" stroke="#b9c2cf" strokeWidth={0.8} />
+      {puffs.map((p, i) => <circle key={i} cx={p.cx} cy={p.cy} r={p.r} fill="#ffffff" stroke="#c9d1dc" strokeWidth={0.7} opacity={0.95} />)}
+    </g>
+  );
+}
 
 /** The Estes altimeter seen from the front, to scale (px per mm), centred on (x, y). */
 function Altimeter({ x, y, scale: s }: { x: number; y: number; scale: number }) {
@@ -167,18 +249,6 @@ function Altimeter({ x, y, scale: s }: { x: number; y: number; scale: number }) 
       <text x={lcd.x + lcd.w / 2} y={y + 2.4 * s} textAnchor="middle" fontSize={6.6 * s} fontFamily="ui-monospace, Consolas, monospace" fontWeight={700} fill="#24262a">0000</text>
     </g>
   );
-}
-
-/**
- * Size of the parachute folded and rolled into the body: a roll a bit narrower than the tube, as long as its
- * canopy area needs (plastic folded loosely takes about 0.12 mm of thickness per layer).
- */
-function packedChute(d: Design) {
-  const inner = d.body.diameter - 1.5;
-  const diameter = Math.min(inner * 0.82, 30);
-  const volume = chuteProperties(d).area * 1e6 * 0.12; // mm³
-  const length = Math.min(Math.max(volume / (Math.PI * (diameter / 2) ** 2), 18), 160);
-  return { length, diameter };
 }
 
 /** The Estes printed parachute folded into a roll: orange and white checks, with its shroud lines wrapped around it. */
@@ -227,6 +297,82 @@ function PackedChute({ x, y, scale: s, length, diameter }: { x: number; y: numbe
   );
 }
 
+/**
+ * The printed motor mount (MOTOR_MOUNT), side view: its sleeve inside the tube (seen through it, dashed), the aft
+ * part behind the tube with the two rails seen from the side (top and bottom, rounded at the front) and the one
+ * facing us with its T slot for a fin. PLA is grey; PLA AERO is a matte off-white with the grain of the foamed plastic.
+ */
+function MotorMount({ tubeEnd, aftEnd, y, scale: s, material }: { tubeEnd: number; aftEnd: number; y: number; scale: number; material: MountMaterial }) {
+  const m = MOTOR_MOUNT;
+  const sleeve = (m[material].length - m.behindTube) * s;
+  const r = (m.diameter / 2) * s, rs = (m.sleeveDiameter / 2) * s, rr = (m.railDiameter / 2) * s, hw = (m.railWidth / 2) * s;
+  const len = aftEnd - tubeEnd;
+  const fil = Math.min(2.5 * s, len / 4); // the rounded front corners
+  const pla = material === "pla";
+  const id = `mount-${material}`;
+  const edge = pla ? "#4d5359" : "#8f877a";
+  // Translucent, so the motor inside shows clearly through it.
+  const see = 0.42;
+  // A rail seen from the side: from the body surface (r) out to rr, rounded at its front corner.
+  const sideRail = (sign: 1 | -1) =>
+    `M${tubeEnd},${y - sign * r} L${tubeEnd},${y - sign * (rr - fil)} Q${tubeEnd},${y - sign * rr} ${tubeEnd + fil},${y - sign * rr} L${aftEnd},${y - sign * rr} L${aftEnd},${y - sign * r} Z`;
+  // The T slot of the rail facing us: a narrow slot along it with the head of the T at the front.
+  const slot = { x0: tubeEnd + 1.2 * s, head: 2.2 * s, stem: 0.7 * s, end: aftEnd - 1.2 * s };
+  return (
+    <g aria-label={`Porta motor ${pla ? "PLA" : "PLA AERO"}`}>
+      <defs>
+        <linearGradient id={`${id}-shade`} x1="0" y1="0" x2="0" y2="1">
+          {pla ? (
+            <>
+              <stop offset="0" stopColor="#7d838b" />
+              <stop offset="0.28" stopColor="#c3c7cc" />
+              <stop offset="0.55" stopColor="#9a9fa6" />
+              <stop offset="1" stopColor="#5f646b" />
+            </>
+          ) : (
+            <>
+              <stop offset="0" stopColor="#cfc8b9" />
+              <stop offset="0.28" stopColor="#f4f0e8" />
+              <stop offset="0.55" stopColor="#e2dccf" />
+              <stop offset="1" stopColor="#b5ad9d" />
+            </>
+          )}
+        </linearGradient>
+        {!pla && (
+          <pattern id={`${id}-grain`} width={6} height={6} patternUnits="userSpaceOnUse">
+            <circle cx={1} cy={1.5} r={0.55} fill="#8f877a" opacity={0.35} />
+            <circle cx={4} cy={4.2} r={0.45} fill="#8f877a" opacity={0.3} />
+            <circle cx={4.6} cy={0.8} r={0.35} fill="#ffffff" opacity={0.5} />
+          </pattern>
+        )}
+      </defs>
+      {/* Sleeve inside the tube, seen through the opalina */}
+      <rect x={tubeEnd - sleeve} y={y - rs} width={sleeve} height={rs * 2} fill={pla ? "#9a9fa6" : "#e2dccf"} opacity={0.35} stroke={edge} strokeWidth={1} strokeDasharray="4 3" />
+      {/* Aft part: the body of the mount */}
+      <path
+        d={`M${tubeEnd},${y - r + fil} Q${tubeEnd},${y - r} ${tubeEnd + fil},${y - r} L${aftEnd},${y - r} L${aftEnd},${y + r} L${tubeEnd + fil},${y + r} Q${tubeEnd},${y + r} ${tubeEnd},${y + r - fil} Z`}
+        fill={`url(#${id}-shade)`}
+        fillOpacity={see}
+        stroke={edge}
+        strokeWidth={1.2}
+      />
+      {/* Rails seen from the side */}
+      <path d={sideRail(1)} fill={`url(#${id}-shade)`} fillOpacity={see} stroke={edge} strokeWidth={1.2} />
+      <path d={sideRail(-1)} fill={`url(#${id}-shade)`} fillOpacity={see} stroke={edge} strokeWidth={1.2} />
+      {/* The rail facing us, with its T slot */}
+      <rect x={tubeEnd} y={y - hw} width={len} height={hw * 2} fill={pla ? "#8a9098" : "#d8d2c4"} fillOpacity={see} stroke={edge} strokeWidth={0.9} />
+      <path
+        d={`M${slot.x0},${y - slot.head} h${slot.head * 0.8} v${slot.head - slot.stem} H${slot.end} v${slot.stem * 2} H${slot.x0 + slot.head * 0.8} v${slot.head - slot.stem} h${-slot.head * 0.8} Z`}
+        fill={pla ? "#3c4147" : "#7c7466"}
+        fillOpacity={0.3}
+        stroke={pla ? "#3c4147" : "#7c7466"}
+        strokeWidth={0.8}
+      />
+      {!pla && <rect x={tubeEnd} y={y - rr} width={len} height={rr * 2} fill={`url(#${id}-grain)`} opacity={0.6} pointerEvents="none" />}
+    </g>
+  );
+}
+
 /** The Estes motor as it looks: a kraft paper casing with green print, the clay cap forward and the clay nozzle aft. */
 function MotorCasing({ x, y, width: w, height: h, name }: { x: number; y: number; width: number; height: number; name: string }) {
   const top = y - h / 2;
@@ -271,6 +417,11 @@ function ExtraShape({ name, mass, x, y, scale: s, inner, outer }: { name: string
           </g>
         </g>
       );
+    }
+    case "Algodón": {
+      // Loose cotton filling the tube: as long as its mass needs at COTTON_DENSITY (in the 24 mm sleeve).
+      const length = Math.min(Math.max(((mass / COTTON_DENSITY) * 1000) / ((Math.PI / 4) * NOSE_SLEEVE.inner ** 2), 6), 80);
+      return <Cotton x0={x - (length / 2) * s} x1={x + (length / 2) * s} y={y} h={Math.min(NOSE_SLEEVE.inner / 2, inner) * s} />;
     }
     case "Plastilina": {
       // A lump of modelling clay (about 1.7 g/cm³), sized by its mass.

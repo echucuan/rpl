@@ -3,7 +3,8 @@
 // the last file downloaded or opened (or an untouched new design, or one opened from Mis diseños).
 // Everything here is pure so the tests can run each scenario without a browser.
 import type { Design } from "../model";
-import { WEIGHED, newEstesDesign, newWaterDesign } from "../model";
+import { WEIGHED, WEIGHED_PRINTS, fitToMotorMount, newEstesDesign, newWaterDesign } from "../model";
+import { fitChute } from "../physics/geometry";
 
 /** Fills fields missing from designs saved by older versions with today's defaults. */
 export function normalize(d: Design): Design {
@@ -12,11 +13,16 @@ export function normalize(d: Design): Design {
   for (const [k, v] of Object.entries(base)) {
     if (v && typeof v === "object" && !Array.isArray(v)) merged[k] = { ...v, ...((d as unknown as Record<string, object>)[k] ?? {}) };
   }
-  const n = merged as unknown as Design;
+  // What the motor mount sets (diameter, fins' place and shape); older designs could differ.
+  const n = fitChute(fitToMotorMount(merged as unknown as Design));
   if (n.type === "estes") {
     // Replace the placeholder estimates used before the lab weighed these parts; keep anything a student typed.
     if (n.altimeter.mass === 5) n.altimeter = { ...n.altimeter, mass: WEIGHED.altimeter };
     if (n.recovery.mass === 9) n.recovery = { ...n.recovery, mass: WEIGHED.parachute };
+    // The printed parts' estimates from their STL volumes, before they were weighed.
+    if (n.nose.mass === 12.9 && (n.nose.material ?? "pla") === "pla") n.nose = { ...n.nose, mass: WEIGHED_PRINTS.nose.pla };
+    if (n.motorMount.mass === 10.8 && (n.motorMount.material ?? "pla") === "pla") n.motorMount = { ...n.motorMount, mass: WEIGHED_PRINTS.motorMount.pla };
+    if (n.fins.mass === 20.1 && (n.fins.material ?? "pla") === "pla") n.fins = { ...n.fins, mass: WEIGHED_PRINTS.fins.pla };
     if (n.motor.mass === 8.2 && n.motor.propellant === 3.5) n.motor = { ...n.motor, mass: WEIGHED.motorLoaded, propellant: WEIGHED.motorLoaded - WEIGHED.motorBurnt };
   }
   return n;

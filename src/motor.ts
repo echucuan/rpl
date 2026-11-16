@@ -13,8 +13,15 @@
  *   - average: a constant force equal to the average thrust (same impulse and burn time). Simpler for hand
  *     calculations, less accurate: it has no initial peak. The simplified model also ignores the propellant
  *     burnt, so the motor mass (and the rocket's weight) stays constant.
+ *   - measured: the student's own static test (one test, or the mean of all of them), so the flight is
+ *     computed with the motor they actually have.
  */
-export type ThrustModel = "real" | "average";
+export type ThrustModel = "real" | "average" | "measured";
+
+/** A static test saved in the project: the uploaded table, its column choices and an id. */
+export type MotorTest = StaticTestFile & { id: string };
+
+import { analyzeStaticTest, type StaticTestFile } from "./ui/staticTest";
 
 export interface Motor {
   name: string;
@@ -127,15 +134,18 @@ export function curveImpulse(c: { time: number[]; thrust: number[] }): number {
  * The selected motor with the given loaded and propellant masses (g), using its certified curve.
  * Propellant burns in proportion to the impulse already delivered, so the mass curve follows the thrust curve.
  */
-export function motorFor({ id, mass, propellant, thrust: model = "real" }: { id?: string; mass: number; propellant: number; thrust?: ThrustModel }): Motor {
+export function motorFor({ id, mass, propellant, thrust: wanted = "real", tests, testId }: { id?: string; mass: number; propellant: number; thrust?: ThrustModel; tests?: MotorTest[]; testId?: string }): Motor {
   const spec = motorSpec(id);
   const real = spec.certified;
   const realImpulse = curveImpulse(real);
   const realBurn = real.time[real.time.length - 1];
+  // Without a usable test the "measured" model falls back to the certified curve.
+  const measured = wanted === "measured" ? measuredCurve(tests, testId) : null;
+  const model: ThrustModel = wanted === "measured" && !measured ? "real" : wanted;
   // Constant thrust: a two-point table [0, t_b] at the average thrust, so interpolation gives the same force all the burn.
   const { time, thrust } = model === "average"
     ? { time: [0, realBurn], thrust: [realImpulse / realBurn, realImpulse / realBurn] }
-    : real;
+    : measured ?? real;
   const cum = [0];
   for (let i = 1; i < time.length; i++) cum.push(cum[i - 1] + ((thrust[i - 1] + thrust[i]) / 2) * (time[i] - time[i - 1]));
   const total = cum[cum.length - 1];
@@ -182,4 +192,41 @@ export function impulseClass(totalImpulse: number): string {
     limit *= 2;
   }
   return "H+";
+}
+
+/** Id meaning "the mean of all my tests" in motor.testId. */
+export const MEAN_TEST = "mean";
+
+const curveCache = new WeakMap<MotorTest[], Map<string, { time: number[]; thrust: number[] } | null>>();
+
+/**
+ * The thrust curve of the student's static test, from ignition (t = 0) to burnout, resampled on a regular grid
+ * (negative readings count as zero). With testId = MEAN_TEST (or missing) and several tests, the mean of all of them.
+ */
+export function measuredCurve(tests: MotorTest[] | undefined, testId: string | undefined): { time: number[]; thrust: number[] } | null {
+  if (!tests?.length) return null;
+  const key = testId ?? MEAN_TEST;
+  let byId = curveCache.get(tests);
+  if (!byId) curveCache.set(tests, (byId = new Map()));
+  if (byId.has(key)) return byId.get(key)!;
+  const chosen = key === MEAN_TEST ? tests : tests.filter((t) => t.id === key);
+  const runs = chosen.map((t) => analyzeStaticTest(t)).filter((r) => typeof r !== "string");
+  let out: { time: number[]; thrust: number[] } | null = null;
+  if (runs.length) {
+    const end = Math.max(...runs.map((r) => r.burnTime));
+    const n = 300;
+    const time = Array.from({ length: n + 1 }, (_, i) => (end * i) / n);
+    const at = (pts: { x: number; y: number }[], burn: number, x: number) => {
+      if (x > burn) return 0;
+      let j = pts.findIndex((p) => p.x >= x);
+      if (j <= 0) return Math.max(0, pts[Math.max(j, 0)]?.y ?? 0);
+      const a = pts[j - 1], b = pts[j];
+      return Math.max(0, a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x || 1));
+    };
+    const thrust = time.map((x) => runs.reduce((sum, r) => sum + at(r.force, r.burnTime, x), 0) / runs.length);
+    thrust[n] = 0; // burnout
+    out = end > 0 ? { time, thrust } : null;
+  }
+  byId.set(key, out);
+  return out;
 }

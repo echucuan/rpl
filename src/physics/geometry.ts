@@ -1,6 +1,7 @@
 // Geometry, mass properties and Barrowman stability. Inputs in mm and g (design units).
 import type { Design, FinSet, NoseShape } from "../model";
-import { noseMaterialLabel } from "../model";
+import { MOTOR_MOUNT, NOSE_SLEEVE, noseMaterialLabel } from "../model";
+import { chuteProperties } from "./parachute";
 
 /** Radius of the nose cone at distance x from its tip. */
 export function noseRadius(shape: NoseShape, x: number, length: number, radius: number): number {
@@ -61,7 +62,10 @@ function frustumSurface(d1: number, d2: number, length: number): number {
 
 export interface Layout {
   bodyStart: number;
+  /** The aft end of the body: for Rocket Tec, the end of the motor mount that sticks out behind the tube. */
   bodyEnd: number;
+  /** Where the opalina tube ends (Rocket Tec); the same as bodyEnd for a water rocket. */
+  tubeEnd: number;
   length: number; // total, nose tip to aft end
   finLeading: number; // root leading edge from nose tip
   refDiameter: number;
@@ -71,11 +75,13 @@ export interface Layout {
 
 export function layout(d: Design): Layout {
   const bodyStart = d.nose.length;
-  const bodyEnd = bodyStart + d.body.length;
+  const tubeEnd = bodyStart + d.body.length;
+  const bodyEnd = tubeEnd + (d.type === "estes" ? MOTOR_MOUNT.behindTube : 0);
   const tailLength = d.type === "water" ? d.tail.length : 0;
   return {
     bodyStart,
     bodyEnd,
+    tubeEnd,
     length: bodyEnd + tailLength,
     finLeading: bodyEnd - d.fins.offsetFromAft - d.fins.rootChord,
     refDiameter: Math.max(d.nose.diameter, d.body.diameter),
@@ -94,15 +100,20 @@ export interface MassItem {
 export function structureItems(d: Design): MassItem[] {
   const l = layout(d);
   const nose = noseProperties(d.nose.shape, d.nose.length, d.nose.diameter);
+  // A Rocket Tec nose also has its sleeve inside the tube: its mass is shared by volume between the printed shell
+  // in front (1 mm wall over its surface) and the sleeve (a 26/24 mm tube), each at its own centre.
+  const sleeve = d.type === "estes" ? (Math.PI / 4) * (NOSE_SLEEVE.diameter ** 2 - NOSE_SLEEVE.inner ** 2) * NOSE_SLEEVE.length : 0;
+  const shell = nose.surface * 1;
+  const noseX = (shell * nose.surfaceCentroid + sleeve * (l.bodyStart + NOSE_SLEEVE.length / 2)) / (shell + sleeve);
   const items: MassItem[] = [
-    { name: `Ojiva (${noseMaterialLabel(d.nose.material)})`, mass: d.nose.mass, x: nose.surfaceCentroid },
-    { name: d.type === "water" ? "Piezas del cuerpo" : "Cuerpo", mass: d.body.mass, x: (l.bodyStart + l.bodyEnd) / 2 },
+    { name: `Ojiva (${noseMaterialLabel(d.nose.material)})`, mass: d.nose.mass, x: noseX },
+    { name: d.type === "water" ? "Piezas del cuerpo" : "Cuerpo", mass: d.body.mass, x: (l.bodyStart + l.tubeEnd) / 2 },
     // No fins, no fin mass (the set mass is kept for when the fins are added back).
     { name: `Aletas (${noseMaterialLabel(d.fins.material)})`, mass: d.fins.count > 0 ? d.fins.mass : 0, x: l.finLeading + finCentroid(d.fins) },
   ];
-  if (d.recovery.kind === "parachute") items.push({ name: d.type === "estes" ? "Paracaídas Estes 24\"" : "Paracaídas", mass: d.recovery.mass, x: d.recovery.position });
+  if (d.recovery.kind === "parachute") items.push({ name: "Paracaídas", mass: d.recovery.mass, x: d.recovery.position });
   if (d.type === "estes") {
-    items.push({ name: `Porta motor (${noseMaterialLabel(d.motorMount.material)})`, mass: d.motorMount.mass, x: l.bodyEnd - 25 });
+    items.push({ name: `Porta motor (${noseMaterialLabel(d.motorMount.material)})`, mass: d.motorMount.mass, x: l.bodyEnd - MOTOR_MOUNT[d.motorMount.material ?? "pla"].centroid });
     if (d.altimeter.included) items.push({ name: `Altímetro ${d.altimeter.brand?.trim() || "Estes"}`, mass: d.altimeter.mass, x: d.altimeter.position });
   }
   for (const e of d.extras) items.push({ name: e.name || "Masa extra", mass: e.mass, x: e.position });
@@ -207,7 +218,40 @@ export function wettedAreas(d: Design): { body: number; fins: number } {
   const nose = noseProperties(d.nose.shape, d.nose.length, d.nose.diameter).surface;
   const tail = l.tailLength > 0 ? frustumSurface(d.body.diameter, l.aftDiameter, l.tailLength) : 0;
   return {
-    body: nose + Math.PI * d.body.diameter * d.body.length + tail,
+    body: nose + Math.PI * d.body.diameter * (l.bodyEnd - l.bodyStart) + tail,
     fins: 2 * d.fins.count * finArea(d.fins),
   };
+}
+
+/**
+ * Size of the parachute folded and rolled into the body: a roll a bit narrower than the tube, as long as its
+ * canopy area needs (plastic folded loosely takes about 0.12 mm of thickness per layer).
+ */
+export function packedChute(d: Design) {
+  const inner = d.body.diameter - 1.5;
+  const diameter = Math.min(inner * 0.82, 30);
+  const volume = chuteProperties(d).area * 1e6 * 0.12; // mm³
+  const length = Math.min(Math.max(volume / (Math.PI * (diameter / 2) ** 2), 18), 160);
+  return { length, diameter };
+}
+
+/**
+ * Where the centre of the folded parachute may go (mm from the tip): inside the tube, behind the nose (and the
+ * Rocket Tec nose's sleeve) and in front of the motor mount's sleeve. If the tube is too short for it, behind the nose.
+ */
+export function chuteRange(d: Design) {
+  const l = layout(d);
+  const half = packedChute(d).length / 2;
+  const front = l.bodyStart + (d.type === "estes" ? NOSE_SLEEVE.length : 0);
+  const back = d.type === "estes" ? l.tubeEnd - (MOTOR_MOUNT[d.motorMount.material ?? "pla"].length - MOTOR_MOUNT.behindTube) : l.bodyEnd;
+  const min = front + half;
+  return { min, max: Math.max(back - half, min) };
+}
+
+/** The design with its parachute moved, if needed, so it overlaps neither the nose nor the motor mount. */
+export function fitChute<T extends Design>(d: T): T {
+  if (d.recovery.kind !== "parachute") return d;
+  const { min, max } = chuteRange(d);
+  const position = Math.round(Math.min(Math.max(d.recovery.position, min), max) * 10) / 10;
+  return Math.abs(position - d.recovery.position) < 0.05 ? d : { ...d, recovery: { ...d.recovery, position } };
 }

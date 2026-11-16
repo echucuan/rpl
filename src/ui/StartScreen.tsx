@@ -64,9 +64,6 @@ export function StartScreen({ onPick }: { onPick: (type: Design["type"]) => void
           </div>
         ))}
       </div>
-      <p className="start-foot">
-        Método de aprendizaje: <b>Física → Matemáticas → Computación</b>
-      </p>
     </section>
   );
 }

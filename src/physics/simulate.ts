@@ -1,11 +1,11 @@
 // One-dimensional vertical flight (the lab launches straight up), integrated with RK4.
 import type { Design } from "../model";
-import { MAX_PRESSURE_PSI, hasMotor } from "../model";
+import { MAX_PRESSURE_PSI, MOTOR_MOUNT, hasMotor } from "../model";
 import { makerName, motorFor, motorSpec, type Motor } from "../motor";
 import { air, G } from "./atmosphere";
 import { dragModel } from "./drag";
 import { chuteCdA } from "./parachute";
-import { centreOfMass, stability, structureItems, waterFill, type MassItem, type Stability } from "./geometry";
+import { centreOfMass, layout, stability, structureItems, waterFill, type MassItem, type Stability } from "./geometry";
 import { motorPropulsion, waterPropulsion, WATER_DENSITY, type Propulsion } from "./propulsion";
 
 export interface Sample {
@@ -84,8 +84,8 @@ function setup(d: Design, groundPressure: number, groundTemperature: number): Se
   if (d.type === "estes") {
     if (d.motor.propellant <= 0 || d.motor.propellant >= d.motor.mass) return "Revisa la masa del motor: el propelente debe ser menor que la masa total.";
     const motor = motorFor(d.motor);
-    const end = d.body.length + d.nose.length;
-    const x = end - motor.length / 2;
+    // The motor goes MOTOR_MOUNT.motorDepth into the mount; the rest sticks out behind it.
+    const x = layout(d).bodyEnd - MOTOR_MOUNT.motorDepth + motor.length / 2;
     const loaded = [...items, { name: "Motor", mass: motor.mass[0], x }];
     const empty = [...items, { name: "Motor (quemado)", mass: motor.mass[motor.mass.length - 1], x }];
     return {

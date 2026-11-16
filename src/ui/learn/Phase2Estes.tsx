@@ -1,3 +1,4 @@
+import { layout } from "../../physics/geometry";
 import { useMemo, useState } from "react";
 import type { Design, EstesDesign } from "../../model";
 import { G } from "../../physics/atmosphere";
@@ -116,7 +117,7 @@ export function Phase2EstesLesson({ design: d, result: res, onPhase, onChange }:
               <input type="range" min={ph.from} max={ph.to} step={(ph.to - ph.from) / 300} value={t} onChange={(e) => setT(Number(e.target.value))} />
             </label>
             <div className="fbd-row fbd-row-rocket">
-              <RocketFreeBody sample={sample} cgFraction={res.stabilityLoaded.cg / (d.nose.length + d.body.length)} forceMax={forceScale(within(res.samples, ph.from, ph.to))} />
+              <RocketFreeBody sample={sample} cgFraction={res.stabilityLoaded.cg / layout(d).length} forceMax={forceScale(within(res.samples, ph.from, ph.to))} />
               <div className="fbd-equations">
                 <p className="hint">Las fuerzas salen del <b>centro de masa</b> (CM), el origen del marco de referencia <i>xy</i>. El eje <i>y</i> positivo apunta hacia arriba.</p>
                 <ul className="fbd-forces">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MOTORS, curveImpulse } from "../motor";
+import { MEAN_TEST, MOTORS, curveImpulse, measuredCurve, motorFor } from "../motor";
 import { parseTable } from "./realData";
 import { analyzeStaticTest, guessStaticColumns, type StaticTestFile } from "./staticTest";
 
@@ -58,9 +58,40 @@ describe("static test", () => {
     expect(r.impulse).toBeCloseTo(curveImpulse(curve), 1);
   });
 
+  it("flips a sensor that reads the push as negative (PASCO)", () => {
+    const pasco = ["Time (s) Run #1,Force (N) Run #1"];
+    for (let ms = 0; ms <= 3000; ms += 5) pasco.push(`${(ms / 1000).toFixed(3)},${(0.2 - thrustAt((ms - 1000) / 1000)).toFixed(3)}`);
+    const r = analyzeStaticTest(load(pasco.join(String.fromCharCode(10))));
+    if (typeof r === "string") throw new Error(r);
+    expect(r.flipped).toBe(true);
+    expect(r.impulse).toBeCloseTo(curveImpulse(curve), 1);
+    expect(r.maxThrust).toBeGreaterThan(9);
+  });
+
   it("explains files it cannot use", () => {
     const f = load("t,F\n0,1\n1,1\n2,1\n3,1\n4,1\n");
     expect(typeof analyzeStaticTest(f)).toBe("string");
     expect(typeof analyzeStaticTest(load("t,F\n0,0\n1,0\n2,0\n"))).toBe("string");
+  });
+});
+
+describe("flying with the student's own static test", () => {
+  const a = { ...load(fakeLog()), id: "a" };
+  const b = { ...load(fakeLog(";", ",")), id: "b" };
+
+  it("rebuilds the measured curve with about the certified impulse", () => {
+    const c = measuredCurve([a], "a")!;
+    expect(c.time[0]).toBe(0);
+    expect(c.thrust[c.thrust.length - 1]).toBe(0);
+    expect(curveImpulse(c)).toBeCloseTo(curveImpulse(curve), 1);
+  });
+
+  it("averages several tests and falls back to the certified curve without tests", () => {
+    expect(curveImpulse(measuredCurve([a, b], MEAN_TEST)!)).toBeCloseTo(curveImpulse(curve), 1);
+    const m = motorFor({ id: "A10-3T", mass: 8, propellant: 3, thrust: "measured", tests: [a], testId: "a" });
+    expect(m.model).toBe("measured");
+    expect(m.totalImpulse).toBeCloseTo(curveImpulse(curve), 1);
+    expect(m.mass[m.mass.length - 1]).toBeCloseTo(5, 5);
+    expect(motorFor({ id: "A10-3T", mass: 8, propellant: 3, thrust: "measured" }).model).toBe("real");
   });
 });

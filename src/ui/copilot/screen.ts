@@ -4,8 +4,17 @@
  */
 
 const SCREEN_NAMES: Record<string, string> = {
-  fase0: "Fase 0 · El experimento / prueba estática",
-  cohete: "Diseño del cohete",
+  fase0: "Fase 0 · El experimento / Motor: tu motor",
+  motor2: "Motor: mide tu motor (prueba estática)",
+  motor3: "Motor: compara tu prueba",
+  motor4: "Motor: decide el empuje de la simulación",
+  cohete: "Cohete: diseño (ojiva, cuerpo y porta motor)",
+  cohete2: "Cohete: motor / agua y presión",
+  cohete3: "Cohete: aletas",
+  cohete4: "Cohete: sensores (altímetro)",
+  cohete5: "Cohete: recuperación (paracaídas)",
+  cohete6: "Cohete: masas adicionales",
+  cohete7: "Cohete: lanzamiento",
   estabilidad: "Estabilidad",
   graficas: "Simulaciones",
   fase1: "Lección de la fase 1",

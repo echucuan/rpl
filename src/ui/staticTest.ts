@@ -29,6 +29,8 @@ export interface StaticTestResult {
   force: Point[];
   temperature: Point[]; // °C, same time axis
   tare: number; // N subtracted from every reading
+  /** The sensor read the push as negative (e.g. PASCO force sensors, where pull is positive): the sign was flipped. */
+  flipped: boolean;
   impulse: number; // N·s
   maxThrust: number; // N
   maxThrustTime: number; // s after ignition
@@ -58,12 +60,18 @@ export function guessStaticColumns(headers: string[]): Omit<StaticTestFile, "nam
 export function analyzeStaticTest(f: StaticTestFile): StaticTestResult | string {
   const tScale = f.timeUnit === "ms" ? 0.001 : 1;
   const fScale = FORCE_FACTOR[f.forceUnit];
-  const rows = f.table.rows
+  const raw = f.table.rows
     .map((r) => ({ t: r[f.timeCol], F: r[f.forceCol], T: f.tempCol >= 0 ? r[f.tempCol] : null }))
     .filter((p): p is { t: number; F: number; T: number | null } => p.t !== null && p.F !== null)
     .map((p) => ({ t: p.t * tScale, F: p.F * fScale, T: p.T }))
     .sort((a, b) => a.t - b.t);
-  if (rows.length < 5) return "Las columnas elegidas no tienen suficientes números (se necesitan al menos 5 filas).";
+  if (raw.length < 5) return "Las columnas elegidas no tienen suficientes números (se necesitan al menos 5 filas).";
+
+  // Thrust is whichever way the force moves furthest from the first readings (the motor at rest).
+  const start = raw.slice(0, Math.max(1, Math.floor(raw.length / 10))).map((p) => p.F).sort((a, b) => a - b);
+  const base = start[Math.floor(start.length / 2)];
+  const flipped = base - Math.min(...raw.map((p) => p.F)) > Math.max(...raw.map((p) => p.F)) - base;
+  const rows = flipped ? raw.map((p) => ({ ...p, F: -p.F })) : raw;
 
   const rawPeak = Math.max(...rows.map((p) => p.F));
   const restEnd = rows.findIndex((p) => p.F >= 0.2 * rawPeak);
@@ -95,6 +103,7 @@ export function analyzeStaticTest(f: StaticTestFile): StaticTestResult | string 
     force: net.map((p) => ({ x: p.t - t0, y: p.F })),
     temperature: temps.map((p) => ({ x: p.t - t0, y: p.T })),
     tare,
+    flipped,
     impulse,
     maxThrust: top.F,
     maxThrustTime: top.t - t0,

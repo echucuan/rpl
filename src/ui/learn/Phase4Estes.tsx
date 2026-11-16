@@ -1,3 +1,4 @@
+import { layout } from "../../physics/geometry";
 import { useMemo, useState } from "react";
 import type { Design, EstesDesign } from "../../model";
 import { G, air } from "../../physics/atmosphere";
@@ -164,7 +165,7 @@ export function Phase4EstesLesson({ design: d, result: res, onPhase, onChange }:
               <input type="range" min={ph.from} max={ph.to} step={(ph.to - ph.from) / 600} value={t} onChange={(e) => setT(Number(e.target.value))} />
             </label>
             <div className="fbd-row fbd-row-rocket">
-              <RocketFreeBody sample={sample} cgFraction={res.stabilityLoaded.cg / (d.nose.length + d.body.length)} inverted forceMax={forceScale(within(res.samples, ph.from, ph.to))} />
+              <RocketFreeBody sample={sample} cgFraction={res.stabilityLoaded.cg / layout(d).length} inverted forceMax={forceScale(within(res.samples, ph.from, ph.to))} />
               <div className="fbd-equations">
                 <p className="hint">Las fuerzas salen del <b>centro de masa</b> (CM), el origen del marco de referencia <i>xy</i>. El eje <i>y</i> positivo apunta hacia arriba. Mueve el tiempo al principio de la fase para ver el tirón.</p>
                 <ul className="fbd-forces">

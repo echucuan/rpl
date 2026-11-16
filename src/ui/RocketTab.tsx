@@ -1,10 +1,11 @@
 import type { Design } from "../model";
 import { useMemo } from "react";
 import { designStatics, type FlightResult } from "../physics/simulate";
-import type { MassItem } from "../physics/geometry";
-import { DesignForm } from "./DesignForm";
+import { layout, type MassItem } from "../physics/geometry";
+import { DesignForm, type RocketPart } from "./DesignForm";
 import { RocketView } from "./RocketView";
 import { format } from "./fields";
+import { stabilityStatus } from "./stabilityStatus";
 import type { SubTab } from "./Workspace";
 
 const G0 = 9.80665;
@@ -15,16 +16,18 @@ interface Props {
   result: FlightResult | string;
   onChange: (d: Design) => void;
   onGo: (s: SubTab) => void;
+  /** The Cohete step: only its sections show in the form. */
+  part?: RocketPart;
 }
 
-export function RocketTab({ design, shown, result, onChange, onGo }: Props) {
+export function RocketTab({ design, shown, result, onChange, onGo, part }: Props) {
   const r = typeof result === "string" ? null : result;
   // The drawing and the masses also show when there is no flight (e.g. a rocket without its motor).
   const statics = useMemo(() => (r ? { items: r.massItems, loaded: r.stabilityLoaded, empty: r.stabilityEmpty, mass: r.liftoffMass } : designStatics(shown)), [r, shown]);
   const s = typeof statics === "string" ? null : statics;
   return (
-    <div className="designer">
-      <DesignForm design={design} update={(fn) => onChange(fn(design))} />
+    <div className={`designer${part ? " stepped" : ""}`}>
+      <DesignForm design={design} part={part} update={(fn) => onChange(fn(design))} />
       <div className="results">
         {!s && <div className="card"><div className="alert error">{result as string}</div></div>}
         {s && (
@@ -32,22 +35,54 @@ export function RocketTab({ design, shown, result, onChange, onGo }: Props) {
             <div className="card rocket-card">
               <div className="card-head">
                 <div>
-                  <h2>{shown.name}</h2>
+                  {/* The name is edited right here, on the rocket's own card. */}
+                  <h2 className="name-edit">
+                    <input aria-label="Nombre del cohete" title="Haz clic para cambiar el nombre" value={design.name} placeholder="Ponle nombre a tu cohete" onChange={(e) => onChange({ ...design, name: e.target.value })} />
+                    <span aria-hidden="true">✎</span>
+                  </h2>
                   <p className="hint">{format(s.mass, 1)} g{r ? " al despegar" : ""}</p>
                 </div>
+                {(() => {
+                  const st = stabilityStatus(shown.type, s.loaded, s.empty);
+                  return (
+                    <button type="button" className={`stab-chip big ${st.level}`} onClick={() => onGo("estabilidad")} title="Ver el paso Estabilidad">
+                      {st.label}<small>{st.detail}</small>
+                    </button>
+                  );
+                })()}
               </div>
               <RocketView design={shown} loaded={s.loaded} empty={s.empty} />
             </div>
 
+            {part ? (
+              // By steps: the rocket's figures as tiles, like the flight's; the mass breakdown opens over its tile.
+              <div className="card">
+                <div className="card-head"><h2>Tu cohete</h2></div>
+                <div className="kpis">
+                  <div className="kpi hero mass-kpi" tabIndex={0} aria-describedby="mass-pop">
+                    <div className="label">Masa ⓘ</div>
+                    <div className="value">{format(s.mass, 1)}<small>g</small></div>
+                    <div className="sub">al despegar</div>
+                    <div className="card mass-pop" id="mass-pop" role="tooltip">
+                      <div className="card-head"><h2>¿Dónde está la masa?</h2></div>
+                      <MassBudget items={s.items} />
+                    </div>
+                  </div>
+                  <div className="kpi"><div className="label">Largo</div><div className="value">{format(layout(shown).length / 10, 1)}<small>cm</small></div></div>
+                  <div className="kpi"><div className="label">Centro de masa</div><div className="value">{format(s.loaded.cg / 10, 1)}<small>cm</small></div><div className="sub">desde la punta</div></div>
+                  <div className="kpi"><div className="label">Centro de presión</div><div className="value">{format(s.loaded.cp / 10, 1)}<small>cm</small></div><div className="sub">desde la punta</div></div>
+                </div>
+              </div>
+            ) : (
             <div className="card">
               <div className="card-head"><h2>¿Dónde está la masa?</h2></div>
               <MassBudget items={s.items} />
             </div>
+            )}
 
             <div className="card">
               <div className="card-head">
                 <h2>Vuelo en resumen</h2>
-                <button type="button" className="link" onClick={() => onGo("graficas")}>Ver todas en Simulaciones</button>
               </div>
               {!r && <div className="alert error">{result as string}</div>}
               {r && (<>
@@ -57,13 +92,14 @@ export function RocketTab({ design, shown, result, onChange, onGo }: Props) {
                 <div className="kpi"><div className="label">Aceleración máxima</div><div className="value">{format(r.maxAcceleration / G0, 1)}<small>g</small></div></div>
                 <div className="kpi"><div className="label">Aterriza a</div><div className="value">{format(r.descentRate, 1)}<small>m/s</small></div><div className="sub">{r.landing ? `después de ${format(r.landing.t, 0)} s` : ""}</div></div>
               </div>
-              {r.warnings.length > 0 && (
+              {!part && r.warnings.length > 0 && (
                 <div className="alerts" style={{ marginTop: 12 }}>
                   {r.warnings.map((w, i) => <div key={i} className={`alert ${w.level}`}>{w.text}</div>)}
                 </div>
               )}
               </>)}
             </div>
+            {/* By steps the warnings stay out: the room goes to the rocket (the stability chip stays on the card). */}
           </>
         )}
       </div>
@@ -79,6 +115,7 @@ const MENU_ORDER: [RegExp, number][] = [
   [/^(Motor|Agua)/, 3],
   [/^Aletas/, 4],
   [/^Altímetro/, 5],
+  [/^Algodón/, 5.5],
   [/^Paracaídas/, 6],
 ];
 // Anything else is an extra mass: they go last, in the order of their list (the sort is stable).

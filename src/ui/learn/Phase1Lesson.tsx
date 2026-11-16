@@ -1,3 +1,4 @@
+import { layout } from "../../physics/geometry";
 import { useMemo, useState } from "react";
 import type { Design, EstesDesign, WaterDesign } from "../../model";
 import { PSI } from "../../model";
@@ -74,7 +75,7 @@ export function Phase1Lesson({ design: d, result: res, onPhase, onChange }: { de
                 <input type="range" min={0} max={ph.to} step={ph.to / 300} value={t} onChange={(e) => setT(Number(e.target.value))} />
               </label>
               <div className="fbd-row fbd-row-rocket">
-                <RocketFreeBody sample={s} cgFraction={res.stabilityLoaded.cg / (d.nose.length + d.body.length)} forceMax={forceScale(within(res.samples, 0, ph.to))} />
+                <RocketFreeBody sample={s} cgFraction={res.stabilityLoaded.cg / layout(d).length} forceMax={forceScale(within(res.samples, 0, ph.to))} />
                 <div className="fbd-equations">
                   <p className="hint">Las tres fuerzas salen del <b>centro de masa</b> (CM), el origen del marco de referencia <i>xy</i>. El eje <i>y</i> positivo apunta hacia arriba.</p>
                   <ul className="fbd-forces">
@@ -896,7 +897,7 @@ function MotorComputation({ design }: { design: EstesDesign }) {
   const i = Math.max(0, m.time.findIndex((x, k) => k + 1 < m.time.length && x <= t && m.time[k + 1] > t));
   const [t0, t1, f0, f1] = [m.time[i], m.time[i + 1] ?? m.time[i], m.thrust[i], m.thrust[i + 1] ?? m.thrust[i]];
   const ft = t1 > t0 ? f0 + ((f1 - f0) * (t - t0)) / (t1 - t0) : f0;
-  const curve = useMemo(() => [{ label: m.model === "average" ? "Empuje promedio constante" : `Tabla del ${m.name}`, points: thrustPoints(m), color: "#a35f2a", showPoints: m.model !== "average", fill: true }], [m]);
+  const curve = useMemo(() => [{ label: m.model === "average" ? "Empuje promedio constante" : m.model === "measured" ? "Tu prueba estática" : `Tabla del ${m.name}`, points: thrustPoints(m), color: "#a35f2a", showPoints: m.model === "real", fill: true }], [m]);
   const marker = useMemo(() => [{ x: t, label: `t = ${t.toFixed(2)} s` }], [t]);
   if (m.model === "average") {
     return (

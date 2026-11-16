@@ -7,22 +7,23 @@ import { COPILOT_URL } from "./copilot/conversation";
 import { Designs } from "./Designs";
 import { RockyGuide } from "./rocky/RockyGuide";
 import { Dialog } from "./Dialog";
+import { NoteLayer } from "./fields";
 import { Workspace, SUB_TABS, type SubTab } from "./Workspace";
 import { designFileName, loadDraft, readDesignFile, saveDesign, saveProjectFile, storeDraft } from "./storage";
-import { AVAILABLE, PROGRAMS, SOON_TEXT, StartScreen, logoUrl, soonMessage } from "./StartScreen";
+import { AVAILABLE, PROGRAMS, StartScreen, logoUrl, soonMessage } from "./StartScreen";
 import {
   STATUS_TEXT, afterExport, discard, draftOf, exportSnapshot, fingerprint, guardFor, isDirty, project, readDraft, saveStatus, shouldWarnOnUnload,
   type Intent, type ProgramType, type Project, type SaveStatus, type Tab,
 } from "./project";
 
-const TABS: { id: Tab; label: string; logo?: Design["type"] }[] = [
+const TABS: { id: Tab; label: string; logo?: Design["type"]; help?: boolean }[] = [
   { id: "inicio", label: "Inicio" },
   { id: "estes", label: PROGRAMS.estes.name, logo: "estes" },
   { id: "water", label: PROGRAMS.water.name, logo: "water" },
   { id: "designs", label: "Mis diseños" },
   // Rocky's guide (#rocky) exists only where the copilot does.
-  ...(COPILOT_URL ? [{ id: "rocky" as const, label: "Rocky" }] : []),
-  { id: "about", label: "Acerca de" },
+  ...(COPILOT_URL ? [{ id: "rocky" as const, label: "Rocky", help: true }] : []),
+  { id: "about", label: "Acerca de", help: true },
 ];
 
 const TYPES: ProgramType[] = ["estes", "water"];
@@ -214,16 +215,12 @@ export function App() {
             <img className="event-logo" src={`${import.meta.env.BASE_URL}rocket-tec/rocket-tec-logo.webp`} alt="Rocket Tec Sinaloa 2026" />
           </div>
           <nav className="main-nav" role="tablist" aria-label="Secciones de la aplicación">
-            {TABS.map((t) => isOpen(t.id) ? (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => tab !== t.id && request({ kind: "tab", to: t.id })}>
+            {/* Programs not open yet are announced on Inicio, not in the menu: a button that does nothing is noise.
+                Rocky and Acerca de are help, so they sit apart and lighter. */}
+            {TABS.filter((t) => isOpen(t.id)).map((t) => (
+              <button key={t.id} role="tab" aria-selected={tab === t.id} className={t.help ? "nav-help" : undefined} onClick={() => tab !== t.id && request({ kind: "tab", to: t.id })}>
                 {t.logo && <img className="tab-logo" src={logoUrl(t.logo)} alt="" />}
                 {t.label}
-              </button>
-            ) : (
-              <button key={t.id} role="tab" aria-selected={false} aria-disabled="true" className="soon" title={`${t.label}: ${SOON_TEXT.toLowerCase()}`}>
-                {t.logo && <img className="tab-logo" src={logoUrl(t.logo)} alt="" />}
-                {t.label}
-                <span className="soon-tag">{SOON_TEXT}</span>
               </button>
             ))}
           </nav>
@@ -231,7 +228,7 @@ export function App() {
         {/* In a workspace the program banner carries the title, so the page has a single title bar. */}
         {tab !== "estes" && tab !== "water" && tab !== "rocky" && <div className={`site-hero ${tab === "inicio" ? "" : "compact"}`}>
           <h1>Rocket Physics Lab <span>Sinaloa</span></h1>
-          {tab === "inicio" && <p>Diseña tu cohete, simula su vuelo y descubre la física detrás de cada vuelo.</p>}
+          {tab === "inicio" && <p>Simula, construye y lanza: descubre la ingeniería que hace volar tu cohete.</p>}
         </div>}
       </header>
       <main>
@@ -242,9 +239,10 @@ export function App() {
         {tab === "rocky" && <RockyGuide />}
         {tab === "about" && <About />}
       </main>
+      <NoteLayer />
       {COPILOT_URL && <CopilotPanel design={tab === "estes" || tab === "water" ? projects[tab].design : null} />}
       <footer>
-        Rocket Physics Lab Sinaloa · Tecnológico de Monterrey, Campus Sinaloa · Software libre (GPL-3.0). Especificaciones de productos: Estes Industries.
+        Rocket Physics Lab Sinaloa · Tecnológico de Monterrey, Campus Sinaloa · Software libre (GPL-3.0).
       </footer>
 
       {guard && guard.stage === "ask" && (
@@ -312,7 +310,7 @@ export function App() {
 
 const STATUS_HELP: Record<SaveStatus, string> = {
   clean: "El diseño coincide con tu último archivo (o es un diseño nuevo sin cambios).",
-  dirty: "Hay cambios que no están en ningún archivo. Usa «Descargar» para guardarlos en tu computadora.",
+  dirty: "Hay cambios que no están en ningún archivo. Usa Archivo › Descargar para guardarlos en tu computadora.",
   preparing: "Se está generando el archivo del proyecto.",
   started: "El navegador recibió el archivo. Comprueba que esté en tu carpeta de Descargas.",
   written: "El navegador confirmó que el archivo se escribió en tu computadora.",

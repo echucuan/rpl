@@ -30,7 +30,7 @@ const rocketTec = (): EstesDesign => {
 
 describe("Barrowman stability", () => {
   it("puts the centre of pressure of a finless ogive rocket at 0.466 of the nose length", () => {
-    const d = { ...rocketTec(), fins: { ...rocketTec().fins, count: 0 } };
+    const d = { ...rocketTec(), nose: { ...rocketTec().nose, shape: "ogive" as const }, fins: { ...rocketTec().fins, count: 0 } };
     expect(centreOfPressure(d)).toBeCloseTo(0.466 * d.nose.length, 6);
   });
 
