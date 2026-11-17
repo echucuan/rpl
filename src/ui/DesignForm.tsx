@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Design, EstesDesign, FinProfile, NoseShape, WaterDesign } from "../model";
-import { ALTIMETER_MM, EXTRA_KINDS, hasMotor, LETTER, MAX_PRESSURE_PSI, MOUNT_MATERIALS, NOSE_MATERIALS, OPALINA_GSM, WEIGHED, noseMaterialLabel, sheetLength, sheetMass, sheetWrap, MOTOR_MOUNT, fitToMotorMount, NOSE_SLEEVE, altimeterRest, EXTRA_WEIGHED, plugGap, massForMaterial } from "../model";
+import { ALTIMETER_MM, EXTRA_KINDS, hasMotor, LETTER, MAX_PRESSURE_PSI, MOUNT_MATERIALS, NOSE_MATERIALS, OPALINA_GSM, WEIGHED, noseMaterialLabel, sheetLength, sheetMass, sheetWrap, MOTOR_MOUNT, fitToMotorMount, NOSE_SLEEVE, altimeterRest, EXTRA_WEIGHED, plugGap, massForMaterial, LAUNCH_SITES, officialSite } from "../model";
 import { makerName, motorFor, motorSpec, impulseClass } from "../motor";
 import { MotorPicker } from "./MotorPicker";
 import { DiameterZoom } from "./DiameterSketch";
@@ -57,7 +57,7 @@ export function rocketStepNotes(d: Design): Record<RocketPart, string> {
     4: d.type === "estes" && d.altimeter.included ? `altímetro ${d.altimeter.brand?.trim() || "Estes"} · ${format(d.altimeter.mass, 1)} g` : "sin altímetro",
     5: d.recovery.kind === "parachute" ? `paracaídas ${format(d.recovery.diameter / 10, 0)} cm` : "sin paracaídas",
     6: d.extras.length ? `${d.extras.length} ${d.extras.length === 1 ? "masa" : "masas"} · ${format(d.extras.reduce((t, e) => t + e.mass, 0), 1)} g` : "sin masas extra",
-    7: d.launch.latitude !== undefined && d.launch.longitude !== undefined ? `${d.launch.latitude.toFixed(2)}, ${d.launch.longitude.toFixed(2)}` : "Culiacán",
+    7: officialSite(d.launch)?.name ?? (d.launch.latitude !== undefined && d.launch.longitude !== undefined ? `${d.launch.latitude.toFixed(2)}, ${d.launch.longitude.toFixed(2)}` : "otro sitio"),
   };
 }
 
@@ -344,7 +344,7 @@ export function DesignForm({ design: d, update: rawUpdate, part }: { design: Des
       </Section>
       )}
 
-      {show(7) && <Section title="Lanzamiento" summary={d.launch.latitude !== undefined && d.launch.longitude !== undefined ? `${d.launch.latitude.toFixed(4)}, ${d.launch.longitude.toFixed(4)}` : "valores de Culiacán"}>
+      {show(7) && <Section title="Lanzamiento" summary={officialSite(d.launch)?.name ?? (d.launch.latitude !== undefined && d.launch.longitude !== undefined ? `${d.launch.latitude.toFixed(4)}, ${d.launch.longitude.toFixed(4)}` : "otro sitio")}>
         <LaunchLocation d={d} set={(patch) => set("launch", patch)} />
         <NumField label="Altitud del sitio" unit="m" value={d.launch.altitude} onChange={(altitude) => set("launch", { altitude })} />
         <NumField label="Temperatura" unit="°C" min={-20} max={50} value={d.launch.temperature} onChange={(temperature) => set("launch", { temperature })} />
@@ -753,13 +753,57 @@ function ChutePosition({ d, onChange }: { d: Design; onChange: (position: number
 }
 
 /**
- * Where the rocket is launched: GPS from the device (best on a phone at the site) or typed by hand, with a map link
- * to check it. The phone usually also knows the altitude, which the flight does use (air density).
+ * Where the rocket is launched: one of the two official sites, or another place, by GPS from the device (best on a
+ * phone at the site) or typed by hand, with a map link to check it. The site's altitude is what the flight uses (air
+ * density); the coordinates are a record only.
  */
 function LaunchLocation({ d, set }: { d: Design; set: (patch: Partial<Design["launch"]>) => void }) {
   const [status, setStatus] = useState<{ kind: "idle" | "busy" | "ok" | "error"; text: string }>({ kind: "idle", text: "" });
   const { latitude: lat, longitude: lon } = d.launch;
   const has = lat !== undefined && lon !== undefined;
+  const official = officialSite(d.launch);
+  const pick = (id: string) => {
+    setStatus({ kind: "idle", text: "" });
+    const s = LAUNCH_SITES.find((x) => x.id === id);
+    // Another place: start from empty coordinates, so nothing of the official site stays behind.
+    set(s ? { latitude: s.latitude, longitude: s.longitude, altitude: s.altitude } : { latitude: undefined, longitude: undefined });
+  };
+  const sites = (
+    <fieldset className="site-picker">
+      <legend>Sitio de lanzamiento</legend>
+      {LAUNCH_SITES.map((s) => (
+        <label key={s.id} className="site-option">
+          <input type="radio" name="launch-site" value={s.id} checked={official?.id === s.id} onChange={() => pick(s.id)} />
+          <span className="site-text">
+            <b>{s.name}</b>
+            <small>{s.role} · {format(s.altitude, 0)} m s.n.m.</small>
+          </span>
+          <a className="link site-map" href={`${import.meta.env.BASE_URL}${s.map}`} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}>
+            Plano ↗
+          </a>
+        </label>
+      ))}
+      <label className="site-option">
+        <input type="radio" name="launch-site" value="otro" checked={!official} onChange={() => pick("otro")} />
+        <span className="site-text">
+          <b>Otro sitio</b>
+          <small>Con tu ubicación o sus coordenadas</small>
+        </span>
+      </label>
+    </fieldset>
+  );
+  if (official)
+    return (
+      <div className="full launch-location">
+        {sites}
+        <p className="hint site-coords">
+          {official.latitude.toFixed(6)}, {official.longitude.toFixed(6)} ·{" "}
+          <a className="link" href={`https://www.google.com/maps?q=${official.latitude},${official.longitude}`} target="_blank" rel="noopener noreferrer">
+            Ver en el mapa ↗
+          </a>
+        </p>
+      </div>
+    );
 
   const locate = () => {
     if (!("geolocation" in navigator)) {
@@ -795,6 +839,7 @@ function LaunchLocation({ d, set }: { d: Design; set: (patch: Partial<Design["la
 
   return (
     <div className="full launch-location">
+      {sites}
       <div className="launch-location-head">
         <button type="button" className="btn small" onClick={locate} disabled={status.kind === "busy"}>
           📍 {status.kind === "busy" ? "Buscando…" : "Usar mi ubicación"}

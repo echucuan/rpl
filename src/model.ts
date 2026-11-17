@@ -150,7 +150,25 @@ export type Design = EstesDesign | WaterDesign;
 export const MAX_PRESSURE_PSI = 90;
 export const PSI = 6894.757; // Pa
 
-export const CULIACAN: LaunchSite = { altitude: 55, temperature: 30, guideLength: 0.9 };
+/**
+ * The official Rocket Tec Sinaloa 2026 launch sites, both at Campus Sinaloa in Culiacán. Ground altitude from the
+ * Copernicus 90 m elevation model. map: the site plan in public/sitios/.
+ */
+export const LAUNCH_SITES = [
+  { id: "starbase", name: "Starbase Sinaloa", role: "Base principal", latitude: 24.803481898202467, longitude: -107.42184612004215, altitude: 31, map: "sitios/starbase-sinaloa.webp" },
+  { id: "baikonur", name: "Baikonur Sinaloa", role: "Zona secundaria", latitude: 24.799658352200076, longitude: -107.42100103781344, altitude: 33, map: "sitios/baikonur-sinaloa.webp" },
+] as const;
+export type OfficialSite = (typeof LAUNCH_SITES)[number];
+
+/** The official site at these coordinates (within about a metre), if any. */
+export const officialSite = (l: LaunchSite): OfficialSite | undefined =>
+  l.latitude === undefined || l.longitude === undefined
+    ? undefined
+    : LAUNCH_SITES.find((s) => Math.abs(s.latitude - l.latitude!) < 1e-5 && Math.abs(s.longitude - l.longitude!) < 1e-5);
+
+const STARBASE = LAUNCH_SITES[0];
+/** New designs start at the main base. */
+export const CULIACAN: LaunchSite = { altitude: STARBASE.altitude, temperature: 30, guideLength: 0.9, latitude: STARBASE.latitude, longitude: STARBASE.longitude };
 
 /** Whether a Rocket Tec design carries its motor (older designs always do). Without it there is no flight. */
 export const hasMotor = (d: Design) => d.type !== "estes" || d.motor.included !== false;
@@ -303,7 +321,7 @@ export function newWaterDesign(): WaterDesign {
     recovery: { kind: "parachute", diameter: 457, cd: 0.8, mass: 15, position: 100, deployment: "apogee" },
     // The water sits at the aft end, so water rockets usually need ballast in the nose.
     extras: [{ name: "Lastre en la ojiva (plastilina)", mass: 80, position: 70 }],
-    launch: { altitude: 55, temperature: 30, guideLength: 0.5 },
+    launch: { ...CULIACAN, guideLength: 0.5 },
     // 0.5 kg of water: the form works in kg, the model in litres (density 997 kg/m³).
     water: { bottleVolume: 1.5, bottleMass: 40, waterVolume: 0.5 / 0.997, pressure: 60, nozzleDiameter: 21.5 },
   };
