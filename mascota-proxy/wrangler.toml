@@ -39,3 +39,19 @@ simple = { limit = 60, period = 60 }
 [[kv_namespaces]]
 binding = "QUOTA"
 id = "59b4a3adaa8749dbaba9a8c86342e06d"
+
+# Registros de uso del simulador: hasta 30 lotes por minuto por alumno (manda uno por minuto).
+[[ratelimits]]
+name = "EVENTS"
+namespace_id = "1003"
+simple = { limit = 30, period = 60 }
+
+# Base de datos de uso para la investigación (ver LEEME.md, "Datos de uso"). Créala con:
+#   npx wrangler d1 create rpl-uso
+# pega aquí el database_id que te dé y aplica las tablas con:
+#   npx wrangler d1 migrations apply rpl-uso --remote
+[[d1_databases]]
+binding = "DB"
+database_name = "rpl-uso"
+database_id = "8cf7a6c2-3133-438a-9938-6c2c0df2d2f8"
+migrations_dir = "migrations"

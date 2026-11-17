@@ -1,2 +1,5 @@
 # Copia este archivo como .dev.vars (no se sube a git) para probar en local con `npm run dev`.
 ANTHROPIC_API_KEY=sk-ant-...
+
+# Clave de la página de datos (#datos). En Cloudflare: npx wrangler secret put ADMIN_KEY
+ADMIN_KEY=una-clave-larga-solo-para-ti

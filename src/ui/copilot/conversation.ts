@@ -6,6 +6,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import type { Design } from "../../model";
 import { readScreen } from "./screen";
 import { runTool } from "./tools";
+import { device } from "../usage";
 
 /** Worker URL: VITE_COPILOT_URL in .env.development / .env.production. Without it the copilot is hidden. */
 export const COPILOT_URL: string | undefined = import.meta.env.VITE_COPILOT_URL || undefined;
@@ -30,26 +31,6 @@ export class CopilotError extends Error {
 
 let sdk: Promise<typeof import("@anthropic-ai/sdk")> | null = null;
 
-const DEVICE_KEY = "rpl.copilot.device";
-let deviceId = "";
-/**
- * Anonymous random id of this browser: the Worker counts each student's limits with it, because a
- * whole classroom usually shares one IP address. It says nothing about the student.
- */
-function device(): string {
-  if (deviceId) return deviceId;
-  try {
-    deviceId = localStorage.getItem(DEVICE_KEY) ?? "";
-    if (!/^[A-Za-z0-9-]{16,64}$/.test(deviceId)) {
-      deviceId = crypto.randomUUID();
-      localStorage.setItem(DEVICE_KEY, deviceId);
-    }
-  } catch {
-    deviceId ||= crypto.randomUUID(); // private mode: one id for this visit
-  }
-  return deviceId;
-}
-
 async function client(group: string): Promise<Anthropic> {
   sdk ??= import("@anthropic-ai/sdk");
   const { default: Anthropic } = await sdk;
@@ -57,6 +38,8 @@ async function client(group: string): Promise<Anthropic> {
     baseURL: COPILOT_URL,
     apiKey: "rpl", // the real key lives in the Worker
     dangerouslyAllowBrowser: true,
+    // device(): the anonymous id of this browser; the Worker counts each student's limits with it, because a
+    // whole classroom usually shares one IP address.
     defaultHeaders: { "x-rpl-group": group, "x-rpl-device": device() },
     maxRetries: 0, // the Worker already retries towards Claude; a retry here would spend the student's quota twice
   });
@@ -64,9 +47,10 @@ async function client(group: string): Promise<Anthropic> {
 
 /**
  * Appends the assistant's turns (and the tool results) to `messages` until the answer is complete.
- * Returns the messages to keep. The visible text arrives through `cb.onText`.
+ * Returns the messages to keep. The visible text arrives through `cb.onText`. `turn` ties together the rounds
+ * of this one question in the teacher's usage records.
  */
-export async function ask(messages: Anthropic.MessageParam[], group: string, design: Design | null, cb: Callbacks, signal: AbortSignal) {
+export async function ask(messages: Anthropic.MessageParam[], group: string, design: Design | null, cb: Callbacks, signal: AbortSignal, turn = "") {
   const { default: Anthropic } = await (sdk ??= import("@anthropic-ai/sdk"));
   const api = await client(group);
   const history = [...messages];
@@ -76,7 +60,7 @@ export async function ask(messages: Anthropic.MessageParam[], group: string, des
       const stream = api.messages.stream(
         // model and max_tokens are required by the SDK; the Worker replaces them (and adds system and tools).
         { model: "rpl", max_tokens: 1, messages: history },
-        { signal },
+        { signal, headers: turn ? { "x-rpl-turn": turn } : undefined },
       );
       stream.on("text", (delta) => {
         cb.onPhase("writing");

@@ -10,6 +10,7 @@ import { readingSeconds } from "./readingTime";
 import { RichText } from "./RichText";
 import { RockyLaunch, genie, type Chute } from "./RockyLaunch";
 import "./copilot.css";
+import { track } from "../usage";
 
 const GROUP_KEY = "rpl.copilot.group";
 /** The group remembered in this browser, if it is still one of the current groups. */
@@ -35,6 +36,10 @@ interface Bubble {
   read?: boolean;
   /** …and whether a launch already used it. */
   spent?: boolean;
+  /** Which question it answers, in the teacher's usage records. */
+  turn?: string;
+  /** Already reported as read or unread. */
+  logged?: boolean;
 }
 
 const SUGGESTIONS: Record<"estes" | "water" | "none", string[]> = {
@@ -101,7 +106,9 @@ export function CopilotPanel({ design }: { design: Design | null }) {
         const b = bs[i];
         const done = (b.done ?? 0) + 1;
         const next = [...bs];
-        next[i] = { ...b, done, read: done >= b.need! };
+        const read = done >= b.need!;
+        if (read && b.turn) track("rocky_read", b.turn, done);
+        next[i] = { ...b, done, read, logged: read || b.logged };
         return next;
       });
     }, 1000);
@@ -130,6 +137,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
     // Rocky's guide (#rocky) opens the chat, sometimes with an example question ready to send.
     const onOpen = (e: Event) => {
       setOpen(true);
+      track("rocky_open", "guía");
       const q = (e as CustomEvent<string | undefined>).detail;
       if (q) setDraft(q);
     };
@@ -153,6 +161,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
     setBubbles((b) => [...b, { from: "me", text: q }, { from: "bot", text: "" }]);
     const ctrl = new AbortController();
     abort.current = ctrl;
+    const turn = crypto.randomUUID();
     const append = (t: string) =>
       setBubbles((b) => {
         const last = b.at(-1)!;
@@ -163,11 +172,11 @@ export function CopilotPanel({ design }: { design: Design | null }) {
       setStatus(p === "tool" ? TOOL_LABEL[tool ?? ""] ?? "Trabajando…" : p === "waiting" ? "Pensando…" : "");
     };
     try {
-      const next = await ask([...history, { role: "user", content: q }], group, design, { onPhase, onText: append }, ctrl.signal);
+      const next = await ask([...history, { role: "user", content: q }], group, design, { onPhase, onText: append }, ctrl.signal, turn);
       setHistory(next);
       setBubbles((b) => {
         const last = b.at(-1);
-        return last?.from === "bot" && last.text ? [...b.slice(0, -1), { ...last, need: readingSeconds(last.text), done: 0 }] : b;
+        return last?.from === "bot" && last.text ? [...b.slice(0, -1), { ...last, need: readingSeconds(last.text), done: 0, turn }] : b;
       });
       flashMood("happy", 1800);
     } catch (e) {
@@ -192,7 +201,14 @@ export function CopilotPanel({ design }: { design: Design | null }) {
     }
   }
 
+  /** Answers left before their reading clock ended: reported once, with how far the student got (s). */
+  function reportUnread() {
+    for (const b of bubbles) if (b.turn && !b.read && !b.logged) track("rocky_unread", b.turn, b.done ?? 0);
+    setBubbles((bs) => bs.map((b) => (b.turn && !b.read ? { ...b, logged: true } : b)));
+  }
+
   function restart() {
+    reportUnread();
     abort.current?.abort();
     setHistory([]);
     setBubbles([]);
@@ -202,6 +218,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
   /** ✕: the window is sucked into Rocky's corner (Mac genie) and, if answers were read, Rocky launches. */
   async function closeWithShow() {
     if (closing) return;
+    reportUnread();
     const n = reads;
     const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (panel.current && !calm) {
@@ -234,7 +251,12 @@ export function CopilotPanel({ design }: { design: Design | null }) {
       <button
         ref={fab}
         className={`cp-fab${open ? " open" : ""}${launch !== null ? " launching" : ""} fuel-${Math.min(reads, 3)}`}
-        onClick={() => launch === null && !closing && setOpen((o) => !o)}
+        onClick={() => {
+          if (launch !== null || closing) return;
+          if (!open) track("rocky_open");
+          else reportUnread();
+          setOpen(!open);
+        }}
         aria-expanded={open}
         aria-controls="copilot-panel"
         aria-label={open ? "Cerrar a Rocky" : "Hablar con Rocky"}
@@ -282,6 +304,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
                 ))}
               </div>
               <a className="cp-guide" href="#rocky">¿Primera vez? Mira cómo trabajo</a>
+              <p className="cp-privacy">Tus preguntas se guardan sin tu nombre para mejorar la clase.</p>
             </div>
           ) : (
             <>
@@ -340,7 +363,7 @@ export function CopilotPanel({ design }: { design: Design | null }) {
                   <button type="submit" className="btn primary" disabled={!draft.trim() || full}>Enviar</button>
                 )}
               </form>
-              <p className="cp-foot">Rocky puede equivocarse: compruébalo con el simulador y tu profesor.</p>
+              <p className="cp-foot">Rocky puede equivocarse: compruébalo con el simulador y tu profesor. Tus preguntas se guardan sin tu nombre para mejorar la clase.</p>
             </>
           )}
         </section>

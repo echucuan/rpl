@@ -167,3 +167,5 @@ a.cp-icon.cp-help { display: grid; place-items: center; text-decoration: none; f
   .rl-badge { right: 16px; bottom: 104px; }
 }
 .cp-list { overscroll-behavior: contain; }
+/* Privacy line under the group choice: the questions are kept, without names, for the teacher's research. */
+.cp-privacy { margin: 6px 0 0; font-size: .72rem; color: var(--muted); text-align: center; max-width: 260px; }

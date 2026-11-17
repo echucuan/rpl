@@ -1,0 +1,47 @@
+/* The teacher's data page (#datos): the same cards and blues as the rest of RPL. */
+.dp { max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; display: grid; gap: 14px; }
+.dp h1 { margin: 0; color: var(--tec-blue); font-size: 1.5rem; }
+.dp h2 { margin: 0 0 10px; color: var(--tec-blue); font-size: 1.05rem; }
+.dp-section { margin: 10px 0 -4px; font-size: 1.25rem !important; }
+.dp-muted { color: var(--muted); font-size: .82rem; margin: 2px 0 8px; }
+.dp-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; min-width: 0; }
+.dp-head { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: end; }
+.dp-range { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.dp-range label { display: grid; font-size: .78rem; color: var(--muted); gap: 2px; }
+.dp-range input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.dp-error { color: var(--bad); background: var(--bad-soft); padding: 8px 12px; border-radius: 8px; margin: 0; }
+.dp-empty { color: var(--muted); font-size: .85rem; }
+.dp-login { min-height: 70vh; place-items: center; }
+.dp-login form { display: grid; gap: 10px; width: min(380px, 100%); }
+.dp-login input { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.dp-quote p { margin: 0; font-size: 1.02rem; line-height: 1.6; }
+.dp-quote { border-left: 4px solid var(--tec-blue); }
+.dp-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.dp-tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; }
+.dp-tile-value { font-size: 1.6rem; font-weight: 700; color: var(--tec-blue); line-height: 1.1; }
+.dp-tile-value small { font-size: .85rem; font-weight: 400; color: var(--muted); }
+.dp-tile-label { font-weight: 700; font-size: .88rem; margin-top: 2px; }
+.dp-tile-sub { color: var(--muted); font-size: .76rem; }
+.dp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 14px; align-items: start; }
+.dp-bars { display: grid; gap: 5px; }
+.dp-bar { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto; gap: 8px; align-items: center; font-size: .84rem; }
+.dp-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-bar-track { height: 12px; background: var(--tec-blue-soft); border-radius: 6px; overflow: hidden; }
+.dp-bar-track span { display: block; height: 100%; background: var(--tec-blue); border-radius: 6px; min-width: 2px; }
+.dp-bar-value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dp-bar-value small { color: var(--muted); }
+.dp-table { width: 100%; border-collapse: collapse; font-size: .84rem; margin-top: 8px; }
+.dp-table th { text-align: left; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--line); padding: 4px 6px; }
+.dp-table td { border-bottom: 1px solid #eef0f4; padding: 5px 6px; vertical-align: top; font-variant-numeric: tabular-nums; }
+.dp-table ul { margin: 4px 0 0; padding-left: 18px; color: var(--muted); }
+.dp-recent { display: grid; gap: 4px; max-height: 520px; overflow: auto; }
+.dp-recent summary { display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 10px; cursor: pointer; font-size: .86rem; padding: 4px 0; }
+.dp-recent details p { margin: 4px 0 10px 160px; font-size: .84rem; white-space: pre-wrap; color: #333; }
+.dp-read { font-size: .75rem; padding: 1px 8px; border-radius: 10px; background: #eef0f4; color: var(--muted); }
+.dp-read.yes { background: var(--ok-soft); color: var(--ok); }
+.dp-read.no { background: var(--warn-soft); color: var(--warn); }
+.dp-downloads { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 640px) {
+  .dp-recent summary { grid-template-columns: 1fr; gap: 2px; }
+  .dp-recent details p { margin-left: 0; }
+}

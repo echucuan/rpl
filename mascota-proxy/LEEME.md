@@ -64,3 +64,30 @@ npm run deploy                                       # imprime la URL: https://r
 
 Cloudflare Workers (plan gratuito): 100 000 peticiones al día, de sobra para el grupo.
 Claude con `claude-haiku-5-5`: alrededor de USD 0.001 por pregunta, unos USD 3–4 por semana con 90 alumnos haciendo 30 preguntas cada uno.
+
+## Datos de uso (investigación)
+
+El RPL registra cómo se usa, **sin nombres**: cada alumno es el identificador anónimo de su navegador más el grupo que eligió para Rocky. Rocky avisa a los alumnos: "Tus preguntas se guardan sin tu nombre para mejorar la clase".
+
+| Qué se guarda | De dónde |
+|---|---|
+| Tiempo activo por pantalla (página a la vista y algún clic, tecla o desplazamiento en el último minuto) | el simulador, sumado por minuto (`/v1/events`) |
+| Visitas a cada pantalla, clics en botones y pestañas (por su nombre), cambios en los campos | el simulador |
+| Pregunta a Rocky, su respuesta, las herramientas que usó, tokens y tiempo de respuesta | este Worker, al pasar la respuesta |
+| Si el alumno leyó cada respuesta (el reloj de lectura 📖 llegó a cero) o la dejó sin terminar | el simulador |
+
+Se consulta en **`…/rpl/#datos`** (no está enlazada en la app; pide la clave `ADMIN_KEY`): resumen en una frase, uso por grupo, día, hora y pantalla, lo más clicado, preguntas más repetidas, temas por IA (con nivel de Bloom) y descargas CSV (alumnos, preguntas con respuesta, eventos).
+
+### Activarlo (una sola vez)
+
+```bash
+cd mascota-proxy
+npx wrangler d1 create rpl-uso                        # copia el database_id que imprime en wrangler.toml
+npx wrangler d1 migrations apply rpl-uso --remote      # crea las tablas
+npx wrangler secret put ADMIN_KEY                      # la clave de la página de datos (larga, solo para ti)
+npm run deploy
+```
+
+En local: `npx wrangler d1 migrations apply rpl-uso --local` y `ADMIN_KEY=…` en `.dev.vars`.
+
+Sin la base de datos (`DB`) el Worker sigue funcionando igual y no guarda nada. Plan gratuito de D1: 5 GB y 100 000 escrituras al día; cada alumno escribe unas pocas filas por minuto de uso.
