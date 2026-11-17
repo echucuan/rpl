@@ -214,11 +214,11 @@ export function App() {
             {tab !== "estes" && tab !== "water" && <SaveIndicator tab={tab} projects={projects} />}
             <img className="event-logo" src={`${import.meta.env.BASE_URL}rocket-tec/rocket-tec-logo.webp`} alt="Rocket Tec Sinaloa 2026" />
           </div>
-          <nav className="main-nav" role="tablist" aria-label="Secciones de la aplicación">
+          <nav className="main-nav" aria-label="Secciones de la aplicación">
             {/* Programs not open yet are announced on Inicio, not in the menu: a button that does nothing is noise.
                 Rocky and Acerca de are help, so they sit apart and lighter. */}
             {TABS.filter((t) => isOpen(t.id)).map((t) => (
-              <button key={t.id} role="tab" aria-selected={tab === t.id} className={t.help ? "nav-help" : undefined} onClick={() => tab !== t.id && request({ kind: "tab", to: t.id })}>
+              <button key={t.id} type="button" aria-current={tab === t.id ? "page" : undefined} className={t.help ? "nav-help" : undefined} onClick={() => tab !== t.id && request({ kind: "tab", to: t.id })}>
                 {t.logo && <img className="tab-logo" src={logoUrl(t.logo)} alt="" />}
                 {t.label}
               </button>

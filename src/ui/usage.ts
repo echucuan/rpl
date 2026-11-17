@@ -59,7 +59,7 @@ const clean = (s: string | null | undefined, n = 60) => (s ?? "").replace(/[\u{1
 /** The screen the student is on: the program and section of the address, and the step tab when there is one. */
 export function currentRoute(): string {
   const base = location.hash.slice(1) || "inicio";
-  const step = document.querySelector<HTMLElement>(".workspace-menu .phases [role=tab][aria-selected=true]");
+  const step = document.querySelector<HTMLElement>(".workspace-menu .phases button[aria-current]");
   if (!step) return base;
   const name = step.querySelector(".step-name")?.textContent ?? step.querySelector(".phase-tab-text")?.firstChild?.textContent ?? "";
   // The step is also in the address as a number ("estes/cohete4"): its name says more.

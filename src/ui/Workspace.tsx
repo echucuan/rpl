@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import { Component, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Design } from "../model";
 import { designStatics, simulate } from "../physics/simulate";
@@ -36,8 +37,8 @@ const MAIN_TABS = (type: Design["type"]): { id: SubTab; label: string; icon: str
  * (the first one keeps the old "fase0" address).
  */
 const MOTOR_STEPS: { id: SubTab; part: MotorPart; label: string }[] = [
-  { id: "fase0", part: 1, label: "Tu motor" },
-  { id: "motor2", part: 2, label: "Mide" },
+  { id: "fase0", part: 1, label: "Elige" },
+  { id: "motor2", part: 2, label: "Prueba" },
   { id: "motor3", part: 3, label: "Compara" },
   { id: "motor4", part: 4, label: "Decide" },
 ];
@@ -142,7 +143,21 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
     // Already there: no re-render will come, so place the page now.
     if (s === view) return scrollToFocus(to);
     focus.current = to;
-    onSub(s);
+    // A short slide in the reading direction (forward or back), where the browser supports it.
+    const doc = document as unknown as { startViewTransition?: (arg: unknown) => { ready: Promise<void>; finished: Promise<void> } };
+    if (typeof doc.startViewTransition !== "function" || matchMedia("(prefers-reduced-motion: reduce)").matches) return onSub(s);
+    const order = lessons(design.type).map((l) => l.id);
+    const dir = order.indexOf(s) >= order.indexOf(view) ? "forward" : "backward";
+    const update = () => flushSync(() => onSub(s));
+    const VT = (window as unknown as { ViewTransition?: { prototype: object } }).ViewTransition;
+    try {
+      const t = doc.startViewTransition(VT && "types" in VT.prototype ? { update, types: [dir] } : update);
+      // A quick second click skips this transition; the step still changes, so the rejection is harmless.
+      t.ready.catch(() => {});
+      t.finished.catch(() => {});
+    } catch {
+      onSub(s);
+    }
   };
   const isSub = (s: SubTab) => isMotorView(design.type, s) || isRocketView(s) || s === SIM_TAB.id || /^fase[1-4]$/.test(s);
   const goNav = (s: SubTab) => go(s, isSub(s) ? "sub" : "banner");
@@ -153,7 +168,14 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
   useLayoutEffect(() => {
     const to = focus.current;
     focus.current = null;
-    if (to) scrollToFocus(to);
+    if (!to) return;
+    scrollToFocus(to);
+    // Move keyboard and screen-reader focus to the new step's heading, without scrolling.
+    const h = document.querySelector<HTMLElement>(".step-page h2, .step-page h3");
+    if (h) {
+      if (!h.hasAttribute("tabindex")) h.tabIndex = -1;
+      h.focus({ preventScroll: true });
+    }
   }, [view]);
   useEffect(() => {
     const el = mainRow.current;
@@ -188,9 +210,9 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
       </div>
 
       <nav className="workspace-menu no-print" aria-label="Secciones">
-        <div className="menu-row main" role="tablist" ref={mainRow}>
+        <div className="menu-row main" role="group" aria-label="Pasos del proyecto" ref={mainRow}>
           {MAIN_TABS(design.type).map((t) => (
-            <button key={t.id} role="tab" aria-selected={inGroup(t.id)} data-done={seen(t.id) && !inGroup(t.id) ? "" : undefined} onClick={() => go(t.id)}>
+            <button key={t.id} type="button" aria-current={inGroup(t.id) ? "step" : undefined} data-done={seen(t.id) && !inGroup(t.id) ? "" : undefined} onClick={() => goNav(t.id)}>
               <span className="tab-icon" aria-hidden="true">{t.icon}</span>
               <span className="tab-text">
                 <span className="tab-title">
@@ -202,17 +224,17 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
               {seen(t.id) && !inGroup(t.id) && <span className="visually-hidden"> (visto)</span>}
             </button>
           ))}
-          <button type="button" data-done={launched && !showPhases ? "" : undefined} className={`launch-btn${showPhases ? " launched" : ""}`} aria-pressed={showPhases} aria-expanded={showPhases} onClick={() => go("fase1")}>
+          <button type="button" data-done={launched && !showPhases ? "" : undefined} className={`launch-btn${showPhases ? " launched" : ""}`} aria-pressed={showPhases} aria-expanded={showPhases} onClick={() => goNav("fase1")}>
             <span className="tab-icon" aria-hidden="true">{showPhases ? "🚀" : "🟢"}</span>
             <span className="tab-text">Go for launch<small>{showPhases ? "¡despegue! vuelo por fases" : "Paso 4 · simula tu vuelo"}</small></span>
           </button>
         </div>
         {showMotor && motorNotes && (
-        <div className="menu-row phases motor-steps" role="tablist" aria-label="Prueba tu motor" ref={subRow}>
+        <div className="menu-row phases motor-steps" role="group" aria-label="Prueba tu motor" ref={subRow}>
           <div className="sub-steps">
           {mainHidden && <SubParent icon="🔥" label="Motor" onClick={reveal} />}
           {MOTOR_STEPS.map((m) => (
-            <button key={m.id} role="tab" aria-selected={view === m.id} onClick={() => go(m.id, "sub")} style={{ ["--phase" as string]: STATIC_TEST_COLOR }}>
+            <button key={m.id} type="button" aria-current={view === m.id ? "step" : undefined} onClick={() => go(m.id, "sub")} style={{ ["--phase" as string]: STATIC_TEST_COLOR }}>
               <span className="phase-dot">{m.part}</span>
               <span className="phase-tab-text">{m.label}<small>{motorNotes[m.part]}</small></span>
             </button>
@@ -221,11 +243,11 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
         </div>
         )}
         {showRocket && (
-        <div className="menu-row phases rocket-steps" role="tablist" aria-label="Simula tu cohete" ref={subRow}>
+        <div className="menu-row phases rocket-steps" role="group" aria-label="Simula tu cohete" ref={subRow}>
           <div className="sub-steps">
           {mainHidden && <SubParent icon="🚀" label="Cohete" onClick={reveal} />}
           {ROCKET_STEPS(design.type).map((r, i) => (
-            <button key={r.id} role="tab" title={rocketNotes[r.part]} aria-selected={view === r.id} onClick={() => go(r.id, "sub")} style={{ ["--phase" as string]: ROCKET_COLOR }}>
+            <button key={r.id} type="button" title={rocketNotes[r.part]} aria-current={view === r.id ? "step" : undefined} onClick={() => go(r.id, "sub")} style={{ ["--phase" as string]: ROCKET_COLOR }}>
               <span className="phase-dot">{i + 1}</span>
               <span className="phase-tab-text"><span className="step-name">{r.label}</span><small>{rocketNotes[r.part]}</small></span>
             </button>
@@ -234,14 +256,14 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
         </div>
         )}
         {showPhases && (
-        <div className="menu-row phases" role="tablist" aria-label="El vuelo por fases" ref={subRow}>
+        <div className="menu-row phases" role="group" aria-label="El vuelo por fases" ref={subRow}>
           <div className="sub-steps">
           {mainHidden && <SubParent icon="🚀" label="Go for launch" launch onClick={reveal} />}
           <span className="menu-label">El vuelo por fases</span>
           {phaseTabs(design.type).map((t) => {
             const ph = phaseSpans?.find((p) => `fase${p.id}` === t.id);
             return (
-              <button key={t.id} role="tab" aria-selected={view === t.id} onClick={() => go(t.id, "sub")} style={{ ["--phase" as string]: t.color }} className={ph && !ph.exists ? "missing" : undefined}>
+              <button key={t.id} type="button" aria-current={view === t.id ? "step" : undefined} onClick={() => go(t.id, "sub")} style={{ ["--phase" as string]: t.color }} className={ph && !ph.exists ? "missing" : undefined}>
                 <span className="phase-dot">{t.n}</span>
                 <span className="phase-tab-text">
                   {t.label}
@@ -251,7 +273,7 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
             );
           })}
           <span className="menu-sep" aria-hidden="true" />
-          <button role="tab" aria-selected={view === SIM_TAB.id} onClick={() => go(SIM_TAB.id, "sub")} style={{ ["--phase" as string]: SIM_TAB.color }} className="sim-tab">
+          <button type="button" aria-current={view === SIM_TAB.id ? "step" : undefined} onClick={() => go(SIM_TAB.id, "sub")} style={{ ["--phase" as string]: SIM_TAB.color }} className="sim-tab">
             <span className="phase-dot">▶</span>
             <span className="phase-tab-text">
               {SIM_TAB.label}
@@ -262,6 +284,8 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
         </div>
         )}
       </nav>
+
+      <div className="step-page">
 
       <ErrorBoundary key={view}>
       {typeof result === "string" && !showRocket && view !== "fase0" && !showMotor ? (
@@ -284,6 +308,7 @@ export function Workspace({ design, onChange, sub, onSub, savedId, onSaved, onDo
         </>
       )}
       </ErrorBoundary>
+      </div>
       <LessonNav sub={view} type={design.type} go={goNav} />
     </>
   );

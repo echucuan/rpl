@@ -2,14 +2,15 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import type { EstesDesign } from "../../model";
 import { MEAN_TEST, averageThrust, curveImpulse, impulseClass, makerName, measuredCurve, motorSpec, type MotorTest, type ThrustModel } from "../../motor";
 import { simulate, type FlightResult } from "../../physics/simulate";
-import { SelectField, format } from "../fields";
+import { InfoTip, SelectField, format } from "../fields";
 import { LineChart, type Series } from "../LineChart";
-import { MotorPicker } from "../MotorPicker";
+import { MotorExplorer, classRange, type Spec } from "./MotorExplorer";
 import { parseTable } from "../realData";
 import { analyzeStaticTest, guessStaticColumns, STATIC_TEST_TEMPLATE, type ForceUnit, type StaticTestResult, type TimeUnit } from "../staticTest";
 import { downloadFile } from "../storage";
 import type { SubTab } from "../Workspace";
 import { Eq } from "./common";
+import { useStage } from "../stage";
 
 /** Colour of Rocket Tec's phase 0 (no flight phase uses it). */
 export const STATIC_TEST_COLOR = "#6b3fa0";
@@ -24,8 +25,6 @@ export const THRUST_MODEL_TIPS: Record<ThrustModel, string> = {
   average: "Usa una fuerza constante igual al empuje promedio (mismo impulso y misma duración) y una masa constante (se ignora el combustible quemado). Simplifica los cálculos a mano, pero las predicciones no serán tan correctas: el modelo no tiene el pico inicial del motor.",
   measured: "Usa la curva de tu propia prueba estática (o el promedio de tus pruebas): el vuelo se calcula con el motor que tú mediste.",
 };
-const OZ = 28.3495; // g
-const LBF = 4.448222; // N
 
 const FORCE_UNITS: { value: ForceUnit; label: string }[] = [
   { value: "N", label: "newtons (N)" },
@@ -48,19 +47,12 @@ const TEST_COLORS = ["#b3261e", "#0f8a9d", "#c9a227", "#1d7a3e", "#a35f2a", "#7a
 const MEAN_COLOR = "#1f2430";
 const testColor = (i: number) => TEST_COLORS[i % TEST_COLORS.length];
 
-/** NAR impulse range of a class letter: A is 1.26–2.5 N·s and each next letter doubles it. */
-function classRange(letter: string): string {
-  const i = "ABCDEFG".indexOf(letter);
-  if (i < 0) return "";
-  const hi = 2.5 * 2 ** i;
-  return `${format(hi / 2 + 0.01, 2)} a ${format(hi, 2)} N·s`;
-}
 
 const newId = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 type Good = { test: MotorTest; result: StaticTestResult };
 
-/** The four pages of "Prueba tu motor", like the flight phases: Tu motor, Mide, Compara, Decide. */
+/** The four pages of "Prueba tu motor", like the flight phases: Elige, Prueba, Compara, Decide. */
 export type MotorPart = 1 | 2 | 3 | 4;
 
 /** The short status under each motor step in the menu. */
@@ -75,21 +67,6 @@ export function motorStepNotes(d: EstesDesign): Record<MotorPart, string> {
     3: impulse !== null ? `clase ${impulseClass(impulse)} · ${signed(pct(impulse, curveImpulse(spec.certified)))}` : "tu curva contra la NAR",
     4: `simulas con: ${used}`,
   };
-}
-type Spec = { label: string; value: string; unit: string; alt?: ReactNode; tone?: string };
-
-function SpecList({ items }: { items: Spec[] }) {
-  return (
-    <dl className="motor-specs">
-      {items.map((s) => (
-        <div key={s.label} className={s.tone}>
-          <dt>{s.label}</dt>
-          <dd>{s.value}{s.unit && <small>{s.unit}</small>}</dd>
-          <span className="motor-alt">{s.alt ?? " "}</span>
-        </div>
-      ))}
-    </dl>
-  );
 }
 
 /**
@@ -164,6 +141,25 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
     if (meanCurve) s.push({ label: "Promedio de tus pruebas", points: meanCurve.time.map((x, i) => ({ x, y: meanCurve.thrust[i] })), color: MEAN_COLOR, bold: true });
     return s;
   }, [spec, maker, analyses, meanCurve, xMax, avg.force, avg.burnTime]);
+  // Decide: the thrust each choice puts in the calculations, the chosen one in front.
+  const usedCurve = hasGood ? measuredCurve(tests, testId) : null;
+  const decideSeries = useMemo<Series[]>(() => {
+    const options: { id: ThrustModel; label: string; color: string; points: { x: number; y: number }[] }[] = [
+      { id: "real", label: "Certificación NAR", color: "#5b6270", points: spec.certified.time.map((x, i) => ({ x, y: spec.certified.thrust[i] })) },
+      { id: "average", label: "Empuje promedio", color: AVERAGE_COLOR, points: [{ x: 0, y: 0 }, { x: 0, y: avg.force }, { x: avg.burnTime, y: avg.force }, { x: avg.burnTime, y: 0 }] },
+    ];
+    if (usedCurve) options.unshift({ id: "measured", label: testId === MEAN_TEST && good.length > 1 ? "Mi prueba (promedio)" : "Mi prueba", color: MEAN_COLOR, points: usedCurve.time.map((x, i) => ({ x, y: usedCurve.thrust[i] })) });
+    const chosen = options.find((o) => o.id === model);
+    return [
+      ...options.filter((o) => o !== chosen).map((o) => ({ label: o.label, points: o.points, color: o.color, dashed: true, thin: true })),
+      ...(chosen ? [{ label: `${chosen.label} (la que usas)`, points: chosen.points, color: chosen.color, fill: true, bold: true }] : []),
+    ];
+  }, [spec, avg.force, avg.burnTime, usedCurve, model, testId, good.length]);
+  // Prueba: right after uploading, the readings as read (to catch a wrong column or unit), the certified curve behind.
+  const readSeries: Series[] = [
+    { label: "Certificación NAR", points: spec.certified.time.map((x, i) => ({ x, y: spec.certified.thrust[i] })), color: "#5b6270", dashed: true, thin: true },
+    ...analyses.flatMap((a, i) => (typeof a.result !== "string" ? [{ label: a.test.name, points: a.result.force.filter((p) => p.x >= -0.1 && p.x <= xMax), color: testColor(i) }] : [])),
+  ];
   const tempSeries: Series[] = analyses.flatMap((a, i) =>
     typeof a.result !== "string" && a.result.temperature.length > 1 ? [{ label: a.test.name, points: a.result.temperature, color: testColor(i) }] : [],
   );
@@ -197,8 +193,6 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
     if (editing === id) setEditing(null);
   };
 
-  // The length is printed as "1.8 in (4.6 cm)": metric first, inches as the second unit.
-  const len = /^(.*?)\s*\((.*)\)$/.exec(spec.rated.lengthText);
   const liftoff = predictions.real?.liftoffMass ?? null;
   const tooHeavy = liftoff !== null && liftoff > spec.rated.maxLiftoffMass;
   const letter = impulseClass(spec.rated.impulse);
@@ -216,46 +210,46 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
       tone: liftoff === null ? undefined : tooHeavy ? "bad" : "ok",
     },
   ];
-  const moreSpecs: Spec[] = [
-    { label: "Diámetro", value: String(spec.diameter), unit: "mm" },
-    len ? { label: "Longitud", value: len[2].replace(/\s*cm$/, ""), unit: "cm", alt: len[1] } : { label: "Longitud", value: spec.rated.lengthText, unit: "" },
-    { label: "Masa del motor", value: format(spec.rated.mass, 1), unit: "g", alt: `${format(spec.rated.mass / OZ, 2)} oz` },
-    { label: "Masa del propelente", value: format(spec.rated.propellant, 1), unit: "g", alt: `${format(spec.rated.propellant / OZ, 2)} oz` },
-    { label: "Empuje máximo", value: format(spec.rated.maxThrust / LBF, 1), unit: "lb" },
-  ];
+
+  // Every page of the step in the same window: see src/ui/stage.tsx.
+  const stage = useStage(part);
 
   const HEADS: Record<MotorPart, { title: string; text: ReactNode }> = {
-    1: { title: "Tu motor", text: <>Esto no es simulado: mides tu motor real. Primero, lo que dice el fabricante.</> },
-    2: { title: "Mide tu motor", text: <>Haz la prueba estática con seguridad y sube las lecturas de la celda de carga (un archivo CSV por motor).</> },
+    1: {
+      title: "Elige tu motor",
+      text: <>Explora los motores Estes de clase A a D, su curva de empuje y sus retardos, y compáralos con el A10-3T, el de tu cohete.</>,
+    },
+    2: {
+      title: "Prueba estática",
+      text: <>Enciendes tu motor sujeto a un banco y una celda de carga mide cuánto empuja en cada instante.</>,
+    },
     3: { title: "Compara", text: <>Tu curva encima de la certificada: ¿qué clase de motor tienes y qué tanto se parece al {spec.name}?</> },
     4: { title: "Decide", text: <>¿Con qué empuje simulamos tu vuelo? Tu elección se usa en todo el simulador.</> },
   };
 
   return (
     <div className="lesson static-test">
-      <div className="lesson-head card">
+      <div className="lesson-head card step-head">
         <h2><span className="phase-title-num" style={{ background: STATIC_TEST_COLOR }}>{part}</span> {HEADS[part].title}</h2>
         <p>{HEADS[part].text}</p>
       </div>
 
       {part === 1 && (
-      <div className="card prose-wide">
-        <div className="form-grid motor-choice">
-          <MotorPicker d={d} onChange={onChange} />
-        </div>
-        <div className="motor-sheet">
-          <section className="motor-group perf key-specs"><SpecList items={keySpecs} /></section>
-        </div>
-        <h3 className="sheet-sub">Ficha completa</h3>
-        <div className="motor-sheet"><section className="motor-group body"><SpecList items={moreSpecs} /></section></div>
-        <p className="hint">
-          Datos publicados por {maker} en <a href={spec.url} target="_blank" rel="noreferrer">la página del motor</a>. Son nominales: cada motor real es un poco diferente, por eso lo medimos.
-        </p>
+      <div ref={stage} className="card prose-wide motor-explorer step-stage">
+        <MotorExplorer challengeKey={keySpecs} />
       </div>
       )}
 
       {part === 2 && (
-      <div className={`card prose-wide${tests.length ? " mide-grid" : ""}`}>
+      <div ref={stage} className="card prose-wide step-stage">
+        {!tests.length && (
+          <p className="why-note">
+            <b>¿Por qué importa?</b> Cada motor real empuja un poco distinto de lo que publica el fabricante, y de ese empuje
+            dependen la altura, la velocidad y el momento en que se abre el paracaídas. Hazla con seguridad y sube las lecturas:
+            un archivo CSV por motor.
+          </p>
+        )}
+        <div className={`stage-fill ${tests.length ? "mide-grid stage-cols" : "mide-empty"}`}>
         <div className="mide-left">
         <div className="tips-row">
         <details className="more safety" open={!tests.length}>
@@ -280,6 +274,7 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
         </details>
         </div>
 
+        <div className="mide-upload">
         <div
           className={`dropzone${dragging ? " over" : ""}`}
           role="button"
@@ -300,7 +295,9 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
           <span className="hint">Columnas: tiempo, fuerza y, si la mediste, temperatura. Se puede guardar desde Excel.</span>
         </div>
         </div>
-        <div className="mide-right">
+        {good.length > 0 && <LineChart title="Así se leyeron tus pruebas" xLabel="Tiempo desde el encendido (s)" yLabel="Empuje (N)" series={readSeries} xMin={-0.1} xMax={xMax} height="fill" />}
+        </div>
+        <div className="mide-right stage-scroll">
         {error && <div className="alert error" style={{ marginTop: 8 }}>{error}</div>}
 
         {analyses.length > 0 && (
@@ -341,12 +338,13 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
         )}
         {tests.length > 0 && <p className="hint">Tus pruebas se guardan con el diseño y en el archivo que descargas.</p>}
         </div>
+        </div>
       </div>
       )}
 
       {part === 3 && (
         <>
-      <div className="card">
+      <div ref={stage} className="card step-stage">
         {mean && ownClass && (
           <div className={`motor-verdict ${tone(impulseDiff)}`}>
             <span className="motor-verdict-class" aria-hidden="true">{ownClass}</span>
@@ -362,10 +360,10 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
         {!mean && (
           <p className="hint">
             Sube tu prueba para ver tu curva encima de la certificada y la del fabricante.{" "}
-            <button type="button" className="link" onClick={() => onGo("motor2")}>Ir a Mide tu motor</button>
+            <button type="button" className="link" onClick={() => onGo("motor2")}>Ir a Prueba</button>
           </p>
         )}
-        <div className="cmp-grid">
+        <div className="cmp-grid stage-cols stage-fill">
         <div className="cmp-chart">
         {tempSeries.length > 0 && (
           <div className="thrust-model chart-range" role="group" aria-label="Gráfica">
@@ -374,8 +372,8 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
           </div>
         )}
         {chart === "temp" && tempSeries.length > 0
-          ? <LineChart title="Temperatura del motor" xLabel="Tiempo desde el encendido (s)" yLabel="Temperatura (°C)" series={tempSeries} height={330} />
-          : <LineChart title={`Empuje del motor ${spec.name}: F(t)`} xLabel="Tiempo desde el encendido (s)" yLabel="Empuje (N)" series={forceSeries} xMin={good.length ? -0.1 : 0} xMax={xMax} height={330} />}
+          ? <LineChart title="Temperatura del motor" xLabel="Tiempo desde el encendido (s)" yLabel="Temperatura (°C)" series={tempSeries} height="fill" />
+          : <LineChart title={`Empuje del motor ${spec.name}: F(t)`} xLabel="Tiempo desde el encendido (s)" yLabel="Empuje (N)" series={forceSeries} xMin={good.length ? -0.1 : 0} xMax={xMax} height="fill" />}
         {chart === "temp" && good.length === 1 && good[0].result.startTemperature !== null && (
           <p className="hint">
             Empezó en <b>{format(good[0].result.startTemperature ?? 0, 1)} °C</b> y llegó a <b>{format(good[0].result.maxTemperature ?? 0, 1)} °C</b>
@@ -384,7 +382,7 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
           </p>
         )}
         </div>
-        <div className="cmp-side">
+        <div className="cmp-side stage-scroll">
 
         <div className="table-scroll">
           <table className="summary compare-table">
@@ -420,15 +418,16 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
           </ul>
           <span>El área bajo cada curva es el <b>impulso total</b>: define la clase (la letra).</span>
         </div>
-        <details className="more">
-        <summary>¿De dónde vienen las diferencias?</summary>
+        <p className="cmp-tips">
+        <InfoTip heading="¿De dónde vienen las diferencias?" note={<>
         <p>
-          ¿De dónde vienen las diferencias? La calibración de la celda, las lecturas por segundo, la temperatura del motor y que cada motor fabricado es distinto.
+          La calibración de la celda, las lecturas por segundo, la temperatura del motor y que cada motor fabricado es distinto.
         </p>
         <p>
           El área bajo la curva es el <b>impulso total</b>: <Eq tex={r`I = \int_0^{t_b} F\,dt`} />, y su tamaño define la clase del motor (la letra). Fíjate en la forma: un pico fuerte para despegar y después un empuje bajo y casi constante.
         </p>
-        </details>
+        </>}>¿De dónde vienen las diferencias?</InfoTip>
+        </p>
         </div>
         </div>
       </div>
@@ -436,8 +435,8 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
       )}
 
       {part === 4 && (
-      <div className="card prose-wide">
-        <div className="decide-grid">
+      <div ref={stage} className="card prose-wide step-stage">
+        <div className="decide-grid stage-cols stage-fill">
         <div>
         <div className="thrust-model three" role="group" aria-label="Modelo de empuje para todos los cálculos">
           {([
@@ -460,16 +459,11 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
             />
           </div>
         )}
-        <p className="hint">
-          Tu elección se aplica a <b>todos los cálculos</b>: el vuelo, las gráficas, las fases I a IV y el script de MATLAB. Se guarda en tu proyecto.
-        </p>
-        {model === "average" && (
-          <div className="alert warning">Estás usando el <b>empuje promedio</b>: los cálculos son más sencillos, pero las predicciones no son tan correctas como con una curva real.</div>
-        )}
+        <LineChart title="El empuje que usarán tus cálculos" xLabel="Tiempo desde el encendido (s)" yLabel="Empuje (N)" series={decideSeries} xMin={0} xMax={Math.max(1.1, (usedCurve?.time.at(-1) ?? 0) + 0.15)} height="fill" />
         </div>
         <div>
         {predictions.real && predictions.average && (
-          <div className="table-scroll" style={{ marginTop: 10 }}>
+          <div className="table-scroll">
             <table className="summary">
               <thead>
                 <tr>
@@ -497,7 +491,7 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
             </table>
           </div>
         )}
-        <details className="more" open>
+        <details className="more" open={!(predictions.real && predictions.average)}>
           <summary>Para profundizar: ¿qué es el empuje promedio?</summary>
           <p>
             Para simplificar el modelo matemático podemos cambiar la curva por una <b>fuerza constante</b>: el empuje promedio, que da el mismo
@@ -505,6 +499,12 @@ export function StaticTestLesson({ design: d, part, onChange, onGo }: {
           </p>
           <Eq block tex={r`\bar F = \frac{I}{t_b} = \frac{${format(avg.impulse, 2)}\ \text{N·s}}{${format(avg.burnTime, 2)}\ \text{s}} = \mathbf{${format(avg.force, 2)}\ N} \qquad T(t) = \begin{cases} \bar F & 0 \le t < t_b \\ 0 & t \ge t_b \end{cases}`} />
         </details>
+        <p className="hint">
+          Tu elección se aplica a <b>todos los cálculos</b>: el vuelo, las gráficas, las fases I a IV y el script de MATLAB. Se guarda en tu proyecto.
+        </p>
+        {model === "average" && (
+          <div className="alert warning">Estás usando el <b>empuje promedio</b>: los cálculos son más sencillos, pero las predicciones no son tan correctas como con una curva real.</div>
+        )}
         </div>
         </div>
       </div>

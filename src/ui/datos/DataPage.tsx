@@ -39,7 +39,7 @@ const min = (s: number) => s / 60;
 const pct = (a: number, b: number) => (b ? `${nf((100 * a) / b)} %` : "—");
 function median(xs: number[]) {
   if (!xs.length) return 0;
-  const s = [...xs].sort((a, b) => a - b);
+  const s = xs.toSorted((a, b) => a - b);
   const m = Math.floor(s.length / 2);
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }

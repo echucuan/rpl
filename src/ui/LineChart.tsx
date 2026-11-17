@@ -1,4 +1,5 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { LessonTypeContext } from "./learn/common";
 import { Chart, Interaction, LineController, LineElement, PointElement, LinearScale, Legend, Tooltip, Filler, type InteractionItem, type InteractionModeFunction, type Plugin } from "chart.js";
 import { getRelativePosition } from "chart.js/helpers";
@@ -80,7 +81,8 @@ interface Props {
   markers?: Marker[];
   xMin?: number;
   xMax?: number;
-  height?: number;
+  /** Pixels, or "fill" to take the height its container gives it (inside a stage: put it in a stage-fill). */
+  height?: number | "fill";
   yZero?: boolean; // the vertical axis always includes 0 (e.g. a constant value)
 }
 
@@ -113,7 +115,7 @@ const phasesPlugin: Plugin<"line"> = {
     ctx.setLineDash([4, 3]);
     ctx.strokeStyle = "#5b6270";
     let lastLabel = -Infinity;
-    for (const m of [...opts.markers].sort((a, b) => a.x - b.x)) {
+    for (const m of opts.markers.toSorted((a, b) => a.x - b.x)) {
       const px = x.getPixelForValue(m.x);
       if (px < area.left || px > area.right) continue;
       ctx.beginPath();
@@ -300,6 +302,8 @@ export function LineChart({ title, xLabel, yLabel, series, spans = NO_SPANS, mar
   const [zoomed, setZoomed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const expandedRef = useRef(false);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   const tec = useContext(LessonTypeContext) === "estes";
   const unit = yLabel.match(/\(([^)]+)\)/)?.[1] ?? "";
   const xUnit = xLabel.match(/\(([^)]+)\)/)?.[1] ?? "";
@@ -349,7 +353,8 @@ export function LineChart({ title, xLabel, yLabel, series, spans = NO_SPANS, mar
       },
     });
     return () => chart.current?.destroy();
-  }, [xLabel, yLabel, unit, xUnit]);
+    // `expanded`: the full-screen view draws on its own canvas, inside the dialog.
+  }, [xLabel, yLabel, unit, xUnit, expanded]);
 
   /** Puts the data and the axis limits of the props on the chart (also undoes any zoom). */
   const apply = useCallback(() => {
@@ -390,7 +395,7 @@ export function LineChart({ title, xLabel, yLabel, series, spans = NO_SPANS, mar
 
   useEffect(() => {
     apply();
-  }, [apply, xLabel, yLabel]);
+  }, [apply, xLabel, yLabel, expanded]);
 
   useEffect(() => {
     const c = chart.current;
@@ -402,30 +407,47 @@ export function LineChart({ title, xLabel, yLabel, series, spans = NO_SPANS, mar
       ds.borderWidth = lineWidth({ bold: flags.$bold, thin: flags.$thin }, expanded, tec);
     }
     c.update("none");
-    if (!expanded) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setExpanded(false);
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    addEventListener("keydown", onKey);
-    return () => {
-      removeEventListener("keydown", onKey);
-      document.body.style.overflow = overflow;
-    };
   }, [expanded, xLabel, yLabel, tec]);
 
+  // The full-screen view is a native modal <dialog> (Google's modern-web-guidance "dialog"): the browser makes the
+  // page behind inert, keeps the focus inside, closes it with Esc or the back gesture, and gives the focus back to
+  // Ampliar, which stays on the page.
+  useLayoutEffect(() => {
+    const d = dialog.current;
+    if (expanded && d && !d.open) d.showModal();
+  }, [expanded]);
+
   return (
-    <figure className={`line-chart ${expanded ? "expanded" : ""}`} role={expanded ? "dialog" : undefined} aria-modal={expanded || undefined} aria-label={expanded ? title : undefined}>
-      <div className="chart-head">
-        <figcaption className="chart-title">{title}</figcaption>
-        <div className="chart-tools no-print">
-          {zoomed && <button type="button" className="chart-tool" onClick={apply} title="Vuelve a la vista completa">↺ Restablecer zoom</button>}
-          <button type="button" className="chart-tool" onClick={() => setExpanded(!expanded)} title={expanded ? "Cerrar (Esc)" : "Ver la gráfica en pantalla completa, con letras grandes. Para acercar una zona, arrastra sobre la gráfica."}>
-            {expanded ? "✕ Cerrar" : "⤢ Ampliar"}
-          </button>
+    <>
+      <figure className={`line-chart ${height === "fill" ? "fill" : ""}`}>
+        <div className="chart-head">
+          <figcaption className="chart-title">{title}</figcaption>
+          <div className="chart-tools no-print">
+            {zoomed && !expanded && <button type="button" className="chart-tool" onClick={apply} title="Vuelve a la vista completa">↺ Restablecer zoom</button>}
+            <button type="button" className="chart-tool" onClick={() => setExpanded(true)} title="Ver la gráfica en pantalla completa, con letras grandes. Para acercar una zona, arrastra sobre la gráfica.">
+              ⤢ Ampliar
+            </button>
+          </div>
         </div>
-      </div>
-      <div className="chart-box" style={expanded ? undefined : { height }}><canvas ref={canvas} /></div>
-      {expanded && <p className="chart-help">Arrastra sobre la gráfica para acercar una zona · Shift + arrastrar para moverte · Esc para cerrar</p>}
-    </figure>
+        <div className="chart-box" style={height === "fill" ? undefined : { height }}>{!expanded && <canvas ref={canvas} />}</div>
+      </figure>
+      {expanded &&
+        createPortal(
+          <dialog ref={dialog} className="chart-dialog" aria-labelledby={titleId} onClose={() => setExpanded(false)}>
+            <figure className="line-chart expanded">
+              <div className="chart-head">
+                <figcaption className="chart-title" id={titleId}>{title}</figcaption>
+                <div className="chart-tools no-print">
+                  {zoomed && <button type="button" className="chart-tool" onClick={apply}>↺ Restablecer zoom</button>}
+                  <button type="button" className="chart-tool" autoFocus onClick={() => dialog.current?.close()}>✕ Cerrar</button>
+                </div>
+              </div>
+              <div className="chart-box"><canvas ref={canvas} /></div>
+              <p className="chart-help">Arrastra sobre la gráfica para acercar una zona · Shift + arrastrar para moverte · Esc para cerrar</p>
+            </figure>
+          </dialog>,
+          document.body,
+        )}
+    </>
   );
 }

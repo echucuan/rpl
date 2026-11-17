@@ -44,7 +44,7 @@ export function RocketView({ design: d, loaded, empty, zoom }: { design: Design;
   }
   top.push([l.bodyStart, d.body.diameter / 2], [l.bodyEnd, d.body.diameter / 2]);
   if (l.tailLength > 0) top.push([l.length, l.aftDiameter / 2]);
-  const outline = [...top, ...[...top].reverse().map(([x, y]) => [x, -y] as [number, number])]
+  const outline = [...top, ...top.toReversed().map(([x, y]) => [x, -y] as [number, number])]
     .map(([x, y]) => `${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
 
   const rb = d.body.diameter / 2;

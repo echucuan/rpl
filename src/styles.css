@@ -243,7 +243,11 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0 
 .chart-head .chart-title { margin-bottom: 4px; }
 .chart-tool { line-height: 1.2; }
 .chart-help { margin: 8px 0 0; color: #5b6270; }
-.line-chart.expanded { position: fixed; inset: 0; z-index: 1000; background: #fff; padding: 20px 28px; display: flex; flex-direction: column; }
+/* Ampliar: a native modal dialog over the whole screen. */
+.chart-dialog { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #fff; }
+.chart-dialog:modal { overscroll-behavior: contain; }
+.chart-dialog::backdrop { overflow: hidden; overscroll-behavior: contain; background: #0f1b3d66; }
+.line-chart.expanded { height: 100%; box-sizing: border-box; background: #fff; padding: 20px 28px; display: flex; flex-direction: column; }
 .line-chart.expanded .chart-title { font-size: 1.8rem; }
 .line-chart.expanded .chart-tool { font-size: 1.1rem; padding: 6px 14px; }
 .line-chart.expanded .chart-box { flex: 1; height: auto; min-height: 0; }
@@ -432,13 +436,13 @@ table.summary td.val { text-align: right; }
 }
 .menu-row button:hover { border-color: var(--tec-blue); color: var(--tec-blue); background: var(--tec-blue-soft); }
 .menu-row.main button { min-width: 150px; justify-content: center; font-size: 1rem; }
-.menu-row.main button[aria-selected="true"] { background: var(--tec-blue); border-color: var(--tec-blue); color: #fff; }
+.menu-row.main button[aria-current] { background: var(--tec-blue); border-color: var(--tec-blue); color: #fff; }
 .menu-row.phases { border-top: 1px solid var(--line); padding-top: 10px; width: 100%; }
 .menu-label { width: 100%; text-align: center; font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .menu-row.phases button { font-size: 0.9rem; padding: 7px 14px; border-left: 4px solid var(--phase); }
-.menu-row.phases button[aria-selected="true"] { background: var(--phase); border-color: var(--phase); color: #fff; }
+.menu-row.phases button[aria-current] { background: var(--phase); border-color: var(--phase); color: #fff; }
 .phase-dot { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--phase); color: #fff; font-size: 0.8rem; }
-.menu-row.phases button[aria-selected="true"] .phase-dot { background: #fff; color: var(--phase); }
+.menu-row.phases button[aria-current] .phase-dot { background: #fff; color: var(--phase); }
 @media (max-width: 700px) {
   .menu-row.main button { min-width: 0; flex: 1 1 40%; }
   .program-banner { flex-wrap: wrap; }
@@ -463,7 +467,7 @@ table.summary td.val { text-align: right; }
   transition: background 0.15s ease, color 0.15s ease;
 }
 .main-nav button:hover { color: var(--tec-blue); background: var(--tec-blue-soft); }
-.main-nav button[aria-selected="true"] { background: var(--tec-blue); color: #fff; }
+.main-nav button[aria-current] { background: var(--tec-blue); color: #fff; }
 .main-nav button:focus-visible { outline: 3px solid var(--tec-blue); outline-offset: 2px; }
 .main-nav .tab-logo { width: 22px; height: 22px; margin: 0; vertical-align: 0; }
 .site-hero {
@@ -825,7 +829,7 @@ table.summary th.q-F, table.summary td.q-F { color: var(--q-F); }
 /* Phase tabs show when each phase happens (the lessons no longer repeat the phases as cards). */
 .phase-tab-text { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.15; text-align: left; }
 .phase-tab-text small { font-size: 0.7rem; font-weight: 500; color: var(--muted); }
-.menu-row.phases button[aria-selected="true"] .phase-tab-text small { color: #ffffffd9; }
+.menu-row.phases button[aria-current] .phase-tab-text small { color: #ffffffd9; }
 .menu-row.phases button.missing { opacity: 0.6; }
 .menu-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
 .menu-row.phases .sim-tab .phase-dot { font-size: 0.65rem; padding-left: 2px; }
@@ -917,7 +921,7 @@ table.summary th.q-F, table.summary td.q-F { color: var(--q-F); }
 .menu-row.main .tab-icon { font-size: 2.4rem; }
 .tab-text { display: flex; flex-direction: column; align-items: flex-start; font-size: 1.3rem; font-weight: 800; line-height: 1.15; }
 .tab-text small { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
-.menu-row.main button[aria-selected="true"] .tab-text small { color: #dbe4f6; }
+.menu-row.main button[aria-current] .tab-text small { color: #dbe4f6; }
 @media (max-width: 640px) { .menu-row.main button { min-width: 0; flex: 1 1 100%; } }
 
 /* Workspace: one title bar with the program (left), the app title (centre) and the actions (right). */
@@ -1156,8 +1160,8 @@ table.summary th.q-F, table.summary td.q-F { color: var(--q-F); }
 }
 @media (max-width: 1099px) { .menu-row.main .tab-text small { white-space: normal; } }
 /* Motor, Cohete and Estabilidad keep one background; the open one is marked by its blue outline and title. Only Go for launch is green. */
-.menu-row.main button[role="tab"][aria-selected="true"] { background: var(--page); border-color: var(--tec-blue); color: var(--tec-blue); box-shadow: inset 0 0 0 1px var(--tec-blue); }
-.menu-row.main button[role="tab"][aria-selected="true"] .tab-text small { color: var(--muted); }
+.menu-row.main button[aria-current] { background: var(--page); border-color: var(--tec-blue); color: var(--tec-blue); box-shadow: inset 0 0 0 1px var(--tec-blue); }
+.menu-row.main button[aria-current] .tab-text small { color: var(--muted); }
 
 /* Fin sketch in the design form: which measurement is A, B, C and D. */
 .fin-sketch { margin: 4px 0 2px; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--page); color: var(--ink); }
@@ -1394,12 +1398,12 @@ main:has(> .program-banner) { min-height: 100vh; }
 .menu-row.phases .phase-tab-text { font-size: 0.95rem; line-height: 1.1; }
 .menu-row.phases .phase-tab-text small { font-size: 0.75rem; }
 /* The open sub-step is outlined in its colour, like the open main step: only Go for launch is a filled button. */
-.menu-row.phases button[aria-selected="true"] {
+.menu-row.phases button[aria-current] {
   background: color-mix(in srgb, var(--phase) 9%, var(--surface)); color: var(--phase);
   border-color: var(--phase); box-shadow: inset 0 0 0 1px var(--phase);
 }
-.menu-row.phases button[aria-selected="true"] .phase-dot { background: var(--phase); color: #fff; }
-.menu-row.phases button[aria-selected="true"] .phase-tab-text small { color: var(--muted); }
+.menu-row.phases button[aria-current] .phase-dot { background: var(--phase); color: #fff; }
+.menu-row.phases button[aria-current] .phase-tab-text small { color: var(--muted); }
 
 /* A sub-row on its own (main steps scrolled away): its parent step as a small button at the left. */
 main:has(> .program-banner) { min-height: calc(100vh + 160px); }
@@ -1589,7 +1593,7 @@ main:has(> .program-banner) { min-height: calc(100vh + 160px); }
 .chute-cd details.more summary { font-size: 0.8rem; }
 /* Cohete's six steps: equal buttons on a single row; long names and notes are cut (the whole note is the tooltip). */
 .rocket-steps .sub-steps { flex-wrap: nowrap; width: 100%; }
-.rocket-steps .sub-steps > button[role="tab"] { flex: 1 1 0; min-width: 0; padding: 0 8px 0 6px; gap: 6px; }
+.rocket-steps .sub-steps > button { flex: 1 1 0; min-width: 0; padding: 0 8px 0 6px; gap: 6px; }
 .menu-row.phases.rocket-steps .phase-tab-text { font-size: 0.88rem; }
 .rocket-steps .phase-tab-text { display: flex; min-width: 0; flex: 1 1 auto; }
 .rocket-steps .phase-tab-text > .step-name,
@@ -1604,15 +1608,28 @@ main:has(> .program-banner) { min-height: calc(100vh + 160px); }
   position: fixed; z-index: 1000; width: max-content; max-width: min(360px, calc(100vw - 16px));
   background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius);
   box-shadow: 0 12px 32px #0f1b3d40; padding: 12px 14px; text-align: left;
-  pointer-events: none; animation: note-in 0.12s ease-out;
+  animation: note-in 0.12s ease-out;
 }
+/* The arrow towards what the note explains (--arrow-x from its position). */
+.note-window::before {
+  content: ""; position: absolute; left: var(--arrow-x, 20px); width: 10px; height: 10px;
+  background: var(--surface); border: 1px solid var(--line); transform: translateX(-50%) rotate(45deg);
+}
+.note-window.below::before { top: -6px; border-right: 0; border-bottom: 0; }
+.note-window.above::before { bottom: -6px; border-left: 0; border-top: 0; }
+/* The gap between the field and its note counts as the note, so the pointer can cross it. */
+.note-window::after { content: ""; position: absolute; left: 0; right: 0; height: 12px; }
+.note-window.below::after { top: -12px; }
+.note-window.above::after { bottom: -12px; }
+@media (prefers-reduced-motion: reduce) { .note-window { animation: none; } }
 .note-title { color: var(--tec-blue); font-weight: 700; font-size: 0.95rem; line-height: 1.25; margin-bottom: 6px; }
 .note-body { font-size: 0.85rem; line-height: 1.45; }
 .note-body p { margin: 0; }
 .note-body p + p { margin-top: 6px; }
 @keyframes note-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 .note-mark { color: var(--tec-blue); opacity: 0.7; font-size: 0.85em; }
-.info-tip { cursor: help; color: var(--muted); font-size: 0.82rem; outline: none; border-radius: 4px; }
+.info-tip { cursor: help; color: var(--muted); font-size: 0.82rem; outline: none; border-radius: 4px; background: none; border: 0; padding: 0; font-family: inherit; text-align: inherit; }
+.info-tip[aria-expanded="true"] { color: var(--tec-blue); }
 .info-tip:focus-visible { box-shadow: 0 0 0 2px var(--tec-blue-soft); }
 .info-tip.full { grid-column: 1 / -1; }
 
@@ -1624,3 +1641,124 @@ main:has(> .program-banner) { min-height: calc(100vh + 160px); }
 .zoom-key li::before { content: ""; position: absolute; left: 0; top: 0.45em; width: 8px; height: 8px; border-radius: 2px; background: #5b6270; }
 .zoom-key li.main { color: var(--tec-blue); font-weight: 700; }
 .zoom-key li.main::before { background: var(--tec-blue); }
+
+/* Elige tu motor, all in one screen: pickers and note on top; figures and its thrust curve below. */
+.motor-explorer { padding-top: 10px; padding-bottom: 10px; }
+.motor-explorer .explorer-top { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; align-items: end; }
+.motor-explorer .explorer-picks { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; }
+.explorer-note { margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--warn-soft); color: #5c3a00; font-size: .8rem; line-height: 1.3; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+.explorer-note p { margin: 0; }
+.explorer-note span, .explorer-note small { display: block; }
+.explorer-note small { font-size: .72rem; opacity: .85; margin-top: 2px; }
+.explorer-note.ok { display: block; background: var(--ok-soft); color: #11552a; }
+.explorer-note .btn { white-space: nowrap; }
+.motor-explorer .explorer-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: center; margin-top: 10px; }
+.motor-explorer .explorer-body .motor-sheet { margin: 0; }
+.motor-explorer .explorer-body .motor-sheet { gap: 6px; }
+.motor-explorer .explorer-key .motor-specs { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.motor-explorer .explorer-measures .motor-specs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.motor-explorer .explorer-body .motor-specs > div { min-height: 0; padding: 4px 8px; }
+.motor-explorer .explorer-body .motor-alt { font-size: .7rem; line-height: 1.2; }
+.motor-explorer .explorer-body .motor-specs dt { min-height: 0; }
+.motor-explorer .explorer-body .motor-specs dd { font-size: 1.3rem; margin-top: 1px; }
+@media (max-width: 1100px) {
+  .motor-explorer .explorer-top, .motor-explorer .explorer-body { grid-template-columns: minmax(0, 1fr); }
+  .motor-explorer .explorer-picks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Prueba estática before any test: the two tips and the upload side by side, in one row. */
+@media (min-width: 900px) {
+  .mide-empty .mide-left { display: grid; grid-template-columns: minmax(0, 2.8fr) minmax(0, 1fr); gap: 0 14px; align-items: start; }
+  .mide-empty .tips-row details.more { margin-top: 0; }
+  .mide-empty .dropzone { margin-top: 0; }
+  .mide-empty .btn-row { flex-direction: column; align-items: stretch; text-align: center; }
+  .static-test .lesson-head h2 { flex: none; }
+  .static-test .lesson-head p { flex: 1 1 420px; max-width: none; }
+}
+
+/* Compara: the two explanations open over the page (like every note), so the page never grows. */
+.cmp-side > p.cmp-tips { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 8px 0 0; font-size: .88rem; color: var(--tec-blue); }
+.note-body p { margin: 0 0 6px; }
+/* Prueba before any test: the upload as tall as the two tips beside it. */
+@media (min-width: 900px) {
+  .mide-empty .mide-upload { display: flex; flex-direction: column; gap: 8px; align-self: stretch; }
+  .mide-empty .mide-upload .dropzone { flex: 1; }
+  .mide-empty .mide-upload .btn-row { margin-top: 0 !important; }
+  /* Decide: the three choices in one row above the chart of the thrust they use. */
+  .decide-grid .thrust-model.three { flex-direction: row; }
+  .decide-grid .thrust-model.three .btn { flex: 1 1 0; min-height: 50px; }
+}
+/* Prueba with tests: the two closed tips side by side, the upload, then the chart of the readings; the list on the right. */
+@media (min-width: 900px) {
+  .mide-grid .tips-row { grid-template-columns: 1fr 1fr; }
+  .mide-grid .tips-row details.more { margin: 0; }
+  .mide-grid .btn-row { flex-wrap: nowrap; }
+  .mide-grid .btn-row .btn { white-space: nowrap; flex: none; }
+  .mide-grid .btn-row .hint { font-size: .8rem; line-height: 1.25; margin: 0; }
+  .mide-grid .line-chart { margin-top: 8px; }
+}
+
+/* Elige opens in the steps view (the main menu scrolled away), so it has a full screen: roomier figures, a taller curve. */
+.motor-explorer .explorer-body { align-items: stretch; margin-top: 0; }
+.motor-explorer .explorer-body .motor-sheet { display: flex; flex-direction: column; gap: 10px; }
+.motor-explorer .explorer-body .motor-group { flex: 1; display: flex; }
+.motor-explorer .explorer-body .motor-group .motor-specs { flex: 1; gap: 10px; }
+.motor-explorer .explorer-body .motor-specs > div { padding: 10px 12px; }
+.motor-explorer .explorer-body .motor-specs dd { font-size: 1.6rem; margin-top: 4px; }
+.motor-explorer .explorer-body .motor-alt { font-size: .8rem; line-height: 1.25; }
+.motor-explorer .explorer-body .explorer-key { flex: 2 1 0; }
+.motor-explorer .explorer-body .explorer-measures { flex: 1 1 0; }
+.motor-explorer .explorer-body .motor-specs { grid-auto-rows: 1fr; }
+
+/* Decide: choices and chart on the left; predictions, the explanation and the notes on the right, both tops aligned. */
+.decide-grid > div > :first-child { margin-top: 0; }
+.decide-grid details.more { margin-top: 0; }
+.decide-grid > div:last-child { display: flex; flex-direction: column; gap: 10px; }
+.decide-grid > div:last-child > * { margin: 0; }
+.decide-grid { align-items: stretch; }
+.decide-grid > div:last-child > details.more[open] { flex: 1; }
+
+/* ===== The stage (src/ui/stage.tsx): every page of a step in the same window, without scrolling. =====
+   The stage's height comes from the screen; inside it nothing has a height in pixels:
+   stage-fill takes what is left, stage-cols are two columns that end together, stage-scroll scrolls inside. */
+@media (min-width: 900px) {
+  .step-stage { height: var(--stage-h, auto); box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+  .step-stage > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+  .stage-fill { flex: 1 1 0; min-height: 0; }
+  .stage-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 14px 20px; align-items: stretch; }
+  .stage-cols > * { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .stage-cols > * > * { margin-top: 0; margin-bottom: 0; }
+  .stage-scroll { overflow: auto; min-height: 0; }
+  .line-chart.fill { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+  .line-chart.fill .chart-box { flex: 1 1 0; height: auto; min-height: 120px; }
+  /* The head of a step page: one line, the same height on every page (its text is short). */
+  .step-head { height: 58px; box-sizing: border-box; flex-wrap: nowrap !important; align-items: center !important; overflow: hidden; }
+  .step-head p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  /* While developing: a stage whose content does not fit. */
+  .step-stage[data-overflow] { outline: 3px dashed #d33; outline-offset: -3px; }
+
+  /* Prueba */
+  .mide-empty { display: flex; }
+  .mide-empty .mide-left { flex: 1; align-items: stretch; }
+  .mide-empty .tips-row { align-items: stretch; }
+  .mide-empty .tips-row details.more { margin: 0; }
+  .mide-grid .tips-row details.more { margin: 0; }
+  .mide-grid .dropzone { margin-top: 0; }
+  /* Decide: the explanation takes the room left in its column and scrolls inside if it needs to. */
+  .decide-grid > div:last-child > details.more[open] { flex: 1 1 0; min-height: 0; overflow: auto; }
+  .cmp-side .chart-key { margin-top: 0; }
+}
+.why-note { padding: 8px 12px; border-radius: 8px; background: var(--tec-blue-soft); color: var(--ink); font-size: .92rem; line-height: 1.4; }
+
+/* Step change: the old step fades, the new one slides in from the reading direction (Workspace.go). */
+.step-page { view-transition-name: step-page; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-group(step-page) { animation: none; }
+::view-transition-old(step-page) { animation: vt-fade-out 120ms ease-out both; }
+::view-transition-new(step-page) { animation: vt-slide-in 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both; --vt-from: 24px; }
+:active-view-transition-type(backward)::view-transition-new(step-page) { --vt-from: -24px; }
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-slide-in { from { opacity: 0; transform: translateX(var(--vt-from)); } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}

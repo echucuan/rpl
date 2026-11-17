@@ -5,25 +5,99 @@ import { createPortal } from "react-dom";
  * A note that opens in a small window while the pointer is over its field (or the field has the focus, e.g. on a
  * phone): explanations stay out of the form until they are wanted. It is drawn over the page, below the field (above
  * it when there is no room), so a scrolling form never cuts it.
+ *
+ * How every note behaves (WCAG 1.4.13, as in Google's modern-web-guidance "interest-triggered-tooltips"):
+ * - it opens after a short pause under the pointer (at once with the keyboard focus, or when another note is open),
+ *   so sweeping the mouse across a form does not flash a note on every field;
+ * - the pointer can move onto the note and stay there (to read it, or with a magnifier) without it closing;
+ * - Esc closes it, and only one note is open at a time;
+ * - an ⓘ text (InfoTip) is a button: a click or a tap keeps its note open until a click elsewhere or Esc.
+ * The native interestfor / popover="hint" / anchor positioning do this too, but not yet in Firefox and Safari.
  */
-type NotePos = { left: number; top?: number; bottom?: number };
+type NotePos = { left: number; top?: number; bottom?: number; arrow: number; side: "below" | "above" };
+
+const NOTE_WIDTH = 360;
+const OPEN_DELAY = 220; // ms under the pointer before a note opens
+const CLOSE_DELAY = 160; // ms to reach the note with the pointer before it closes
 
 /** Where a note opens for an element: under it, or over it when there is more room above; always inside the window. */
 function notePosition(el: Element): NotePos {
   const r = el.getBoundingClientRect();
-  const w = Math.min(360, window.innerWidth - 16);
+  const w = Math.min(NOTE_WIDTH, window.innerWidth - 16);
   const left = Math.min(Math.max(r.left, 8), window.innerWidth - w - 8);
+  // The arrow points at the start of the field (its label), or at the middle of a short element.
+  const arrow = Math.min(Math.max(r.left + Math.min(r.width / 2, 28) - left, 14), w - 14);
   const below = window.innerHeight - r.bottom;
-  return below > 180 || below > r.top ? { left, top: r.bottom + 8 } : { left, bottom: window.innerHeight - r.top + 8 };
+  return below > 180 || below > r.top
+    ? { left, top: r.bottom + 10, arrow, side: "below" }
+    : { left, bottom: window.innerHeight - r.top + 10, arrow, side: "above" };
+}
+
+/** The note that is open now: opening another closes it. */
+let openNote: { close: () => void } | null = null;
+
+/** Opening, closing and keeping one note open, with the timing and the keys above. */
+function useNoteWindow<T>() {
+  const [shown, setShown] = useState<T | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  const pinned = useRef(false);
+  const self = useRef({ close: () => { pinned.current = false; setShown(null); } });
+  const clear = () => window.clearTimeout(timer.current);
+  const open = (value: T, now = false) => {
+    clear();
+    const go = () => {
+      if (openNote && openNote !== self.current) openNote.close();
+      openNote = self.current;
+      setShown(value);
+    };
+    if (now || openNote) go();
+    else timer.current = window.setTimeout(go, OPEN_DELAY);
+  };
+  const close = (now = false) => {
+    clear();
+    if (pinned.current && !now) return;
+    const go = () => {
+      if (openNote === self.current) openNote = null;
+      pinned.current = false;
+      setShown(null);
+    };
+    if (now) go();
+    else timer.current = window.setTimeout(go, CLOSE_DELAY);
+  };
+  const pin = (value: T) => { pinned.current = true; open(value, true); };
+  useEffect(() => {
+    if (!shown) return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") close(true); };
+    const away = () => close(true);
+    window.addEventListener("keydown", key);
+    window.addEventListener("scroll", away, true);
+    window.addEventListener("resize", away);
+    return () => {
+      window.removeEventListener("keydown", key);
+      window.removeEventListener("scroll", away, true);
+      window.removeEventListener("resize", away);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown]);
+  useEffect(() => () => { clear(); if (openNote === self.current) openNote = null; }, []);
+  // On the note itself: the pointer can rest there without the note closing.
+  const windowHandlers = { onMouseEnter: clear, onMouseLeave: () => close() };
+  return { shown, open, close, pin, pinned, windowHandlers };
 }
 
 /**
  * The window every note of RPL opens in (the same look as "¿Dónde está la masa?"): a card with the name of what it
- * explains in blue, then the explanation.
+ * explains in blue, then the explanation, with a small arrow towards what it explains.
  */
-function NoteWindow({ id, pos, heading, children }: { id?: string; pos: NotePos; heading?: ReactNode; children: ReactNode }) {
+function NoteWindow({ id, pos, heading, children, handlers }: { id?: string; pos: NotePos; heading?: ReactNode; children: ReactNode; handlers?: { onMouseEnter: () => void; onMouseLeave: () => void } }) {
   return createPortal(
-    <div className="note-window" id={id} role="tooltip" style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}>
+    <div
+      className={`note-window ${pos.side}`}
+      id={id}
+      role="tooltip"
+      style={{ left: pos.left, top: pos.top, bottom: pos.bottom, ["--arrow-x" as string]: `${pos.arrow}px` }}
+      {...handlers}
+    >
       {heading && <div className="note-title">{heading}</div>}
       <div className="note-body">{children}</div>
     </div>,
@@ -37,34 +111,54 @@ const cleanLabel = (label: string) => label.replace(/[🔒ⓘ]/gu, "").trim();
 export function useNote(note: ReactNode, heading?: ReactNode) {
   const ref = useRef<HTMLElement | null>(null);
   const id = useId();
-  const [pos, setPos] = useState<NotePos | null>(null);
-  const show = () => {
-    const el = ref.current;
-    if (!el || !note) return;
-    setPos(notePosition(el));
-  };
-  const hide = () => setPos(null);
+  const w = useNoteWindow<NotePos>();
+  const at = () => (ref.current && note ? notePosition(ref.current) : null);
+  const show = (now: boolean) => { const p = at(); if (p) w.open(p, now); };
+  // A click elsewhere closes a note kept open with a click.
   useEffect(() => {
-    if (!pos) return;
-    window.addEventListener("scroll", hide, true);
-    window.addEventListener("resize", hide);
-    return () => { window.removeEventListener("scroll", hide, true); window.removeEventListener("resize", hide); };
-  }, [pos]);
-  const popup = note && pos ? <NoteWindow id={id} pos={pos} heading={heading}>{note}</NoteWindow> : null;
-  return { ref, popup, describedBy: pos ? id : undefined, handlers: note ? { onMouseEnter: show, onMouseLeave: hide, onFocus: show, onBlur: hide } : {} };
+    if (!w.shown) return;
+    const down = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (ref.current?.contains(t) || (t instanceof Element && t.closest(".note-window"))) return;
+      w.close(true);
+    };
+    document.addEventListener("pointerdown", down);
+    return () => document.removeEventListener("pointerdown", down);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w.shown]);
+  const popup = note && w.shown ? <NoteWindow id={id} pos={w.shown} heading={heading} handlers={w.windowHandlers}>{note}</NoteWindow> : null;
+  return {
+    ref,
+    popup,
+    describedBy: w.shown ? id : undefined,
+    open: !!w.shown,
+    /** Keep the note open (a click on an ⓘ), or close it if it was kept open. */
+    toggle: () => { if (w.shown && w.pinned.current) w.close(true); else { const p = at(); if (p) w.pin(p); } },
+    handlers: note ? { onMouseEnter: () => show(false), onMouseLeave: () => w.close(), onFocus: () => show(true), onBlur: () => w.close() } : {},
+  };
 }
 
 /** The ⓘ after a label that has a note (a 🔒 already says there is one). */
 const noteMark = (label: string, note: ReactNode) => (note && !label.includes("🔒") ? <span className="note-mark" aria-hidden="true"> ⓘ</span> : null);
 
-/** A bit of text with a note that opens over it, for notes that belong to no field. */
+/**
+ * A bit of text with a note, for notes that belong to no field: the pointer or the focus shows it, and a click or a
+ * tap keeps it open (a "toggletip").
+ */
 export function InfoTip({ children, note, heading, className }: { children: ReactNode; note: ReactNode; heading?: ReactNode; className?: string }) {
   const n = useNote(note, heading);
   return (
-    <span ref={n.ref as React.RefObject<HTMLSpanElement>} className={`info-tip ${className ?? ""}`} tabIndex={0} aria-describedby={n.describedBy} {...n.handlers}>
+    <button
+      type="button"
+      ref={n.ref as React.RefObject<HTMLButtonElement>}
+      className={`info-tip ${className ?? ""}`}
+      aria-expanded={n.open}
+      onClick={n.toggle}
+      {...n.handlers}
+    >
       {children}<span className="note-mark" aria-hidden="true"> ⓘ</span>
       {n.popup}
-    </span>
+    </button>
   );
 }
 
@@ -229,6 +323,8 @@ export function NumField({ label, value, onChange, unit, min, max, digits = 2, c
           id={id}
           aria-describedby={note.describedBy}
           inputMode="decimal"
+          enterKeyHint="done"
+          autoComplete="off"
           readOnly={readOnly}
           aria-readonly={readOnly}
           value={text}
@@ -334,7 +430,9 @@ export function Section({ title, summary, warn, children, open = false }: { titl
  * tooltip: the text moves to `data-note` the first time the pointer or the focus reaches the element.
  */
 export function NoteLayer() {
-  const [shown, setShown] = useState<{ el: Element; pos: NotePos; text: string } | null>(null);
+  const w = useNoteWindow<{ el: Element; pos: NotePos; text: string }>();
+  // The element whose note is open or about to open.
+  const current = useRef<Element | null>(null);
   useEffect(() => {
     const find = (t: EventTarget | null) => {
       const el = t instanceof Element ? t.closest("[title], [data-note]") : null;
@@ -346,32 +444,44 @@ export function NoteLayer() {
       }
       return el.getAttribute("data-note") ? el : null;
     };
-    const open = (e: Event) => {
+    const opener = (now: boolean) => (e: Event) => {
       const el = find(e.target);
-      if (!el) return;
-      setShown((s) => (s?.el === el ? s : { el, pos: notePosition(el), text: el.getAttribute("data-note")! }));
+      if (!el || el === current.current) return;
+      current.current = el;
+      w.open({ el, pos: notePosition(el), text: el.getAttribute("data-note")! }, now);
     };
-    const close = (e: Event) => {
+    const onOver = opener(false);
+    const onFocus = opener(true);
+    const leave = (e: Event) => {
+      const el = current.current;
       const next = (e as MouseEvent | FocusEvent).relatedTarget;
-      setShown((s) => (s && !(next instanceof Node && s.el.contains(next)) && (e.target instanceof Node && s.el.contains(e.target)) ? null : s));
+      if (!el || !(e.target instanceof Node && el.contains(e.target)) || (next instanceof Node && el.contains(next))) return;
+      // Into its open note: keep it. Otherwise close it (after a moment, so the pointer can reach the note).
+      if (next instanceof Element && next.closest(".note-window")) return;
+      current.current = null;
+      w.close(e.type === "focusout");
     };
-    const hide = () => setShown(null);
-    document.addEventListener("mouseover", open);
-    document.addEventListener("focusin", open);
-    document.addEventListener("mouseout", close);
-    document.addEventListener("focusout", close);
-    document.addEventListener("pointerdown", hide);
-    window.addEventListener("scroll", hide, true);
+    const down = (e: PointerEvent) => {
+      if (e.target instanceof Element && e.target.closest(".note-window")) return;
+      current.current = null;
+      w.close(true);
+    };
+    document.addEventListener("mouseover", onOver);
+    document.addEventListener("focusin", onFocus);
+    document.addEventListener("mouseout", leave);
+    document.addEventListener("focusout", leave);
+    document.addEventListener("pointerdown", down);
     return () => {
-      document.removeEventListener("mouseover", open);
-      document.removeEventListener("focusin", open);
-      document.removeEventListener("mouseout", close);
-      document.removeEventListener("focusout", close);
-      document.removeEventListener("pointerdown", hide);
-      window.removeEventListener("scroll", hide, true);
+      document.removeEventListener("mouseover", onOver);
+      document.removeEventListener("focusin", onFocus);
+      document.removeEventListener("mouseout", leave);
+      document.removeEventListener("focusout", leave);
+      document.removeEventListener("pointerdown", down);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const shown = w.shown;
   // A note whose element left the page closes with it.
-  if (shown && !shown.el.isConnected) return null;
-  return shown ? <NoteWindow pos={shown.pos}>{shown.text}</NoteWindow> : null;
+  if (!shown || !shown.el.isConnected) return null;
+  return <NoteWindow pos={shown.pos} handlers={w.windowHandlers}>{shown.text}</NoteWindow>;
 }

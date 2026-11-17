@@ -352,6 +352,8 @@ export function CopilotPanel({ design }: { design: Design | null }) {
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
+                      // Enter that confirms a word in an input method (Japanese, Chinese…) is not "send".
+                      if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                       send(draft);
                     }
                   }}
