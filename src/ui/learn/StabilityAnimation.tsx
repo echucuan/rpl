@@ -1,10 +1,28 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SheepLayer, useFallingSheep } from "./FallingSheep";
+import { Mascot, type MascotMood } from "../mascot/Mascot";
 
-const ROCKET_ICON = `${import.meta.env.BASE_URL}rocket-tec/cohete-isotipo.png`;
-// Icon: 160 × 265 px, nose tip at y = 12, end of the fins at y = 192. One caliber (body diameter) is about 46 px.
-const ICON = { w: 160, h: 265, cx: 80, cg: 100, cal: 46 };
-const SCALE = 0.82;
+/*
+ * The rocket is Rocky, the mascot (drawn at 140 × 195, its centre line at x = 60 of its own canvas, which starts at -10).
+ * The CM sits just under his mouth, so the markers never cover his eye; one caliber is 20 px, so a CP 2 calibers
+ * behind lands at the end of his fins.
+ */
+const ROCKY = { size: 195, cx: 70, cg: 112, cal: 20 };
+/** The CP is drawn between 1.2 calibers ahead (just under his eye) and 3 behind (on his flame). */
+const CP_RANGE = { min: -1.2, max: 3 };
+
+/**
+ * Rocky's face follows how the air meets him: calm while the body points into the air, puzzled when it flies
+ * a little crooked, and scared when the air hits him from the side (he is losing his stability).
+ */
+function moodOf(c: Case, theta: number, wind: number, omega: number): MascotMood {
+  const aoa = Math.abs(Math.atan2(Math.sin(theta - airAngle(wind)), Math.cos(theta - airAngle(wind)))); // rad
+  const deg = (aoa * 180) / Math.PI;
+  if (deg > 22 || Math.abs(omega) > 2.5) return "scared";
+  if (deg > 7) return "confused";
+  if (c.margin >= 1 && Math.abs(wind) >= 2) return "happy";
+  return "idle";
+}
 // Panel: the centre of gravity stays at the middle of the panel and the rocket turns around it.
 const P = { w: 240, h: 300, x: 120, y: 150 };
 
@@ -32,7 +50,9 @@ function myCase(m: number): Case {
     verdict: "Tu cohete es estable, pero justo: se endereza despacio y una ráfaga lo hace cabecear mucho. Lo recomendado es de 1 a 2 calibres." };
   if (m <= 2) return { ...base, damping: 0.35, tone: "good", title: `Tu cohete: CP ${cal(m)} cal detrás del CM`,
     verdict: "Tu cohete es estable: con una ráfaga gira la ojiva hacia el viento y regresa a la vertical." };
-  return { ...base, damping: 0.35, tone: "good", title: `Tu cohete: CP ${cal(m)} cal detrás del CM`,
+  if (m <= 3) return { ...base, damping: 0.35, tone: "good", title: `Tu cohete: CP ${cal(m)} cal detrás del CM`,
+    verdict: "Tu cohete es estable: con una ráfaga regresa a la vertical. Está un poco arriba de la meta de 1 a 2 calibres, así que con viento fuerte apuntará contra él." };
+  return { ...base, damping: 0.35, tone: "warn", title: `Tu cohete: CP ${cal(m)} cal detrás del CM`,
     verdict: "Tu cohete es muy estable (sobreestable): se endereza rápido, pero apunta mucho hacia el viento y con viento fuerte se desvía de la vertical." };
 }
 
@@ -81,8 +101,9 @@ const TAU_COLOR = "#0751b5"; // torque about the CM
 
 const deg = (rad: number) => (rad * 180) / Math.PI;
 
-function Panel({ c, theta, wind, clock, onExpand }: { c: Case; theta: number; wind: number; clock: number; onExpand?: () => void }) {
-  const cpOffset = Math.max(-2.2, Math.min(3, c.margin)) * ICON.cal * SCALE; // px behind the CM along the body
+function Panel({ c, theta, omega, wind, clock, onExpand }: { c: Case; theta: number; omega: number; wind: number; clock: number; onExpand?: () => void }) {
+  const cpOffset = Math.max(CP_RANGE.min, Math.min(CP_RANGE.max, c.margin)) * ROCKY.cal; // px behind the CM along the body
+  const mood = moodOf(c, theta, wind, omega);
   // Unit vectors in the panel (y points down): u along the body towards the nose, n perpendicular to its right.
   const u = { x: Math.sin(theta), y: -Math.cos(theta) };
   const nrm = { x: Math.cos(theta), y: Math.sin(theta) };
@@ -152,8 +173,9 @@ function Panel({ c, theta, wind, clock, onExpand }: { c: Case; theta: number; wi
           <text x={P.x} y="22" textAnchor="middle" className="stab-gust-label">{b > 0 ? `viento ${Math.abs(wind).toFixed(0)} m/s →` : `← viento ${Math.abs(wind).toFixed(0)} m/s`}</text>
         )}
         <g transform={`rotate(${deg(theta)} ${P.x} ${P.y})`}>
-          <image className="stab-rocket" href={ROCKET_ICON} width={ICON.w} height={ICON.h}
-            transform={`translate(${P.x - ICON.cx * SCALE} ${P.y - ICON.cg * SCALE}) scale(${SCALE})`} />
+          <g className="stab-rocket" transform={`translate(${P.x - ROCKY.cx} ${P.y - ROCKY.cg})`}>
+            <Mascot mood={mood} size={ROCKY.size} title="" className="still" />
+          </g>
           {/* Centre of mass: the classic black and white quartered circle. */}
           <g className="stab-cg">
             <circle cx={P.x} cy={P.y} r="7" fill="#fff" stroke="#111" strokeWidth="1.5" />
@@ -183,7 +205,7 @@ function Panel({ c, theta, wind, clock, onExpand }: { c: Case; theta: number; wi
           </g>
         )}
         {len > 4 && !showTau && (
-          <text x={P.x} y={P.y - 40} textAnchor="middle" className="stab-tag tau">τ = 0</text>
+          <text x={P.x} y={42} textAnchor="middle" className="stab-tag tau">τ = 0</text>
         )}
       </svg>
       <figcaption>
@@ -199,7 +221,9 @@ function Panel({ c, theta, wind, clock, onExpand }: { c: Case; theta: number; wi
 }
 
 /** The same Rocket Tec rocket with three stability margins; the slider blows wind from either side. */
-export function StabilityAnimation({ title, intro, margin }: { title?: string; intro?: ReactNode;
+export function StabilityAnimation({ title, intro, margin, compact }: { title?: string; intro?: ReactNode;
+  /** One screen inside a step stage: no headings (the step head explains it), the panels take the height left. */
+  compact?: boolean;
   /** Stability margin (calibers) of the student's rocket: adds a fourth panel with it. */
   margin?: number }) {
   const cases = margin === undefined ? CASES : [...CASES, myCase(margin)];
@@ -317,22 +341,23 @@ export function StabilityAnimation({ title, intro, margin }: { title?: string; i
   );
 
   return (
-    <div className="card stab-anim" ref={card}>
+    <div className={compact ? "stab-anim compact stage-fill" : "card stab-anim"} ref={card}>
       {title && <h2 className="stab-title">{title}</h2>}
       {intro && <p className="stab-intro">{intro}</p>}
+      {!compact && <>
       <h3>¿Qué pasa cuando sopla viento de lado?</h3>
       <p className="hint">
         Es el mismo cohete en los tres casos; solo cambia dónde queda el <b>centro de presión</b> (CP, donde empuja el aire) respecto al{" "}
         <b>centro de masa</b> (CM, el punto alrededor del cual gira). Las flechas son las fuerzas que siente el cohete.
         Arrastra la barra hacia un lado para soplar una ráfaga; al soltarla, el viento se detiene.
       </p>
+      </>}
       {slider}
       <div className="stab-panels">
         <SheepLayer sheep={full === null ? sheep : []} />
-        {cases.map((c, i) => <Panel key={c.title} c={c} theta={s.th[i]} wind={wind} clock={s.clock} onExpand={() => setFull(i)} />)}
+        {cases.map((c, i) => <Panel key={c.title} c={c} theta={s.th[i]} omega={s.om[i]} wind={wind} clock={s.clock} onExpand={() => setFull(i)} />)}
       </div>
-      {legend}
-      {controls}
+      {compact ? <div className="stab-foot">{legend}{controls}</div> : <>{legend}{controls}</>}
       {full !== null && (
         <div className="stab-full" role="dialog" aria-modal="true" aria-label={`Pantalla completa: ${cases[full].title}`} onClick={(e) => e.target === e.currentTarget && setFull(null)}>
           <div className="stab-full-box">
@@ -344,7 +369,7 @@ export function StabilityAnimation({ title, intro, margin }: { title?: string; i
             </div>
             {slider}
             <div className="stab-full-stage">
-              <Panel c={cases[full]} theta={s.th[full]} wind={wind} clock={s.clock} />
+              <Panel c={cases[full]} theta={s.th[full]} omega={s.om[full]} wind={wind} clock={s.clock} />
               <SheepLayer sheep={sheep} />
             </div>
             {legend}

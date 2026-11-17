@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -158,6 +158,22 @@ export function InfoTip({ children, note, heading, className }: { children: Reac
     >
       {children}<span className="note-mark" aria-hidden="true"> ⓘ</span>
       {n.popup}
+    </button>
+  );
+}
+
+/**
+ * A button that does something on its own (go to a step, show a section) and whose explanation is a hint: it opens
+ * in a note while the pointer rests on the button or the button has the focus, instead of a line of small text that
+ * is always there. The note describes the button (aria-describedby, role="tooltip") and toggles nothing, so the
+ * button gets no aria-expanded (Google's "interest-triggered-tooltips": a hint whose trigger does something else).
+ */
+export function NoteButton({ note, heading, children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { note: ReactNode; heading?: ReactNode }) {
+  const tip = useNote(note, heading);
+  return (
+    <button type="button" {...rest} ref={tip.ref as React.RefObject<HTMLButtonElement>} aria-describedby={tip.describedBy} {...tip.handlers}>
+      {children}
+      {tip.popup}
     </button>
   );
 }

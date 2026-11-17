@@ -1,11 +1,12 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useContext, useMemo, useState, type ReactNode } from "react";
 import type { Design } from "../../model";
 import { air } from "../../physics/atmosphere";
 import type { FlightResult, Sample } from "../../physics/simulate";
 import { format } from "../fields";
 import { LineChart, type Series } from "../LineChart";
 import { PHASE_SOLID, QTY, flightMarkers, flightPhases, flightSpans, nearest, phaseName, phaseNum, posAxis, posSym, posTitle, series, type Phase, type PhaseId } from "../phases";
-import { Eq } from "./common";
+import { useStage } from "../stage";
+import { Eq, LessonDialog, StageTabContext, StageTabs } from "./common";
 
 export function phaseOf(r: FlightResult, id: PhaseId): Phase {
   return flightPhases(r).find((p) => p.id === id)!;
@@ -22,13 +23,49 @@ export function phaseAverages(d: Design, samples: Sample[]) {
 
 export function PhaseHeader({ result, type, id, intro }: { result: FlightResult; type: Design["type"]; id: PhaseId; onPick: (id: PhaseId) => void; intro: ReactNode }) {
   const ph = phaseOf(result, id);
+  const title = <>Fase {phaseNum(type, id)}: {phaseName(type, id)}</>;
+  // Rocket Tec: the phase is marked in the row of phases, and its description opens over its button there;
+  // the head keeps only the section buttons (the title stays for screen readers and for the focus).
+  if (type === "estes") {
+    return (
+      <div className="lesson-head card phase-head">
+        <h2 className="visually-hidden">{title}</h2>
+        <StageTabs />
+      </div>
+    );
+  }
   return (
     <div className="lesson-head card">
-      <h2><span className="phase-title-num" style={{ background: PHASE_SOLID[id] }}>{phaseNum(type, id)}</span> Fase {phaseNum(type, id)}: {phaseName(type, id)}</h2>
+      <h2><span className="phase-title-num" style={{ background: PHASE_SOLID[id] }}>{phaseNum(type, id)}</span> {title}</h2>
       <p>{intro}</p>
       {ph.note && <div className={`alert ${ph.exists ? "info" : "warning"}`} style={{ marginTop: 10 }}>{ph.note}</div>}
+      <StageTabs />
     </div>
   );
+}
+
+/** What happens in a Rocket Tec phase, with this flight's numbers: the note over the phase's button. */
+export function phaseIntro(d: Design, res: FlightResult, id: PhaseId): ReactNode {
+  if (d.type !== "estes") return null;
+  const ph = phaseOf(res, id);
+  if (id === 1) {
+    const vMax = res.samples.reduce((m, s) => Math.max(m, s.v), 0);
+    return <>Del encendido al fin del empuje ({format(ph.to, 2)} s): la única fase en la que una fuerza empuja hacia arriba, y la velocidad <b>aumenta</b> de 0 a casi {format(vMax, 0)} m/s.</>;
+  }
+  if (id === 2) {
+    const v0 = nearest(res.samples, ph.from).v;
+    const drag = d.motor.coastDrag !== false;
+    return <>Sin empuje, el cohete sube por inercia y el peso{drag ? " y el arrastre lo frenan" : " lo frena"}: la velocidad <b>disminuye</b> de {format(v0, 1)} m/s a 0 en el <b>apogeo</b>, el punto más alto.</>;
+  }
+  if (id === 3) {
+    const delay = res.ejection && res.burnout ? res.ejection.t - res.burnout.t : null;
+    return ph.exists
+      ? <>Del apogeo a la eyección: el cohete <b>cae</b> sin paracaídas mientras arde la carga de retardo, hasta que la <b>carga de eyección</b> lo separa{delay !== null ? ` (${format(delay, 0)} s después del empuje)` : ""}.</>
+      : <>Del apogeo a la eyección. En este vuelo la eyección ocurre antes del apogeo, así que esta fase no existe.</>;
+  }
+  return ph.exists && d.recovery.kind === "parachute"
+    ? <>La carga de eyección saca el <b>paracaídas</b>, que frena al cohete hasta su <b>velocidad terminal</b> y lo baja con rapidez constante hasta <b>aterrizar</b> (<Eq tex="s = 0" />).</>
+    : <>Del momento en que se abre el paracaídas hasta que el cohete toca el suelo.</>;
 }
 
 /** Values at the start and end of the phase and what changed. */
@@ -112,12 +149,14 @@ function ChangeFacts({ a, b }: { a: Sample; b: Sample }) {
 }
 
 /** a(t), v(t) and h(t) zoomed to the phase, with the rest of the flight for context. */
-export function PhaseCharts({ result, type, id, extra, merge = false }: {
+export function PhaseCharts({ result, type, id, extra, merge = false, fill = false }: {
   result: FlightResult; type: Design["type"]; id: PhaseId;
   /** Extra chart; its series can be built from the samples on screen. */
   extra?: { title: string; yLabel: string; series: Series[] | ((samples: Sample[]) => Series[]) };
   /** Buttons to show this phase alone or joined with earlier ones: true joins the previous phase, a number starts at that phase. */
   merge?: boolean | PhaseId;
+  /** Inside a stage: the four charts in a 2 × 2 grid that takes the height of the screen. */
+  fill?: boolean;
 }) {
   const ph = phaseOf(result, id);
   const prevId = (typeof merge === "number" ? merge : id - 1) as PhaseId;
@@ -140,21 +179,25 @@ export function PhaseCharts({ result, type, id, extra, merge = false }: {
   const nums = prev ? Array.from({ length: id - prevId + 1 }, (_, i) => phaseNum(type, (prevId + i) as PhaseId)) : [n];
   const listed = nums.length > 2 ? `${nums.slice(0, -1).join(", ")} y ${nums[nums.length - 1]}` : nums.join(" y ");
   return (
-    <div className="card">
-      <h2>{canMerge && joined ? `Gráficas de las fases ${listed}` : `Gráficas de la fase ${n}`}</h2>
-      {canMerge && (
-        <div className="thrust-model chart-range" role="group" aria-label="Qué fases graficar">
-          <button type="button" className={`btn small ${!joined ? "primary" : ""}`} aria-pressed={!joined} onClick={() => setJoined(false)}>Solo Fase {n}</button>
-          <button type="button" className={`btn small ${joined ? "primary" : ""}`} aria-pressed={joined} onClick={() => setJoined(true)}>{nums.length > 2 ? `Fases ${nums.join(" + ")}` : `Fase ${nums[0]} + Fase ${nums[1]}`}</button>
+    <div className={fill ? "phase-charts fill" : "card"}>
+      {(!fill || canMerge) && (
+        <div className="phase-charts-head">
+          <h2>{canMerge && joined ? `Gráficas de las fases ${listed}` : `Gráficas de la fase ${n}`}</h2>
+          {canMerge && (
+            <div className="thrust-model chart-range" role="group" aria-label="Qué fases graficar">
+              <button type="button" className={`btn small ${!joined ? "primary" : ""}`} aria-pressed={!joined} onClick={() => setJoined(false)}>Solo Fase {n}</button>
+              <button type="button" className={`btn small ${joined ? "primary" : ""}`} aria-pressed={joined} onClick={() => setJoined(true)}>{nums.length > 2 ? `Fases ${nums.join(" + ")}` : `Fase ${nums[0]} + Fase ${nums[1]}`}</button>
+            </div>
+          )}
         </div>
       )}
-      <div className="charts">
+      <div className={fill ? "charts fill" : "charts"}>
         {/* Rocket Tec follows the cause → effect order: forces, acceleration, velocity, position. */}
-        {extra && type === "estes" && <LineChart title={extra.title} xLabel="Tiempo (s)" yLabel={extra.yLabel} series={extraSeries} spans={spans} markers={markers} xMin={xMin} xMax={xMax} />}
-        <LineChart title={type === "estes" ? "Aceleración dv/dt" : "Aceleración a(t)"} xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={[{ label: type === "estes" ? "dv/dt" : "a", points: series(shown, (s) => s.a), color: ca }]} spans={spans} markers={markers} xMin={xMin} xMax={xMax} yZero={canMerge} />
-        <LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={[{ label: "v", points: series(shown, (s) => s.v), color: cv }]} spans={spans} markers={markers} xMin={xMin} xMax={xMax} />
-        <LineChart title={posTitle(type)} xLabel="Tiempo (s)" yLabel={posAxis(type)} series={[{ label: posSym(type), points: series(shown, (s) => s.h), color: cs }]} spans={spans} markers={markers} xMin={xMin} xMax={xMax} />
-        {extra && type !== "estes" && <LineChart title={extra.title} xLabel="Tiempo (s)" yLabel={extra.yLabel} series={extraSeries} spans={spans} markers={markers} xMin={xMin} xMax={xMax} />}
+        {extra && type === "estes" && <LineChart title={extra.title} xLabel="Tiempo (s)" yLabel={extra.yLabel} series={extraSeries} spans={spans} markers={markers} xMin={xMin} xMax={xMax} height={fill ? "fill" : undefined} />}
+        <LineChart title={type === "estes" ? "Aceleración dv/dt" : "Aceleración a(t)"} xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={[{ label: type === "estes" ? "dv/dt" : "a", points: series(shown, (s) => s.a), color: ca }]} spans={spans} markers={markers} xMin={xMin} xMax={xMax} yZero={canMerge} height={fill ? "fill" : undefined} />
+        <LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={[{ label: "v", points: series(shown, (s) => s.v), color: cv }]} spans={spans} markers={markers} xMin={xMin} xMax={xMax} height={fill ? "fill" : undefined} />
+        <LineChart title={posTitle(type)} xLabel="Tiempo (s)" yLabel={posAxis(type)} series={[{ label: posSym(type), points: series(shown, (s) => s.h), color: cs }]} spans={spans} markers={markers} xMin={xMin} xMax={xMax} height={fill ? "fill" : undefined} />
+        {extra && type !== "estes" && <LineChart title={extra.title} xLabel="Tiempo (s)" yLabel={extra.yLabel} series={extraSeries} spans={spans} markers={markers} xMin={xMin} xMax={xMax} height={fill ? "fill" : undefined} />}
       </div>
     </div>
   );
@@ -243,5 +286,28 @@ export function MethodResults({ cards, dt, note }: { cards: MethodResult[]; dt: 
       </div>
       {note && <p className="hint">{note}</p>}
     </div>
+  );
+}
+
+/**
+ * Parts 4 and 5 of a Rocket Tec phase, each one screen high (no scrolling): the charts of the phase, and the results
+ * (the model solved both ways and what changed), with the questions to think about in a dialog.
+ */
+export function PhaseOutcome({ phase, charts, results, think }: { phase: string; charts: ReactNode; results: ReactNode; think: ReactNode }) {
+  const tab = useContext(StageTabContext)?.stage;
+  const g = useStage<HTMLElement>(tab);
+  const r = useStage<HTMLElement>(tab);
+  return (
+    <>
+      <section ref={g} className="stage stage-graficas outcome step-stage" aria-label={`Fase ${phase}: gráficas`}>
+        {charts}
+      </section>
+      <section ref={r} className="stage stage-resultados outcome step-stage" aria-label={`Fase ${phase}: resultados`}>
+        {results}
+        <div className="outcome-think">
+          <LessonDialog label={<>💭 Para pensar</>} title={`Fase ${phase}: para pensar`} className="btn">{think}</LessonDialog>
+        </div>
+      </section>
+    </>
   );
 }

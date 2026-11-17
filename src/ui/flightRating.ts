@@ -39,22 +39,26 @@ export function rateFlight(d: Design, r: FlightResult): Rating {
   const checks: Check[] = [];
   const water = d.type === "water";
 
-  // 1. Thrust-to-weight: under 1 it does not lift off (CATO); NAR recommends at least 5.
+  // 1. Thrust-to-weight: under 1 it does not lift off (CATO). GO from 3: a Rocket Tec rocket with 3.5 flew perfectly
+  //    (NAR asks for 5, a margin meant for heavier rockets and longer guides).
+  const TW_GO = 3;
   const tw = r.thrustToWeight;
   checks.push({
-    id: "tw", name: "Empuje / peso", value: f1(tw), target: "5 o más",
-    level: tw < 1 ? 4 : tw < 5 ? 2 : 1,
-    why: tw < 1 ? "El empuje no alcanza a levantar el peso: no despega." : tw < 5 ? `Con ${f1(tw)} el cohete acelera lento al principio.` : undefined,
-    hint: tw < 5 ? (water ? "Más presión o un cohete más ligero le dan más empuje por cada newton de peso." : "Aligera el cohete: con menos masa, el mismo motor lo empuja con más fuerza.") : undefined,
+    id: "tw", name: "Empuje / peso", value: f1(tw), target: `${TW_GO} o más`,
+    level: tw < 1 ? 4 : tw < TW_GO ? 2 : 1,
+    why: tw < 1 ? "El empuje no alcanza a levantar el peso: no despega." : tw < TW_GO ? `Con ${f1(tw)} el cohete acelera lento al principio.` : undefined,
+    hint: tw < TW_GO ? (water ? "Más presión o un cohete más ligero le dan más empuje por cada newton de peso." : "Aligera el cohete: con menos masa, el mismo motor lo empuja con más fuerza.") : undefined,
   });
 
-  // 2. Speed leaving the guide: below 10 m/s the fins do not stabilize well yet (never worse than caution).
+  // 2. Speed leaving the guide: below 6 m/s the fins do not stabilize well yet (never worse than caution). GO from 6,
+  //    the speed of a Rocket Tec rocket that flew perfectly (6.7 m/s).
+  const RAIL_GO = 6;
   const rail = r.guideExit?.v ?? 0;
   checks.push({
-    id: "rail", name: "Salida de la guía", value: `${f1(rail)} m/s`, target: "10 m/s o más",
-    level: rail < 10 ? 2 : 1,
-    why: rail < 10 ? `Sale a ${f1(rail)} m/s: las aletas todavía no tienen suficiente aire para estabilizarlo.` : undefined,
-    hint: rail < 10 ? "Un cohete más ligero acelera más; una guía más larga le da más distancia para ganar velocidad." : undefined,
+    id: "rail", name: "Salida de la guía", value: `${f1(rail)} m/s`, target: `${RAIL_GO} m/s o más`,
+    level: rail < RAIL_GO ? 2 : 1,
+    why: rail < RAIL_GO ? `Sale a ${f1(rail)} m/s: las aletas todavía no tienen suficiente aire para estabilizarlo.` : undefined,
+    hint: rail < RAIL_GO ? "Un cohete más ligero acelera más; una guía más larga le da más distancia para ganar velocidad." : undefined,
   });
 
   // 3. Stability margin in calibers (water: empty bottle, the coasting case).

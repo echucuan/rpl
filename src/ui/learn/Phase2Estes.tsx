@@ -7,11 +7,11 @@ import { simulate, type FlightResult } from "../../physics/simulate";
 import { format } from "../fields";
 import { LineChart } from "../LineChart";
 import { QTY, faded, nearest, within, type PhaseId } from "../phases";
-import { Code, Eq, StageBlock, Think, n } from "./common";
+import { Code, Eq, StageBlock, n } from "./common";
 import { ConstantS, ConstantV, TanS, TanV } from "./derivations";
 import { RocketFreeBody, forceScale } from "./diagrams";
 import { MethodTree, averageModel } from "./Phase1Lesson";
-import { MethodResults, PhaseCharts, PhaseFacts, PhaseHeader, forceSeriesTec, phaseAverages, phaseOf, type MethodResult } from "./phaseCommon";
+import { MethodResults, PhaseCharts, PhaseFacts, PhaseHeader, forceSeriesTec, phaseAverages, phaseOf, type MethodResult, PhaseOutcome } from "./phaseCommon";
 
 const r = String.raw;
 
@@ -86,7 +86,7 @@ export function Phase2EstesLesson({ design: d, result: res, onPhase, onChange }:
         result={res} type={d.type}
         id={2}
         onPick={onPhase}
-        intro={<>Se acabó el empuje: el cohete sigue subiendo por inercia, pero el peso{M.withDrag ? " y el arrastre lo frenan" : " lo frena"}. La velocidad <b>disminuye</b> de {format(start.v, 1)} m/s hasta 0 en el <b>apogeo</b>, el punto más alto.</>}
+        intro={null}
       />
       <div className="lesson-grid">
         <StageBlock stage="fisica">
@@ -148,19 +148,11 @@ export function Phase2EstesLesson({ design: d, result: res, onPhase, onChange }:
         </StageBlock>
       </div>
 
-      <section className="stage stage-resultados">
-        <header>
-          <span className="stage-n">4</span>
-          <div>
-            <h3>Fase II: Resultados</h3>
-            <p className="stage-explain">Interpretamos los cambios del cohete en esta fase y verificamos si el modelo predice bien lo que se mide.</p>
-          </div>
-        </header>
-        <div className="stage-body">
-          <Phase2Results M={M} />
-          <PhaseFacts result={res} type={d.type} id={2} />
-          <PhaseCharts result={res} type={d.type} id={2} extra={FORCES} merge />
-          <Think>
+      <PhaseOutcome
+        phase="II"
+        charts={<PhaseCharts result={res} type={d.type} id={2} extra={FORCES} merge fill />}
+        results={<><Phase2Results M={M} /><PhaseFacts result={res} type={d.type} id={2} /></>}
+        think={
             <ul>
               <li>Al terminar el empuje, <i>dv/dt</i> cambia de golpe de positiva a negativa. ¿Qué fuerza desapareció? ¿Cambia la dirección de la velocidad en ese instante?</li>
               <li>Sin arrastre, <Eq tex={r`dv/dt = -g`} /> no depende de la masa. ¿Llegaría al mismo apogeo un cohete más pesado con la misma velocidad inicial? ¿Y con arrastre?</li>
@@ -169,9 +161,8 @@ export function Phase2EstesLesson({ design: d, result: res, onPhase, onChange }:
               <li>¿Qué tiene que pasar para que el paracaídas se abra justo en el apogeo? Compara el tiempo de esta fase con el retardo del motor (3 s).</li>
               <li>Las condiciones finales de la Fase II son las condiciones iniciales de la Fase III. ¿Qué valores tendrán <code>FaseIII_vi</code> y <code>FaseIII_si</code>?</li>
             </ul>
-          </Think>
-        </div>
-      </section>
+        }
+      />
     </div>
   );
 }

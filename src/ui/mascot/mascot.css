@@ -13,6 +13,10 @@
 .mascot[data-motion="think"] .m-rocket { animation: m-tilt-think 2.4s ease-in-out infinite; }
 .mascot[data-motion="fast"] .m-rocket { animation-duration: calc(var(--m-float, 3.2s) * 0.28); }
 .mascot[data-motion="hop"] .m-rocket { animation: m-hop 0.9s cubic-bezier(.3,.7,.4,1) infinite; }
+.mascot[data-motion="shake"] .m-rocket { animation: m-shake 0.12s linear infinite; }
+.mascot .m-sweat path { animation: m-drip 1s ease-in infinite; }
+.mascot .m-sweat path:nth-child(2) { animation-delay: 0.35s; }
+.mascot .m-sweat path:nth-child(3) { animation-delay: 0.7s; }
 .mascot[data-motion="tilt"] .m-rocket { animation: m-tilt-confused 2.6s ease-in-out infinite; }
 
 /* exhaust plume (MoodDesign.plume) */
@@ -40,6 +44,11 @@
 @keyframes m-tilt-confused { 0%, 100% { transform: rotate(7deg); } 50% { transform: rotate(4deg); } }
 @keyframes m-hop { 0%, 100% { transform: translateY(0); } 35% { transform: translateY(-12px); } 60% { transform: translateY(0) scaleY(0.97); } }
 @keyframes m-twinkle { 0%, 100% { transform: scale(0.4); opacity: 0.3; } 50% { transform: scale(1.15); opacity: 1; } }
+@keyframes m-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.2px); } 75% { transform: translateX(1.2px); } }
+@keyframes m-drip { 0% { opacity: 0; translate: 0 -4px; } 30% { opacity: 1; } 100% { opacity: 0; translate: 0 8px; } }
+/* Inside a drawing that moves it (the stability panels): no floating, only the shake of fear. */
+.mascot.still .m-rocket { animation: none; }
+.mascot.still[data-motion="shake"] .m-rocket { animation: m-shake 0.12s linear infinite; }
 @keyframes m-bob-q { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
 @media (prefers-reduced-motion: reduce) {

@@ -10,7 +10,7 @@ import { LineChart } from "../LineChart";
 import { QTY, faded, nearest, posSym, within, type PhaseId } from "../phases";
 import { Code, DerivationZoom, Eq, StageBlock, Think, YourRocket, n } from "./common";
 import { FreeBody, RocketFreeBody, forceScale } from "./diagrams";
-import { MethodResults, PhaseCharts, PhaseFacts, PhaseHeader, forceSeries, forceSeriesTec, matlabVector, phaseOf, type MethodResult } from "./phaseCommon";
+import { MethodResults, PhaseCharts, PhaseFacts, PhaseHeader, forceSeries, forceSeriesTec, matlabVector, phaseOf, type MethodResult, PhaseOutcome } from "./phaseCommon";
 
 const r = String.raw;
 
@@ -43,7 +43,7 @@ export function Phase1Lesson({ design: d, result: res, onPhase, onChange }: { de
         result={res} type={d.type}
         id={1}
         onPick={onPhase}
-        intro={<>Del encendido hasta que se acaba el empuje ({format(ph.to, 3)} s). Es la única fase en la que una fuerza empuja al cohete hacia arriba: la velocidad <b>aumenta</b> de 0 a casi {format(vMax.v, 0)} m/s.</>}
+        intro={<>Del encendido al fin del empuje ({format(ph.to, 2)} s): la única fase en la que una fuerza empuja hacia arriba, y la velocidad <b>aumenta</b> de 0 a casi {format(vMax.v, 0)} m/s.</>}
       />
       <div className="lesson-grid">
         {d.type === "estes" ? (
@@ -193,21 +193,13 @@ end
         )}
       </div>
 
-      {d.type === "estes" && average ? (
-        <section className="stage stage-resultados">
-          <header>
-            <span className="stage-n">4</span>
-            <div>
-              <h3>Fase I: Resultados</h3>
-              <p className="stage-explain">Interpretamos los cambios del cohete en esta fase y verificamos si el modelo predice bien lo que se mide.</p>
-            </div>
-          </header>
-          <div className="stage-body">
-            <Phase1Results design={d} result={res} />
-            <PhaseFacts result={res} type={d.type} id={1} />
-            <PhaseCharts result={res} type={d.type} id={1} extra={{ title: "Fuerzas y suma de fuerzas ΣF", yLabel: "Fuerza (N)", series: forceSeriesTec }} />
-            <Think>
-              <ul>
+      {d.type === "estes" ? (
+        <PhaseOutcome
+          phase="I"
+          charts={<PhaseCharts result={res} type={d.type} id={1} extra={{ title: "Fuerzas y suma de fuerzas ΣF", yLabel: "Fuerza (N)", series: forceSeriesTec }} fill />}
+          results={<>{average && <Phase1Results design={d} result={res} />}<PhaseFacts result={res} type={d.type} id={1} /></>}
+          think={average ? (
+            <ul>
                 <li>En la gráfica de aceleración, <i>dv/dt</i> es una recta horizontal y al terminar el empuje cae de golpe a un valor negativo. ¿Qué fuerza desapareció y cuáles quedan actuando en la Fase II?</li>
                 <li>Si el cohete pesara el doble, ¿qué pasaría con <Eq tex={r`\sum F`} />, <Eq tex={r`dv/dt`} />, la velocidad y la posición al final de la Fase I? Pruébalo con tus modelos de MATLAB cambiando <code>FaseI_MasaCohete</code>.</li>
                 <li>¿Qué diría tu modelo <Eq tex={r`v(t)`} /> si el empuje promedio fuera menor que el peso? ¿Tiene sentido físico? ¿Qué pasa de verdad con el cohete en la plataforma?</li>
@@ -216,16 +208,8 @@ end
                 <li>Cambia en la pestaña Motor al empuje real: ¿cuánto cambian la velocidad al final de esta fase y el apogeo? ¿Por qué?</li>
                 <li>Las condiciones finales de la Fase I son las condiciones iniciales de la Fase II. ¿Qué valores tendrán <code>FaseII_vi</code> y <code>FaseII_si</code>?</li>
               </ul>
-            </Think>
-          </div>
-        </section>
-      ) : (
-      <>
-      <PhaseFacts result={res} type={d.type} id={1} />
-      <PhaseCharts result={res} type={d.type} id={1} extra={d.type === "estes" ? { title: "Fuerzas y suma de fuerzas ΣF", yLabel: "Fuerza (N)", series: forceSeriesTec } : { title: "Fuerzas", yLabel: "Fuerza (N)", series: forces }} />
-      {d.type === "water" && <WaterCharts result={res} />}
-      <Think>
-        <ul>
+          ) : (
+            <ul>
           {peakBeforeBurnout
             ? <li>¿Por qué la velocidad máxima ocurre antes de que termine el empuje? Busca en la gráfica de aceleración el instante en que cruza el cero.</li>
             : <li>¿Por qué la aceleración no llega a cero antes de que termine el empuje? Compara el empuje con el peso y el arrastre en la gráfica de fuerzas.</li>}
@@ -234,6 +218,21 @@ end
           {d.type === "estes"
             ? <li>Dos motores con casi el mismo impulso (C6 y C11): ¿cuál deja al cohete más rápido al final de esta fase? Pruébalo en la pestaña Cohete.</li>
             : <li>Busca en la pestaña Cohete la cantidad de agua que da la mayor velocidad al final de esta fase. ¿Por qué ni mucha ni poca?</li>}
+        </ul>
+          )}
+        />
+      ) : (
+      <>
+      <PhaseFacts result={res} type={d.type} id={1} />
+      <PhaseCharts result={res} type={d.type} id={1} extra={{ title: "Fuerzas", yLabel: "Fuerza (N)", series: forces }} />
+      <WaterCharts result={res} />
+      <Think>
+        <ul>
+          {peakBeforeBurnout
+            ? <li>¿Por qué la velocidad máxima ocurre antes de que termine el empuje? Busca en la gráfica de aceleración el instante en que cruza el cero.</li>
+            : <li>¿Por qué la aceleración no llega a cero antes de que termine el empuje? Compara el empuje con el peso y el arrastre en la gráfica de fuerzas.</li>}
+          <li>La estimación con impulso da más velocidad que la simulación. ¿Qué fuerza ignora?</li>
+          <li>Busca en la pestaña Cohete la cantidad de agua que da la mayor velocidad al final de esta fase. ¿Por qué ni mucha ni poca?</li>
         </ul>
       </Think>
       </>

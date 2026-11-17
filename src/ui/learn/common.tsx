@@ -1,5 +1,6 @@
 import katex from "katex";
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { NoteButton } from "../fields";
 
 /** LaTeX equation rendered with KaTeX. */
 export function Eq({ tex, block = false }: { tex: string; block?: boolean }) {
@@ -30,6 +31,47 @@ const STAGES_ESTES: Record<Stage, string> = {
 
 /** Which program the lesson belongs to ("water" or "estes"); set by the workspace. */
 export const LessonTypeContext = createContext<"water" | "estes" | null>(null);
+
+export type StageTab = Stage | "graficas" | "resultados";
+interface StageTabInfo { id: StageTab; n: number; title: string; hint: string; explain?: string }
+const BASE_TABS: StageTabInfo[] = [
+  { id: "fisica", n: 1, title: "Física", hint: "Fuerzas y leyes" },
+  { id: "matematicas", n: 2, title: "Matemáticas", hint: "Ecuaciones y modelos" },
+  { id: "computacion", n: 3, title: "Computación", hint: "MATLAB y métodos numéricos" },
+];
+/** The sections of a phase lesson. Rocket Tec splits the end in two: the charts (4) and the results (5). */
+export function stageTabsFor(type: "water" | "estes" | null): StageTabInfo[] {
+  if (type !== "estes") return [...BASE_TABS, { id: "resultados", n: 4, title: "Resultados", hint: "Gráficas y verificación" }];
+  return [
+    ...BASE_TABS.map((t) => ({ ...t, explain: STAGES_ESTES[t.id as Stage] })),
+    { id: "graficas", n: 4, title: "Gráficas", hint: "Fuerzas, dv/dt, v y s", explain: "Vemos en el tiempo cómo cambian las fuerzas, la aceleración, la velocidad y la posición del cohete en esta fase." },
+    { id: "resultados", n: 5, title: "Resultados", hint: "Cambios y verificación", explain: "Interpretamos los cambios del cohete en esta fase y verificamos si el modelo predice bien lo que se mide." },
+  ];
+}
+
+/** The section of a phase lesson on screen; set by the workspace (the page shows one section at a time). */
+export const StageTabContext = createContext<{ stage: StageTab; setStage: (s: StageTab) => void } | null>(null);
+
+/**
+ * Física · Matemáticas · Computación · … : buttons that show one section of the phase at a time. The section's own
+ * header is then hidden (the selected button already names it); its explanation goes in the button's tooltip.
+ */
+export function StageTabs() {
+  const ctx = useContext(StageTabContext);
+  const type = useContext(LessonTypeContext);
+  if (!ctx) return null;
+  const tabs = stageTabsFor(type);
+  return (
+    <nav className="stage-tabs" aria-label="Secciones de la fase" style={{ "--tabs": tabs.length } as CSSProperties}>
+      {tabs.map((t) => (
+        <NoteButton key={t.id} note={t.explain && <p>{t.explain}</p>} heading={t.title} className={`stage-tab stage-${t.id}`} aria-current={ctx.stage === t.id ? "step" : undefined} onClick={() => ctx.setStage(t.id)}>
+          <span className="stage-n">{t.n}</span>
+          <span className="stage-tab-text"><b>{t.title}</b><small>{t.hint}</small></span>
+        </NoteButton>
+      ))}
+    </nav>
+  );
+}
 
 export function StageBlock({ stage, children }: { stage: Stage; children: ReactNode }) {
   const s = STAGES[stage];
@@ -202,5 +244,23 @@ export function DerivationZoom({ title, ode, result, steps, note }: { title: str
         </div>
       )}
     </div>
+  );
+}
+
+/** A button that opens the longer material (equations, code, questions) in a native modal dialog, so the page stays one screen. */
+export function LessonDialog({ label, title, className = "btn small", children }: { label: ReactNode; title: string; className?: string; children: ReactNode }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  return (
+    <>
+      <button type="button" className={className} onClick={() => dialog.current?.showModal()}>{label}</button>
+      <dialog ref={dialog} className="lesson-dialog" aria-labelledby={titleId}>
+        <div className="lesson-dialog-head">
+          <h2 id={titleId}>{title}</h2>
+          <button type="button" className="btn small" onClick={() => dialog.current?.close()}>✕ Cerrar</button>
+        </div>
+        <div className="lesson-dialog-body">{children}</div>
+      </dialog>
+    </>
   );
 }

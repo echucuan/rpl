@@ -14,7 +14,7 @@ export interface RocketZoom { from: number; to: number; dims: ZoomDim[]; width?:
  * Side view of the rocket, nose to the left, with CM and CP markers. With `zoom`, the very same drawing cropped to a
  * stretch of the rocket, without markers or legend, with the diameters marked where they are measured.
  */
-export function RocketView({ design: d, loaded, empty, zoom }: { design: Design; loaded?: Stability; empty?: Stability; zoom?: RocketZoom }) {
+export function RocketView({ design: d, loaded, empty, zoom, bare }: { design: Design; loaded?: Stability; empty?: Stability; zoom?: RocketZoom; /** Only the drawing with its CM and CP: no length line, no legend. */ bare?: boolean }) {
   const l = layout(d);
   const f = d.fins;
   const hullId = useId();
@@ -31,8 +31,10 @@ export function RocketView({ design: d, loaded, empty, zoom }: { design: Design;
   const xMin = Math.min(0, finFrom), xMax = Math.max(l.length, finTo, motor ? motorFront + motor.length : 0);
   const scale = (width - 40) / (xMax - xMin);
   // Just the room the labels need: names above (32), the length line below (36).
-  const height = Math.max(2 * halfHeight * scale + 72, 150);
-  const cy = height / 2 - 4;
+  // Bare: room for the names above (34) and, under the body, for the M1, M2… tags of the extra masses.
+  const bareBottom = Math.max(6, d.extras.length ? (d.body.diameter / 2) * scale + 34 - halfHeight * scale : 0);
+  const height = bare ? 2 * halfHeight * scale + 34 + bareBottom : Math.max(2 * halfHeight * scale + 72, 150);
+  const cy = bare ? 34 + halfHeight * scale : height / 2 - 4;
   const X = (x: number) => 20 + (x - xMin) * scale;
   const Y = (y: number) => cy - y * scale;
 
@@ -129,8 +131,8 @@ export function RocketView({ design: d, loaded, empty, zoom }: { design: Design;
         {/* Names over the markers: CM in black, CP in red */}
         <text x={X(marks.loaded.cg)} y={cy - 17} textAnchor="middle" fontSize={18} fontWeight={800} fill="#1a1a1a">CM</text>
         <text x={X(marks.loaded.cp)} y={cy - 17} textAnchor="middle" fontSize={18} fontWeight={800} fill="#b3261e">CP</text>
-        <line x1={X(0)} x2={X(l.length)} y1={height - 22} y2={height - 22} stroke="#5b6270" strokeWidth={1} />
-        <text x={X(l.length / 2)} y={height - 2} textAnchor="middle" fontSize={20} fill="#5b6270">{format(l.length / 10, 1)} cm</text>
+        {!bare && <line x1={X(0)} x2={X(l.length)} y1={height - 22} y2={height - 22} stroke="#5b6270" strokeWidth={1} />}
+        {!bare && <text x={X(l.length / 2)} y={height - 2} textAnchor="middle" fontSize={20} fill="#5b6270">{format(l.length / 10, 1)} cm</text>}
         </>}
         {z && zoom!.dims.map((m, i) => {
           // A dimension line across the rocket where the diameter is measured, its value over the drawing.
@@ -150,7 +152,7 @@ export function RocketView({ design: d, loaded, empty, zoom }: { design: Design;
           );
         })}
       </svg>
-      {marks && <div className="legend">
+      {marks && !bare && <div className="legend">
         <span><Swatch kind="cg" /> Centro de masa <b>{format(marks.loaded.cg / 10, 1)} cm</b>{d.type === "water" ? " (con agua)" : " (con motor)"}</span>
         {Math.abs(marks.empty.cg - marks.loaded.cg) > 1 && <span><Swatch kind="cg-empty" /> CM {d.type === "water" ? "sin agua" : "motor quemado"} <b>{format(marks.empty.cg / 10, 1)} cm</b></span>}
         <span><Swatch kind="cp" /> Centro de presión <b>{format(marks.loaded.cp / 10, 1)} cm</b></span>

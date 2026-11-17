@@ -3,6 +3,10 @@ import type { Design } from "../model";
 import type { FlightResult } from "../physics/simulate";
 import { LEVELS, rateFlight, type Level } from "./flightRating";
 import type { SubTab } from "./Workspace";
+import { format } from "./fields";
+import { massRows } from "./RocketTab";
+import { RocketView } from "./RocketView";
+import { useStage } from "./stage";
 
 const CONFETTI_COLORS = ["#0039a6", "#1d7a3e", "#c0262d", "#e8a317", "#6b3fa0", "#0f8a9d"];
 
@@ -47,15 +51,21 @@ const summary = (level: Level, go: number, total: number) =>
         : `${go} de ${total} sistemas en GO. Este vuelo no termina bien.`;
 
 /** The expected flight in one look: a badge with the borrego's verdict and the GO / NO-GO launch checklist. */
-export function FlightBadge({ design, result, onGo }: { design: Design; result: FlightResult; onGo: (s: SubTab) => void }) {
+/** `page` changes when the badge comes on screen (Simulaciones › Revisión), so its one-screen height is measured again. */
+export function FlightBadge({ design, result, onGo, page }: { design: Design; result: FlightResult; onGo: (s: SubTab) => void; page?: unknown }) {
   const rating = useMemo(() => rateFlight(design, result), [design, result]);
   const L = LEVELS[rating.level];
   const go = rating.checks.filter((c) => c.level === 1).length;
+  const stage = useStage(`${page}-${rating.level}`);
+  // What the rocket weighs at liftoff, part by part, shown under its drawing.
+  const masses = useMemo(() => massRows(result.massItems), [result.massItems]);
 
   return (
     // The key replays the entrance (and the confetti or the shake) whenever the verdict changes.
-    <div key={rating.level} className={`card flight-badge lvl-${rating.level}`}>
+    <div key={rating.level} ref={stage} className={`card flight-badge step-stage lvl-${rating.level}`}>
       {rating.level === 1 && <Confetti />}
+      {/* Two columns: the verdict on the left, the GO / NO-GO checklist on the right. */}
+      <div className="fb-left">
       <div className="fb-hero">
         <div className="fb-emoji" aria-hidden="true">
           <span className="fb-sheep">🐏</span>
@@ -73,29 +83,60 @@ export function FlightBadge({ design, result, onGo }: { design: Design; result: 
           <span className="fb-term">{rating.term}</span>
           <p className="fb-summary">{summary(rating.level, go, rating.checks.length)}</p>
         </div>
+        {/* The systems at a glance: one chip per check, in the colour of its status. */}
+        <ul className="fb-tally" aria-label="Sistemas">
+          {rating.checks.map((c) => (
+            <li key={c.id} className={`lvl-${c.level}`}>
+              <b>{LEVELS[c.level].status}</b>
+              <span>{c.name}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="fb-note">
+          Es una predicción: la simulación no conoce el viento ni los detalles de armado. Las metas de empuje / peso y de salida de la guía vienen de un cohete de Rocket Tec que voló perfectamente; las demás, de las recomendaciones de cohetería modelo (NAR).
+        </p>
       </div>
 
+      </div>
+
+      <div className="fb-right">
       <h3 className="fb-list-title">Revisión de lanzamiento: GO / NO-GO</h3>
       <ol className="fb-checks">
         {rating.checks.map((c, i) => (
           <li key={c.id} className={`fb-check lvl-${c.level}`} style={{ animationDelay: `${0.5 + i * 0.22}s` }}>
             <span className="fb-status">{LEVELS[c.level].emoji} {LEVELS[c.level].status}</span>
-            <span className="fb-name">{c.name}</span>
+            <span className="fb-name">{c.name} <span className="fb-target">meta: {c.target}</span></span>
+            {c.level > 1 && <button type="button" className="btn small no-print fb-go" onClick={() => onGo("cohete")}>Ir a Cohete →</button>}
             <span className="fb-value">{c.value}</span>
-            <span className="fb-target">meta: {c.target}</span>
             {c.level > 1 && (
               <div className="fb-advice">
                 <p>{c.why}</p>
                 <p className="fb-hint"><b>Pista:</b> {c.hint}</p>
-                <button type="button" className="btn small no-print" onClick={() => onGo("cohete")}>Ir a Cohete →</button>
               </div>
             )}
           </li>
         ))}
       </ol>
-      <p className="hint fb-note">
-        Es una predicción: la simulación no conoce el viento ni los detalles de armado. Los límites vienen de las recomendaciones de cohetería modelo (NAR).
-      </p>
+      {/* The rocket that was rated, with its CM and CP, and its masses at liftoff right under it, always in view. */}
+      <figure className="fb-rocket">
+        <RocketView design={design} loaded={result.stabilityLoaded} empty={result.stabilityEmpty} bare />
+        <figcaption className="fb-masses">
+          <div className="mass-bar" aria-hidden="true">
+            {masses.rows.map((m, k) => <span key={m.name + k} style={{ width: `${m.share * 100}%`, background: m.color }} />)}
+          </div>
+          <ul aria-label={`Masas al despegar: ${format(masses.total, 1)} g en total`}>
+            {masses.rows.map((m, k) => (
+              <li key={m.name + k}>
+                <span className="dot" style={{ background: m.color }} aria-hidden="true" />
+                <span className="fb-mass-name">{m.name}</span>
+                <b>{format(m.mass, 1)} g</b>
+              </li>
+            ))}
+            <li className="fb-mass-total"><span className="fb-mass-name">Total al despegar</span><b>{format(masses.total, 1)} g</b></li>
+          </ul>
+        </figcaption>
+      </figure>
+      </div>
     </div>
   );
 }

@@ -1,22 +1,28 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import type { Design } from "../model";
-import { noseMaterialLabel } from "../model";
 import { motorFor } from "../motor";
-import { layout } from "../physics/geometry";
-import { WATER_DENSITY } from "../physics/propulsion";
 import type { FlightResult } from "../physics/simulate";
 import { NumField, Segmented, SelectField, format } from "./fields";
 import { LineChart, type Series } from "./LineChart";
 import { QTY, flightMarkers, flightSpans, posAxis, posTitle, series, thin } from "./phases";
-import { PhaseTimeline } from "./PhaseTimeline";
 import { FlightBadge } from "./FlightBadge";
 import { forceSeriesTec } from "./learn/phaseCommon";
 import { guessColumn, parseTable, realSeries, type Table } from "./realData";
 import { downloadFile, fileSafe } from "./storage";
 import { downloadMatlab } from "./matlab";
 import type { SubTab } from "./Workspace";
+import { useStage } from "./stage";
 
 const BLUE = "#0039a6";
+
+/** The four parts of Simulaciones, one at a time. */
+type SimPart = "revision" | "graficas" | "resultados" | "real";
+const SIM_PARTS: { id: SimPart; n: number; title: string; hint: string }[] = [
+  { id: "revision", n: 1, title: "Revisión", hint: "Go / No-Go del vuelo" },
+  { id: "graficas", n: 2, title: "Simulaciones", hint: "Gráficas del vuelo" },
+  { id: "resultados", n: 3, title: "Resultados", hint: "Números y diseño" },
+  { id: "real", n: 4, title: "Vuelo real", hint: "Altímetro y sensor" },
+];
 const ORANGE = "#e0701b";
 const G0 = 9.80665;
 
@@ -116,6 +122,17 @@ interface Props {
 export function GraphsTab({ design: d, result: r, comparison, onComparison, onLesson }: Props) {
   const [csvError, setCsvError] = useState("");
   const [range, setRange] = useState<"ascent" | "all">("all");
+  const [part, setPart] = useState<SimPart>("revision");
+  // Every part has the same one-screen window (the stage), so switching parts never changes the size of the page.
+  const chartsStage = useStage<HTMLDivElement>(part);
+  const resultsStage = useStage<HTMLDivElement>(part);
+  const realStage = useStage<HTMLDivElement>(part);
+  // Picking a part places the page like a step button: the row of phases at the top, the part below it.
+  const pick = (p: SimPart) => {
+    setPart(p);
+    const row = document.querySelector(".menu-row.phases");
+    if (row) scrollTo({ top: row.getBoundingClientRect().top + scrollY - 8 });
+  };
   const xMax = range === "ascent" ? Math.min(r.apogee.t * 1.25 + 0.2, r.samples[r.samples.length - 1].t) : undefined;
   const { csv } = comparison;
   const simLiftoff = r.samples.find((s) => s.h > 0.5)?.t ?? 0;
@@ -145,7 +162,6 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
     };
   }, [r, real, tec]);
 
-  const l = layout(d);
   const motor = d.type === "estes" ? motorFor(d.motor) : undefined;
   const altimeterM = comparison.altimeterUnit === "ft" ? comparison.altimeter * 0.3048 : comparison.altimeter;
   const err = (v: number) => ((v - r.apogee.h) / r.apogee.h) * 100;
@@ -180,9 +196,24 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
     <div className="results wide">
       <div className="print-only"><h2 style={{ color: BLUE }}>Rocket Physics Lab Sinaloa · {d.name}</h2></div>
 
-      <FlightBadge design={d} result={r} onGo={onLesson} />
+      <div className="lesson-head card phase-head no-print">
+        <h2 className="visually-hidden">Simulaciones del vuelo</h2>
+        <nav className="stage-tabs" aria-label="Partes de Simulaciones" style={{ "--tabs": SIM_PARTS.length } as CSSProperties}>
+          {SIM_PARTS.map((t) => (
+            <button key={t.id} type="button" className={`stage-tab sim-${t.id}`} aria-current={part === t.id ? "step" : undefined} onClick={() => pick(t.id)}>
+              <span className="stage-n">{t.n}</span>
+              <span className="stage-tab-text"><b>{t.title}</b><small>{t.hint}</small></span>
+            </button>
+          ))}
+        </nav>
+      </div>
 
-      <div className="card">
+      <div className="sim-part" hidden={part !== "revision"}>
+        <FlightBadge design={d} result={r} onGo={onLesson} page={part} />
+      </div>
+
+      <div className="sim-part" hidden={part !== "resultados"}>
+      <div className="card step-stage sim-results" ref={resultsStage}>
         <div className="card-head">
           <h2>Resultados de la simulación · {d.name}</h2>
           <div className="btn-row no-print">
@@ -198,37 +229,40 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
           </div>
         )}
       </div>
+      </div>
 
-      <div className="card">
+      <div className="sim-part" hidden={part !== "graficas"}>
+      <div className="card step-stage sim-charts" ref={chartsStage}>
         <div className="card-head">
           <h2>Simulaciones del vuelo</h2>
           <Segmented value={range} options={[{ value: "ascent", label: "Ascenso" }, { value: "all", label: "Todo el vuelo" }]} onChange={setRange} />
         </div>
         <p className="hint" style={{ marginBottom: 8 }}>
-          Las franjas de color marcan las cuatro fases del vuelo y las líneas punteadas, los eventos. Haz clic en una fase para ver cómo se calcula.
+          Las franjas de color marcan las fases del vuelo y las líneas punteadas, los eventos. Para ver cómo se calcula una fase, elígela en la fila de fases.
         </p>
-        <PhaseTimeline result={r} type={d.type} onPick={(id) => onLesson(`fase${id}` as SubTab)} />
-        <div className="charts">
+        <div className="charts fill stage-fill">
           {tec ? (
             <>
               {/* Same order and colours as the phase lessons: cause → effect. */}
-              <div><LineChart title="Fuerzas y suma de fuerzas ΣF" xLabel="Tiempo (s)" yLabel="Fuerza (N)" series={charts.forces} spans={spans} markers={markers} xMax={xMax} /></div>
-              <div><LineChart title="Aceleración dv/dt" xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={charts.acceleration} spans={spans} markers={markers} xMax={xMax} /></div>
-              <div><LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={charts.velocity} spans={spans} markers={markers} xMax={xMax} /></div>
-              <div><LineChart title={posTitle(d.type)} xLabel="Tiempo (s)" yLabel={posAxis(d.type)} series={charts.altitude} spans={spans} markers={markers} xMax={xMax} /></div>
+              <LineChart title="Fuerzas y suma de fuerzas ΣF" xLabel="Tiempo (s)" yLabel="Fuerza (N)" series={charts.forces} spans={spans} markers={markers} xMax={xMax} height="fill" />
+              <LineChart title="Aceleración dv/dt" xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={charts.acceleration} spans={spans} markers={markers} xMax={xMax} height="fill" />
+              <LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={charts.velocity} spans={spans} markers={markers} xMax={xMax} height="fill" />
+              <LineChart title={posTitle(d.type)} xLabel="Tiempo (s)" yLabel={posAxis(d.type)} series={charts.altitude} spans={spans} markers={markers} xMax={xMax} height="fill" />
             </>
           ) : (
             <>
-          <div><LineChart title={posTitle(d.type)} xLabel="Tiempo (s)" yLabel={posAxis(d.type)} series={charts.altitude} spans={spans} markers={markers} xMax={xMax} /></div>
-          <div><LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={charts.velocity} spans={spans} markers={markers} xMax={xMax} /></div>
-          <div><LineChart title="Aceleración a(t)" xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={charts.acceleration} spans={spans} markers={markers} xMax={xMax} /></div>
-          <div><LineChart title={d.type === "water" ? "Empuje del agua y el aire T(t)" : `Empuje del motor ${motor?.name ?? ""} T(t)${motor?.model === "average" ? " (empuje promedio constante)" : ""}`} xLabel="Tiempo (s)" yLabel="Empuje (N)" series={charts.thrust} xMax={charts.burnEnd} /></div>
+          <LineChart title={posTitle(d.type)} xLabel="Tiempo (s)" yLabel={posAxis(d.type)} series={charts.altitude} spans={spans} markers={markers} xMax={xMax} height="fill" />
+          <LineChart title="Velocidad v(t)" xLabel="Tiempo (s)" yLabel="Velocidad (m/s)" series={charts.velocity} spans={spans} markers={markers} xMax={xMax} height="fill" />
+          <LineChart title="Aceleración a(t)" xLabel="Tiempo (s)" yLabel="Aceleración (m/s²)" series={charts.acceleration} spans={spans} markers={markers} xMax={xMax} height="fill" />
+          <LineChart title={d.type === "water" ? "Empuje del agua y el aire T(t)" : `Empuje del motor ${motor?.name ?? ""} T(t)${motor?.model === "average" ? " (empuje promedio constante)" : ""}`} xLabel="Tiempo (s)" yLabel="Empuje (N)" series={charts.thrust} xMax={charts.burnEnd} height="fill" />
             </>
           )}
         </div>
       </div>
+      </div>
 
-      <div className="card">
+      <div className="sim-part" hidden={part !== "real"}>
+      <div className="card step-stage sim-real-card" ref={realStage}>
         <h2>Comparar con el vuelo real</h2>
         <div className="compare-grid">
           <div>
@@ -284,24 +318,6 @@ export function GraphsTab({ design: d, result: r, comparison, onComparison, onLe
           </div>
         </div>
       </div>
-
-      <div className="card">
-        <h2>Resumen del diseño</h2>
-        <table className="summary">
-          <tbody>
-            <tr><td>Largo total</td><td className="val">{format(l.length / 10, 1)} cm</td></tr>
-            <tr><td>Diámetro</td><td className="val">{format(l.refDiameter, 1)} mm</td></tr>
-            <tr><td>Ojiva</td><td className="val">{noseMaterialLabel(d.nose.material)} · {format(d.nose.length)} mm · {format(d.nose.mass, 1)} g</td></tr>
-            {d.type === "estes"
-              ? <tr><td>Cuerpo</td><td className="val">opalina {d.sheet.gsm} g/m² · {format(d.body.length)} × Ø{format(d.body.diameter)} mm · {format(d.body.mass, 1)} g</td></tr>
-              : <tr><td>Botella</td><td className="val">{format(d.water.bottleVolume, 2)} L · {format(d.water.bottleMass, 0)} g · {format(d.water.waterVolume * WATER_DENSITY / 1000, 3)} kg de agua a {format(d.water.pressure, 0)} psi</td></tr>}
-            <tr><td>Aletas</td><td className="val">{d.fins.count} · raíz {format(d.fins.rootChord)} / punta {format(d.fins.tipChord)} / altura {format(d.fins.span)} mm · {format(d.fins.mass, 1)} g</td></tr>
-            {motor && d.type === "estes" && <tr><td>Motor</td><td className="val">{motor.name} · {format(motor.totalImpulse, 2)} N·s · {format(d.motor.mass, 1)} g · {motor.model === "average" ? `empuje promedio constante de ${format(motor.averageThrust, 2)} N` : "empuje real (curva)"}</td></tr>}
-            <tr><td>Paracaídas</td><td className="val">{d.recovery.kind === "parachute" ? `${format(d.recovery.diameter / 10, 0)} cm · ${format(d.recovery.mass, 1)} g` : "ninguno"}</td></tr>
-            {d.extras.map((e, i) => <tr key={i}><td>{e.name}</td><td className="val">{format(e.mass, 1)} g a {format(e.position)} mm</td></tr>)}
-            <tr><td>Sitio</td><td className="val">{format(d.launch.altitude, 0)} m s.n.m. · {format(d.launch.temperature, 0)} °C · guía {format(d.launch.guideLength, 2)} m</td></tr>
-          </tbody>
-        </table>
       </div>
     </div>
   );

@@ -8,12 +8,12 @@ import { simulate, type FlightResult } from "../../physics/simulate";
 import { format } from "../fields";
 import { LineChart } from "../LineChart";
 import { QTY, faded, nearest, within, type PhaseId } from "../phases";
-import { Code, Eq, StageBlock, Think, n } from "./common";
+import { Code, Eq, StageBlock, n } from "./common";
 import { ConstantS, ConstantV, TanhS, TanhV } from "./derivations";
 import { RocketFreeBody, forceScale } from "./diagrams";
 import { MethodTree } from "./Phase1Lesson";
 import { phase2DragRef, phase2Model } from "./Phase2Estes";
-import { MethodResults, MissingPhase, PhaseCharts, PhaseFacts, PhaseHeader, forceSeriesTec, phaseAverages, phaseOf, type MethodResult } from "./phaseCommon";
+import { MethodResults, MissingPhase, PhaseCharts, PhaseFacts, PhaseHeader, forceSeriesTec, phaseAverages, phaseOf, type MethodResult, PhaseOutcome } from "./phaseCommon";
 
 const r = String.raw;
 
@@ -93,9 +93,7 @@ export function Phase3EstesLesson({ design: d, result: res, onPhase, onChange }:
         result={res} type={d.type}
         id={3}
         onPick={onPhase}
-        intro={exists
-          ? <>En el apogeo el cohete se detiene un instante y empieza a <b>caer</b>, todavía sin paracaídas. El motor sigue quemando su carga de retardo; la fase termina cuando la <b>carga de eyección</b> separa el cohete y saca el paracaídas, {format(M.delay, 0)} s después de que se acabó el empuje.</>
-          : <>Del apogeo hasta la eyección. En este vuelo la eyección ocurre antes del apogeo, así que esta fase no existe.</>}
+        intro={null}
       />
       {!exists && (
         <MissingPhase type={d.type} id={3}>
@@ -164,19 +162,11 @@ export function Phase3EstesLesson({ design: d, result: res, onPhase, onChange }:
       </div>
 
       {exists && (
-        <section className="stage stage-resultados">
-          <header>
-            <span className="stage-n">4</span>
-            <div>
-              <h3>Fase III: Resultados</h3>
-              <p className="stage-explain">Interpretamos los cambios del cohete en esta fase y verificamos si el modelo predice bien lo que se mide.</p>
-            </div>
-          </header>
-          <div className="stage-body">
-            <Phase3Results M={M} />
-            <PhaseFacts result={res} type={d.type} id={3} />
-            <PhaseCharts result={res} type={d.type} id={3} extra={FORCES} merge={1} />
-            <Think>
+        <PhaseOutcome
+          phase="III"
+          charts={<PhaseCharts result={res} type={d.type} id={3} extra={FORCES} merge={1} fill />}
+          results={<><Phase3Results M={M} /><PhaseFacts result={res} type={d.type} id={3} /></>}
+          think={
               <ul>
                 <li>En el apogeo <Eq tex={r`v = 0`} />. ¿Cuánto vale ahí <Eq tex={r`dv/dt`} />? ¿Por qué el cohete no se queda flotando?</li>
                 <li>Compara el arrastre en la Fase II y en la Fase III: ¿hacia dónde apunta en cada una? ¿Por qué cambió?</li>
@@ -185,9 +175,8 @@ export function Phase3EstesLesson({ design: d, result: res, onPhase, onChange }:
                 <li>Si la caída durara mucho, ¿la velocidad crecería sin límite? ¿Qué pasa cuando el arrastre iguala al peso?</li>
                 <li>Las condiciones finales de la Fase III son las condiciones iniciales de la Fase IV. ¿Qué valores tendrán <code>FaseIV_vi</code> y <code>FaseIV_si</code>?</li>
               </ul>
-            </Think>
-          </div>
-        </section>
+          }
+        />
       )}
     </div>
   );

@@ -8,13 +8,13 @@ import { format } from "../fields";
 import { LineChart } from "../LineChart";
 import { ChuteDiagram } from "../ChuteDiagram";
 import { QTY, faded, nearest, within, type PhaseId } from "../phases";
-import { Code, Eq, StageBlock, Think, n } from "./common";
+import { Code, Eq, StageBlock, n } from "./common";
 import { LinearChuteS, LinearChuteV, QuadraticChuteS, QuadraticChuteV } from "./derivations";
 import { RocketFreeBody, forceScale } from "./diagrams";
 import { MethodTree } from "./Phase1Lesson";
 import { phase2DragRef } from "./Phase2Estes";
 import { phase3DragRef, phase3Model } from "./Phase3Estes";
-import { MethodResults, MissingPhase, PhaseCharts, PhaseFacts, PhaseHeader, forceSeriesTec, phaseOf, type MethodResult } from "./phaseCommon";
+import { MethodResults, MissingPhase, PhaseCharts, PhaseFacts, PhaseHeader, forceSeriesTec, phaseOf, type MethodResult, PhaseOutcome } from "./phaseCommon";
 
 const r = String.raw;
 
@@ -127,7 +127,7 @@ export function Phase4EstesLesson({ design: d, result: res, onPhase, onChange }:
   if (!ph.exists || !hasChute) {
     return (
       <div className="lesson">
-        <PhaseHeader result={res} type={d.type} id={4} onPick={onPhase} intro={<>Del momento en que se abre el paracaídas hasta que el cohete toca el suelo.</>} />
+        <PhaseHeader result={res} type={d.type} id={4} onPick={onPhase} intro={null} />
         <MissingPhase type={d.type} id={4}>
           {ph.note && <p>{ph.note}</p>}
           <p>Sin paracaídas, el cohete toca el suelo a <b>{format(res.descentRate, 1)} m/s</b> ({format(res.descentRate * 3.6, 0)} km/h). Agrega uno en la pestaña Cohete para ver esta fase.</p>
@@ -142,7 +142,7 @@ export function Phase4EstesLesson({ design: d, result: res, onPhase, onChange }:
         result={res} type={d.type}
         id={4}
         onPick={onPhase}
-        intro={<>La carga de eyección saca el <b>paracaídas</b>. Desde ese instante la fuerza del paracaídas frena al cohete hasta su <b>velocidad terminal</b> y lo baja con rapidez constante hasta el suelo. La fase termina al <b>aterrizar</b>, cuando <Eq tex={r`s = 0`} />.</>}
+        intro={null}
       />
       <div className="lesson-grid">
         <StageBlock stage="fisica">
@@ -197,19 +197,11 @@ export function Phase4EstesLesson({ design: d, result: res, onPhase, onChange }:
         </StageBlock>
       </div>
 
-      <section className="stage stage-resultados">
-        <header>
-          <span className="stage-n">4</span>
-          <div>
-            <h3>Fase IV: Resultados</h3>
-            <p className="stage-explain">Interpretamos los cambios del cohete en esta fase y verificamos si el modelo predice bien lo que se mide.</p>
-          </div>
-        </header>
-        <div className="stage-body">
-          <Phase4Results M={M} />
-          <PhaseFacts result={res} type={d.type} id={4} />
-          <PhaseCharts result={res} type={d.type} id={4} extra={FORCES} merge={1} />
-          <Think>
+      <PhaseOutcome
+        phase="IV"
+        charts={<PhaseCharts result={res} type={d.type} id={4} extra={FORCES} merge={1} fill />}
+        results={<><Phase4Results M={M} /><PhaseFacts result={res} type={d.type} id={4} /></>}
+        think={
             <ul>
               <li>Justo al abrirse el paracaídas, el cohete va hacia abajo pero <Eq tex={r`dv/dt`} /> es positiva. ¿Qué significa? ¿Hacia dónde apunta la suma de fuerzas?</li>
               <li>¿Por qué la velocidad deja de cambiar? ¿Cuánto vale ahí la suma de fuerzas?</li>
@@ -222,9 +214,8 @@ export function Phase4EstesLesson({ design: d, result: res, onPhase, onChange }:
                 compárala con la de tu modelo, <Eq tex={r`b = ${n(M.b, 4)}\ \text{N·s/m}`} />.
               </li>
             </ul>
-          </Think>
-        </div>
-      </section>
+        }
+      />
     </div>
   );
 }

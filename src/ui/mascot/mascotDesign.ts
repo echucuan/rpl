@@ -8,8 +8,8 @@
  * on that canvas and their path "d" pasted here.
  */
 
-export type MascotMood = "idle" | "thinking" | "talking" | "happy" | "confused";
-export type MascotExtra = "dots" | "sparks" | "question";
+export type MascotMood = "idle" | "thinking" | "talking" | "happy" | "confused" | "scared";
+export type MascotExtra = "dots" | "sparks" | "question" | "sweat";
 
 export interface MouthDesign {
   /** Outline of the mouth (an SVG path). */
@@ -38,8 +38,8 @@ export interface MoodDesign {
   mouth: MouthDesign;
   /** Decorations around the rocket. */
   extras: MascotExtra[];
-  /** Body motion (defined in mascot.css): float, think, fast, hop, tilt. */
-  motion: "float" | "think" | "fast" | "hop" | "tilt";
+  /** Body motion (defined in mascot.css): float, think, fast, hop, tilt, shake. */
+  motion: "float" | "think" | "fast" | "hop" | "tilt" | "shake";
   /** Exhaust plume: normal, strong (talking) or weak (sputtering). */
   plume: "normal" | "strong" | "weak";
 }
@@ -84,6 +84,8 @@ export interface MascotDesign {
     dots: { x: number; y: number; r: number }[];
     sparks: { x: number; y: number; scale: number }[];
     question: { x: number; y: number; size: number };
+    /** Drops of sweat (a drop shape centred at x, y). */
+    sweat: { x: number; y: number; scale: number }[];
   };
   /** Animation durations in seconds. */
   animation: { float: number; blink: number; flame: number; talk: number };
@@ -91,6 +93,9 @@ export interface MascotDesign {
 }
 
 /** 4-point star like the ones in the Rocket Tec logo (centered at 0,0, radius 7). */
+/** A drop of sweat (centred at 0,0, about 12 tall). */
+export const DROP = "M0 -7 Q5 1 0 5 Q-5 1 0 -7Z";
+
 export const STAR = "M0 -7 Q1 -1 7 0 Q1 1 0 7 Q-1 1 -7 0 Q-1 -1 0 -7Z";
 
 const smile = "M51 96 Q60 104 69 96";
@@ -126,6 +131,7 @@ export const MASCOT_DESIGN: MascotDesign = {
     dots: [{ x: 98, y: 40, r: 3.5 }, { x: 108, y: 30, r: 4.5 }, { x: 120, y: 18, r: 5.5 }],
     sparks: [{ x: 12, y: 40, scale: 1 }, { x: 108, y: 28, scale: 1.2 }, { x: 104, y: 96, scale: 0.7 }],
     question: { x: 104, y: 40, size: 30 },
+    sweat: [{ x: 94, y: 48, scale: 1 }, { x: 26, y: 58, scale: 0.8 }, { x: 100, y: 70, scale: 0.6 }],
   },
   animation: { float: 3.2, blink: 4.5, flame: 0.22, talk: 0.32 },
   moods: {
@@ -201,6 +207,19 @@ export const MASCOT_DESIGN: MascotDesign = {
       mouth: { d: "M51 100 q3 -3.4 6 0 t6 0 t6 0", filled: false },
       extras: ["question"],
       motion: "tilt",
+      plume: "weak",
+    },
+    scared: {
+      label: "Asustado",
+      when: "Pierde la estabilidad: el aire lo voltea",
+      gaze: { x: 0, y: -3 },
+      irisScale: 0.62,
+      blink: false,
+      sparkleEye: false,
+      cheeks: false,
+      mouth: { d: "M54.5 100 a5.5 6.5 0 1 0 11 0 a5.5 6.5 0 1 0 -11 0Z", filled: true },
+      extras: ["sweat"],
+      motion: "shake",
       plume: "weak",
     },
   },

@@ -17,7 +17,9 @@ import { useLayoutEffect, useRef, type ReactNode } from "react";
  */
 const MIN_STAGE = 360; // below this (very short screens) the page may scroll
 const BOTTOM_GAP = 10; // space under the ← → buttons
-const docTop = (el: Element) => el.getBoundingClientRect().top + scrollY;
+/** The head of every step page (title line, or the row of section buttons): the same height everywhere (CSS .step-head, .phase-head). */
+const HEAD_H = 58;
+const HEAD_GAP = 16; // between the head and the stage
 
 /**
  * Makes the element it is given (the step's card, which must also carry the class step-stage) the stage. `page` is what changes between the pages of the step,
@@ -30,18 +32,29 @@ export function useStage<T extends HTMLElement = HTMLDivElement>(page: unknown) 
     const el = ref.current;
     if (!el) return;
     const fit = () => {
-      // Where a step button leaves the page: its row of steps 8 px under the top edge.
-      const steps = document.querySelector(".menu-row.phases");
-      const focusY = steps ? docTop(steps) - 8 : 0;
+      // Hidden (another section of the page is on screen): nothing to measure.
+      if (!el.offsetParent) return;
+      // One window for every stage in RPL, from sizes only (never from where things happen to be): the row of steps
+      // 8 px under the top edge, the end of the menu that holds it, the head of the page (one line, HEAD_H high on
+      // every page) and its gap; it ends over the ← → buttons. So moving between steps, sections or tabs never
+      // changes its size.
+      const steps = document.querySelector<HTMLElement>(".menu-row.phases");
+      const menu = steps?.closest<HTMLElement>(".workspace-menu");
+      const ms = menu ? getComputedStyle(menu) : null;
+      const menuTail = ms ? parseFloat(ms.paddingBottom) + parseFloat(ms.borderBottomWidth) + parseFloat(ms.marginBottom) : 0;
+      const top = 8 + (steps?.offsetHeight ?? 0) + menuTail + HEAD_H + HEAD_GAP;
       const nav = document.querySelector<HTMLElement>(".lesson-nav");
       const navSpace = nav ? nav.offsetHeight + parseFloat(getComputedStyle(nav).marginTop || "0") : 0;
-      const h = Math.max(MIN_STAGE, Math.floor(innerHeight - (docTop(el) - focusY) - navSpace - BOTTOM_GAP));
+      const h = Math.max(MIN_STAGE, Math.floor(innerHeight - top - navSpace - BOTTOM_GAP));
       el.style.setProperty("--stage-h", `${h}px`);
     };
     fit();
     const ro = new ResizeObserver(fit);
     const steps = document.querySelector(".menu-row.phases");
     if (steps) ro.observe(steps);
+    // The menu above (main steps + row of steps) changes height when its main row folds away: measure again.
+    const menu = document.querySelector(".workspace-menu");
+    if (menu) ro.observe(menu);
     if (el.previousElementSibling) ro.observe(el.previousElementSibling);
     addEventListener("resize", fit);
     return () => { ro.disconnect(); removeEventListener("resize", fit); };

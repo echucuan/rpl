@@ -32,8 +32,9 @@ const EXTRAS: { id: MascotExtra; label: string }[] = [
   { id: "dots", label: "Puntitos" },
   { id: "sparks", label: "Estrellas" },
   { id: "question", label: "Signo ?" },
+  { id: "sweat", label: "Sudor" },
 ];
-const MOTIONS: MoodDesign["motion"][] = ["float", "think", "fast", "hop", "tilt"];
+const MOTIONS: MoodDesign["motion"][] = ["float", "think", "fast", "hop", "tilt", "shake"];
 const PLUMES: MoodDesign["plume"][] = ["normal", "strong", "weak"];
 
 export function MascotLab() {

@@ -270,7 +270,9 @@ footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 0 
 /* ---------- lessons (Física → Matemáticas → Computación) ---------- */
 .lesson { display: flex; flex-direction: column; gap: 16px; }
 .lesson-head h2 { font-size: 1.35rem; color: var(--tec-blue); margin: 10px 0 6px; }
-.lesson-head p { margin: 0; max-width: 900px; }
+.lesson-head p { margin: 0; max-width: none; text-align: justify; hyphens: auto; }
+/* Lesson prose fills its column with even edges (lang="es" lets the browser hyphenate). */
+.stage-body p, .stage-body li, .stage header p.stage-explain { text-align: justify; hyphens: auto; }
 .method-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .method-strip .arrow { color: var(--muted); }
 .chip { padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
@@ -861,20 +863,21 @@ table.summary th.q-F, table.summary td.q-F { color: var(--q-F); }
 .fb-summary { margin: 6px 0 0; font-size: 0.95rem; }
 .fb-list-title { margin: 16px 0 8px; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--tec-blue); position: relative; z-index: 1; }
 .fb-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; position: relative; z-index: 1; }
-.fb-check { --c: #1d7a3e; display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; column-gap: 12px; align-items: center;
+.fb-check { --c: #1d7a3e; display: grid; grid-template-columns: 130px minmax(0, 1fr) auto auto; column-gap: 12px; align-items: center;
   padding: 8px 12px; border: 1px solid var(--line); border-left: 5px solid var(--c); border-radius: 8px; background: #fff;
   animation: fb-row 0.35s ease-out both; }
 .fb-check.lvl-2 { --c: #b7791f; } .fb-check.lvl-3 { --c: #c05621; } .fb-check.lvl-4 { --c: #c0262d; }
 .fb-status { font-weight: 900; font-size: 0.85rem; letter-spacing: 0.04em; color: var(--c); font-family: ui-monospace, Consolas, monospace; }
 .fb-name { font-weight: 700; }
 .fb-value { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--c); text-align: right; }
-.fb-target { grid-column: 2 / -1; font-size: 0.78rem; color: var(--muted); }
+.fb-target { font-size: 0.78rem; font-weight: 400; color: var(--muted); margin-left: 6px; }
 .fb-advice { grid-column: 2 / -1; margin-top: 6px; padding: 8px 10px; border-radius: 6px; background: #f7f8fa; font-size: 0.88rem; }
 .fb-advice p { margin: 0 0 4px; }
 .fb-hint { color: var(--ink); }
 .fb-note { margin-top: 10px; position: relative; z-index: 1; }
 .flight-badge.lvl-4 .fb-hero { animation: fb-shake 0.6s 0.9s ease-in-out both; }
-.fb-confetti { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+/* Clipped to the card: pieces drifting past its sides made the window scroll sideways. */
+.fb-confetti { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: hidden; }
 .fb-confetti span { position: absolute; top: -14px; width: 8px; height: 14px; border-radius: 2px; opacity: 0;
   animation-name: fb-fall; animation-timing-function: ease-in; animation-fill-mode: forwards; }
 .fb-confetti span.round { width: 9px; height: 9px; border-radius: 50%; }
@@ -892,9 +895,9 @@ table.summary th.q-F, table.summary td.q-F { color: var(--q-F); }
 @media (max-width: 640px) {
   .fb-hero { flex-direction: column; text-align: center; }
   .fb-label { font-size: 1.6rem; }
-  .fb-check { grid-template-columns: 1fr auto; }
+  .fb-check { grid-template-columns: minmax(0, 1fr) auto auto; }
   .fb-status { grid-column: 1 / -1; }
-  .fb-target, .fb-advice { grid-column: 1 / -1; }
+  .fb-advice { grid-column: 1 / -1; }
 }
 
 /* Centered verdict; the Shaky Borrego trembles and sweats. */
@@ -1071,7 +1074,7 @@ table.summary th.q-F, table.summary td.q-F { color: var(--q-F); }
 .stab-wind input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #3a86ff; border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
 .stab-wind input[type="range"]:focus-visible { outline: 2px solid #3a86ff; outline-offset: 4px; border-radius: 6px; }
 /* Forces over a faded rocket: N (aerodynamic, teal) at the CP and at the CG, and the torque τ around the CG. */
-.stab-rocket { opacity: 0.4; filter: blur(1.2px) saturate(0.7); }
+.stab-rocket { opacity: 0.92; }
 .stab-n { stroke: #0f8a9d; stroke-width: 4; stroke-linecap: round; }
 .stab-n.at-cg { stroke-dasharray: 7 5; }
 .stab-tag.n { fill: #0f8a9d; font-size: 13px; }
@@ -1332,17 +1335,17 @@ body:has(main > .start) footer { padding-bottom: clamp(8px, 1.6vh, 30px); }
 table.summary th.in-use, table.summary td.in-use { background: var(--tec-blue-soft); font-weight: 700; }
 
 /* Prueba tu motor: every page fits one screen, without scrolling. */
-.static-test .lesson-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; padding: 10px 16px; }
-.static-test .lesson-head h2 { margin: 0; font-size: 1.2rem; white-space: nowrap; }
-.static-test .lesson-head p { margin: 0; color: var(--muted); }
-.static-test .card { padding: 14px 16px; }
+.static-test .lesson-head, .stab-lesson .lesson-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 16px; padding: 10px 16px; }
+.static-test .lesson-head h2, .stab-lesson .lesson-head h2 { margin: 0; font-size: 1.2rem; white-space: nowrap; }
+.static-test .lesson-head p, .stab-lesson .lesson-head p { margin: 0; color: var(--muted); }
+.static-test .card, .stab-lesson .card { padding: 14px 16px; }
 .static-test .motor-sheet { margin: 8px 0; }
 .static-test .motor-specs > div { padding-top: 8px; padding-bottom: 8px; }
 .static-test .motor-specs dt { min-height: 0; }
 .static-test details.more { margin: 6px 0; }
-main:has(.static-test) { padding-bottom: 12px; }
-main:has(.static-test) .lesson-nav { margin-top: 12px; }
-body:has(.static-test) footer { padding-bottom: 10px; }
+main:has(.static-test), main:has(.stab-lesson) { padding-bottom: 12px; }
+main:has(.static-test) .lesson-nav, main:has(.stab-lesson) .lesson-nav { margin-top: 12px; }
+body:has(.static-test) footer, body:has(.stab-lesson) footer { padding-bottom: 10px; }
 .tips-row { display: grid; gap: 0 12px; align-items: start; }
 .cmp-grid, .decide-grid { display: grid; gap: 14px 20px; align-items: start; }
 .cmp-chart .chart-range { margin-bottom: 4px; }
@@ -1378,8 +1381,8 @@ body:has(.static-test) footer { padding-bottom: 10px; }
 .cmp-side details.more > :not(summary) { margin: 6px 0; }
 .cmp-side > p.hint { margin: 6px 0 0 !important; }
 .static-test .motor-verdict { margin-bottom: 6px; }
-main:has(.static-test) { padding-bottom: 6px; }
-main:has(.static-test) .lesson-nav { margin-top: 8px; }
+main:has(.static-test), main:has(.stab-lesson) { padding-bottom: 6px; }
+main:has(.static-test) .lesson-nav, main:has(.stab-lesson) .lesson-nav { margin-top: 8px; }
 /* In a workspace the main area is at least one screen tall, so the page can scroll the Tec bar out of view. */
 main:has(> .program-banner) { min-height: 100vh; }
 
@@ -1397,6 +1400,7 @@ main:has(> .program-banner) { min-height: 100vh; }
 .menu-row.phases button { height: 40px; padding: 0 14px 0 10px; gap: 8px; }
 .menu-row.phases .phase-tab-text { font-size: 0.95rem; line-height: 1.1; }
 .menu-row.phases .phase-tab-text small { font-size: 0.75rem; }
+.menu-row.phases .phase-tab-text { white-space: nowrap; } /* "Despegue - MaxQ" never splits in two lines */
 /* The open sub-step is outlined in its colour, like the open main step: only Go for launch is a filled button. */
 .menu-row.phases button[aria-current] {
   background: color-mix(in srgb, var(--phase) 9%, var(--surface)); color: var(--phase);
@@ -1584,14 +1588,14 @@ main:has(> .program-banner) { min-height: calc(100vh + 160px); }
 .designer.stepped .fin-sketch svg { max-height: 120px; width: auto; max-width: 100%; }
 .designer.stepped .fin-sketch figcaption { display: none; }
 
-/* Cohete's six steps stay on one row: long notes are cut (the whole note is the button's tooltip). */
+/* Cohete's six steps stay on one row (each step's note opens on hover or focus). */
 
 /* Recuperación step: a shorter diagram so the whole parachute fits without scrolling. */
 .designer.stepped .chute-diagram { margin: 4px 0; }
 .designer.stepped .chute-diagram svg { height: 130px; }
 .designer.stepped .chute-diagram figcaption { display: none; }
 .chute-cd details.more summary { font-size: 0.8rem; }
-/* Cohete's six steps: equal buttons on a single row; long names and notes are cut (the whole note is the tooltip). */
+/* Cohete's six steps: equal buttons on a single row; a long name is cut, its note opens on hover or focus. */
 .rocket-steps .sub-steps { flex-wrap: nowrap; width: 100%; }
 .rocket-steps .sub-steps > button { flex: 1 1 0; min-width: 0; padding: 0 8px 0 6px; gap: 6px; }
 .menu-row.phases.rocket-steps .phase-tab-text { font-size: 0.88rem; }
@@ -1672,8 +1676,8 @@ main:has(> .program-banner) { min-height: calc(100vh + 160px); }
   .mide-empty .tips-row details.more { margin-top: 0; }
   .mide-empty .dropzone { margin-top: 0; }
   .mide-empty .btn-row { flex-direction: column; align-items: stretch; text-align: center; }
-  .static-test .lesson-head h2 { flex: none; }
-  .static-test .lesson-head p { flex: 1 1 420px; max-width: none; }
+.static-test .lesson-head h2, .stab-lesson .lesson-head h2 { flex: none; }
+.static-test .lesson-head p, .stab-lesson .lesson-head p { flex: 1 1 420px; max-width: none; }
 }
 
 /* Compara: the two explanations open over the page (like every note), so the page never grows. */
@@ -1774,3 +1778,345 @@ main:has(> .program-banner) { min-height: calc(100vh + 160px); }
 .site-text small { color: var(--muted); font-size: 0.8rem; }
 .site-map { margin-left: auto; font-size: 0.82rem; white-space: nowrap; }
 .site-coords { font-variant-numeric: tabular-nums; }
+
+/* Estabilidad: four one-screen pages (StabilityLesson). */
+.stab-anim.compact { display: flex; flex-direction: column; gap: 8px; }
+.stab-anim.compact .stab-wind { margin-top: 0; padding: 6px 12px; grid-template-columns: auto minmax(0, 1fr) auto 13em; }
+.stab-anim.compact .stab-wind-value { grid-column: auto; text-align: right; }
+.stab-anim.compact .stab-panels { flex: 1 1 0; min-height: 0; margin-top: 0; grid-template-rows: minmax(0, 1fr); }
+.stab-anim.compact .stab-panel { min-height: 0; }
+.stab-anim.compact .stab-panel svg { flex: 1 1 0; min-height: 0; height: auto; }
+.stab-anim.compact .stab-panel figcaption { padding: 6px 10px 8px; font-size: 0.82rem; gap: 2px; }
+.stab-anim.compact .stab-panel figcaption b { font-size: 0.9rem; }
+.stab-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; }
+.stab-foot .stab-legend, .stab-foot .stab-controls { margin: 0; }
+.stab-foot .stab-legend { flex: 1 1 0; min-width: 0; gap: 4px 14px; font-size: 0.8rem; }
+.stab-foot .stab-controls { flex: none; flex-wrap: nowrap; }
+.stab-lesson .stab-view .rocket-view, .stab-lesson .stab-view > * { margin: 0; }
+.stab-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.stab-stat { display: flex; flex-direction: column; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--page); line-height: 1.2; }
+.stab-stat b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.stab-stat b small { font-size: 0.8rem; font-weight: 600; }
+.stab-stat > span { font-weight: 600; font-size: 0.85rem; }
+.stab-stat > small { color: var(--muted); font-size: 0.75rem; }
+.stab-stat.strong { background: #0f7a6c; border-color: #0f7a6c; color: #fff; }
+.stab-stat.strong > small { color: #d5f0eb; }
+.stab-lesson .think-text { margin: 4px 0 0; }
+.stab-lesson table.summary tr.sum td { font-weight: 700; border-top: 2px solid var(--line); }
+.stab-points { margin: 0; padding-left: 20px; font-size: 0.92rem; }
+.stab-points li { margin-bottom: 6px; }
+.stab-verdict { --tone: #1d7a3e; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 10px; border-left: 6px solid var(--tone); background: color-mix(in srgb, var(--tone) 10%, #fff); }
+.stab-verdict.unstable { --tone: #c0262d; }
+.stab-verdict.over { --tone: #b7791f; }
+.stab-verdict-label { font-weight: 800; font-size: 1.15rem; color: var(--tone); }
+.stab-verdict-value { font-weight: 800; font-size: 1.6rem; font-variant-numeric: tabular-nums; color: var(--tone); }
+.stab-verdict-value small { font-size: 0.85rem; font-weight: 600; }
+.margin-gauge { margin: 0; padding: 30px 8px 0; }
+.mg-bar { position: relative; height: 26px; border-radius: 6px; overflow: visible; background: #eef1f6; }
+.mg-zone { position: absolute; top: 0; bottom: 0; display: grid; place-items: center; font-size: 0.72rem; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; }
+.mg-zone.bad { background: #d9534f; border-radius: 6px 0 0 6px; }
+.mg-zone.warn { background: #e0a43a; }
+.mg-zone:last-of-type { border-radius: 0 6px 6px 0; }
+.mg-zone.good { background: #1d7a3e; }
+.mg-zone.ok { background: #6fb38a; }
+.mg-mark { position: absolute; top: -6px; bottom: -6px; width: 0; border-left: 3px solid #111; }
+.mg-mark.second { border-left-style: dashed; }
+.mg-mark.off { border-left-color: #c0262d; }
+.mg-tag { position: absolute; bottom: calc(100% + 2px); transform: translateX(-50%); white-space: nowrap; font-size: 0.75rem; font-weight: 700; background: #fff; padding: 0 4px; border-radius: 4px; }
+.mg-mark.second .mg-tag { top: calc(100% + 2px); bottom: auto; }
+.mg-ticks { position: relative; height: 34px; font-size: 0.72rem; color: var(--muted); }
+.mg-ticks span { position: absolute; top: 20px; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+.margin-gauge figcaption { text-align: center; font-size: 0.78rem; color: var(--muted); }
+.stab-advice { --tone: #c0262d; padding: 10px 14px; border-radius: 10px; border-left: 6px solid var(--tone); background: color-mix(in srgb, var(--tone) 7%, #fff); }
+.stab-advice.good { --tone: #1d7a3e; }
+.stab-advice.warn { --tone: #b7791f; }
+.stab-advice h3 { margin: 0 0 6px; font-size: 1rem; color: var(--tone); }
+.stab-advice p { margin: 0 0 8px; }
+.stab-advice ul { margin: 0 0 8px; padding-left: 20px; }
+.stab-advice li { margin-bottom: 6px; }
+.stab-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lesson-dialog { width: min(860px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 0; border: 0; border-radius: 14px; box-shadow: 0 20px 60px #0f1b3d55; }
+.lesson-dialog:modal { overscroll-behavior: contain; }
+.lesson-dialog::backdrop { overflow: hidden; overscroll-behavior: contain; background: #0f1b3d66; }
+.lesson-dialog-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; background: #fff; border-bottom: 1px solid var(--line); }
+.lesson-dialog-head h2 { margin: 0; font-size: 1.1rem; color: var(--tec-blue); }
+.lesson-dialog-body { padding: 12px 18px 18px; }
+.stab-lesson .stage-cols .btn, .stab-actions .btn { align-self: flex-start; }
+.mg-mark.at-start .mg-tag { transform: translateX(-6px); }
+.mg-mark.at-end .mg-tag { transform: translateX(calc(-100% + 6px)); }
+.mg-mark.off { border-left-width: 0; }
+.mg-mark.off .mg-tag { color: #c0262d; }
+.stab-no-motor { display: flex; align-items: center; gap: 10px; } .stab-no-motor .btn { flex: none; }
+/* The rocket drawing takes the height the column leaves; the svg keeps its proportions inside it. */
+.stab-view { display: flex; flex-direction: column; min-height: 110px; }
+.stab-view .rocket-view { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.stab-view .rocket-view > svg { flex: 1 1 0; min-height: 0; height: auto; width: 100%; }
+/* CM and CP show the same rocket: same height and place on both pages, and it stays still while the page changes. */
+.stab-lesson .stab-view.stage-fill { flex: 0 0 40%; view-transition-name: stab-rocket; }
+::view-transition-group(stab-rocket), ::view-transition-old(stab-rocket), ::view-transition-new(stab-rocket) { animation: none; }
+.stab-lesson .stab-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* The step rows (motor, stability, flight phases) stay on one line on wide screens: the buttons give up a little width
+   and a long name ends in "…" before anything wraps (the notes open on hover or focus, not in the button). */
+@media (min-width: 1100px) {
+  .menu-row.phases .sub-steps { flex-wrap: nowrap; }
+  .menu-row.phases .sub-steps > button { flex: 0 1 auto; min-width: 0; }
+  .menu-row.phases .sub-steps > button .phase-tab-text { min-width: 0; }
+  .menu-row.phases .sub-steps > button .phase-tab-text small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .menu-row.phases .sub-steps > .sub-parent-wrap { flex: none; }
+  .menu-row.phases .sub-steps > .menu-label { display: none; }
+}
+
+/* Go for launch: the scroll stops exactly at each section (the phase head, Física, Matemáticas, Computación…), its top
+   8 px under the edge. A section taller than the screen still scrolls freely inside before the next stop. */
+/* Phase lessons: one section at a time (Física, Matemáticas, Computación, Resultados), picked in the phase head. */
+.stage-tabs { --c: var(--tec-blue); --soft: #eef3fc; display: grid; grid-template-columns: repeat(var(--tabs, 4), minmax(0, 1fr)); margin-top: 14px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.stage-tabs .stage-fisica, .stage-next-btn.stage-fisica { --c: #c85f12; --soft: #fff4ea; }
+.stage-tabs .stage-matematicas, .stage-next-btn.stage-matematicas { --c: var(--tec-blue); --soft: #eef3fc; }
+.stage-tabs .stage-computacion, .stage-next-btn.stage-computacion { --c: var(--ok); --soft: #ecf8f0; }
+.stage-tabs .stage-graficas, .stage-next-btn.stage-graficas { --c: #a3317a; --soft: #fbeef6; }
+.stage-tabs .stage-resultados, .stage-next-btn.stage-resultados { --c: #6a3fa3; --soft: #f5effb; }
+.stage-tab { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 9px 14px; border: 0; border-left: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background-color 0.15s; }
+.stage-tab:first-child { border-left: 0; }
+.stage-tab .stage-n { width: 30px; height: 30px; font-size: 0.95rem; }
+.stage-tab-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.stage-tab-text b { font-size: 0.98rem; }
+.stage-tab-text small { color: var(--muted); font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stage-tab:hover { background: var(--soft); }
+.stage-tab:focus-visible { outline: 2px solid var(--c); outline-offset: -3px; }
+/* The section on screen: filled with its own color. */
+.stage-tab[aria-current="step"] { background: var(--c); color: #fff; }
+.stage-tab[aria-current="step"] small { color: rgb(255 255 255 / 0.85); }
+/* Not color alone: a thick bottom line (a border, so it stays in forced colors mode). */
+.stage-tab[aria-current="step"]::after { content: ""; position: absolute; inset: auto 0 0; border-bottom: 4px solid color-mix(in srgb, var(--c) 55%, #000); }
+.stage-tab[aria-current="step"] .stage-n { background: #fff; color: var(--c); }
+.stage-next { display: flex; justify-content: flex-end; margin-top: 16px; }
+.stage-next-btn { display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px 6px 6px; border: 1px solid var(--c); border-radius: 999px; background: var(--soft); color: var(--c); font: inherit; font-weight: 600; cursor: pointer; }
+.stage-next-btn .stage-n { width: 28px; height: 28px; font-size: 0.95rem; background: var(--c); color: #fff; }
+.stage-next-btn:hover { background: var(--c); color: #fff; }
+.stage-next-btn:hover .stage-n { background: #fff; color: var(--c); }
+@media (max-width: 760px) { .stage-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stage-tab:nth-child(3) { border-left: 0; } .stage-tab:nth-child(n+3) { border-top: 1px solid var(--line); } }
+.step-page[data-stage="fisica"] .lesson-grid > .stage:not(.stage-fisica),
+.step-page[data-stage="matematicas"] .lesson-grid > .stage:not(.stage-matematicas),
+.step-page[data-stage="computacion"] .lesson-grid > .stage:not(.stage-computacion),
+.step-page:not([data-stage="graficas"], [data-stage="resultados"]) .lesson > .lesson-grid ~ *,
+.step-page:is([data-stage="graficas"], [data-stage="resultados"]) .lesson > .lesson-grid,
+.step-page[data-stage="graficas"] .lesson > .lesson-grid ~ :not(.stage-graficas),
+.step-page[data-stage="resultados"] .lesson > .stage-graficas { display: none; }
+/* Rocket Tec phase head: only the section buttons (the phase's description opens over its button in the row of phases). */
+/* The same height as the head of every other step page (.step-head, 58 px), so all the stages in RPL have one size. */
+.lesson-head.phase-head { height: 58px; box-sizing: border-box; padding: 5px; display: flex; }
+.phase-head .stage-tabs { margin-top: 0; flex: 1; }
+.phase-head .stage-tab { padding: 4px 12px; }
+.phase-head .stage-tab .stage-n { width: 28px; height: 28px; }
+/* Pages with a stage: the ← → buttons at the same distance on all of them. */
+.step-page:has(.step-stage) + .lesson-nav { margin-top: 8px; }
+.note-window .note-body p { margin: 0; }
+.note-window .note-body p + p { margin-top: 8px; }
+.note-window .note-alert { padding: 6px 8px; border-left: 3px solid var(--warn); background: var(--warn-soft); border-radius: 6px; }
+/* Revisión: the verdict on the left, the checklist on the right, one screen high; both columns end at the same line. */
+.fb-tally { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.fb-tally li { --c: #1d7a3e; display: flex; flex-direction: column; align-items: center; min-width: 74px; padding: 4px 6px; border-radius: 8px; background: #fff; border: 1px solid color-mix(in srgb, var(--c) 35%, #fff); border-top: 3px solid var(--c); }
+.fb-tally li.lvl-2 { --c: #b7791f; } .fb-tally li.lvl-3 { --c: #c05621; } .fb-tally li.lvl-4 { --c: #c0262d; }
+.fb-tally b { font-size: 0.7rem; letter-spacing: 0.04em; color: var(--c); font-family: ui-monospace, Consolas, monospace; }
+.fb-tally span { font-size: 0.72rem; color: var(--muted); text-align: center; line-height: 1.2; }
+.fb-hero .fb-note { margin: 0; font-size: 0.74rem; line-height: 1.35; color: var(--muted); max-width: 34em; }
+@media (min-width: 900px) {
+  .flight-badge.step-stage { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); gap: 18px; }
+  .flight-badge .fb-left { display: flex; flex-direction: column; min-height: 0; }
+  .flight-badge .fb-left .fb-hero { flex: 1 1 auto; justify-content: space-evenly; gap: 8px; padding: 14px; }
+  .flight-badge .fb-emoji { font-size: 5.2rem; }
+  .flight-badge .fb-label { font-size: 2.3rem; }
+  .flight-badge .fb-right { display: flex; flex-direction: column; min-height: 0; }
+  .flight-badge .fb-list-title { margin: 0 0 8px; }
+  /* Rows keep their natural height (never stretched to fill the window). */
+  .flight-badge .fb-checks { align-content: start; gap: 8px; }
+  /* The rated rocket under the list, in the height the list leaves (smaller when the list has advice). */
+  .flight-badge .fb-rocket { flex: 1 1 0; min-height: 0; margin: 14px 0 0; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+  /* The drawing at its natural height (it shrinks when the column is short); the masses keep their room under it. */
+  .flight-badge .fb-rocket .rocket-view { flex: 0 1 auto; min-height: 60px; display: flex; flex-direction: column; }
+  .flight-badge .fb-rocket .rocket-view > svg { flex: 0 1 auto; min-height: 0; width: 100%; height: auto; }
+  .flight-badge .fb-check { grid-template-columns: 96px minmax(0, 1fr) auto auto; align-content: center; padding: 5px 10px; }
+  .flight-badge .fb-go { padding: 1px 8px; white-space: nowrap; }
+  .flight-badge .fb-status { font-size: 0.78rem; }
+  .flight-badge .fb-advice { margin-top: 4px; padding: 4px 8px; font-size: 0.8rem; line-height: 1.35; }
+  .flight-badge .fb-advice p { margin: 0; }
+}
+/* Simulaciones › Resultados in one screen: the five groups and the warnings in a 2 × 3 grid. */
+@media (min-width: 900px) {
+  .sim-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto; align-content: start; gap: 18px 24px; }
+  .sim-results > .card-head { grid-column: 1 / -1; }
+  .sim-results .flight-results { display: contents; }
+  /* Cards keep their natural height (never stretched to fill the window); empty columns stay empty. */
+  .sim-results .flight-group { grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; min-height: 0; }
+  .sim-results .flight-group h3 { padding: 0 0 0 8px; font-size: 0.78rem; }
+  .sim-results .flight-cards { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+  .sim-results .flight-group.q-n .flight-cards { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .sim-results > .alerts { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: auto; }
+  .sim-results > .alerts .alert { margin: 0; padding: 6px 10px; font-size: 0.8rem; line-height: 1.35; }
+}
+/* Simulaciones: Revisión, Simulaciones (charts), Resultados and Vuelo real, one at a time (all of them when printing). */
+.stage-tabs .sim-revision { --c: #c05621; --soft: #fdf0e8; }
+.stage-tabs .sim-graficas { --c: #a3317a; --soft: #fbeef6; }
+.stage-tabs .sim-resultados { --c: #6a3fa3; --soft: #f5effb; }
+.stage-tabs .sim-real { --c: var(--ok); --soft: #ecf8f0; }
+.sim-revision .stage-n { background: #fde3d3; color: #c05621; }
+.sim-graficas .stage-n { background: #fbe3f1; color: #a3317a; }
+.sim-resultados .stage-n { background: #ece3f7; color: #5b2f94; }
+.sim-real .stage-n { background: #dcf1e3; color: var(--ok); }
+.sim-part > .card + .card { margin-top: 16px; }
+.sim-charts .charts.fill > .line-chart { min-height: 0; }
+@media print { .sim-part[hidden] { display: block !important; } }
+/* Once a section is picked, the phase head (title, intro, notes) gives its room to the section: only the buttons stay.
+   The phase on screen is still marked in the row of phases above. */
+.step-page[data-picked] .lesson-head > :not(.stage-tabs) { display: none; }
+.step-page[data-picked] .lesson-head { padding: 8px; }
+.step-page[data-picked] .stage-tabs { margin-top: 0; }
+/* With the section buttons, the section's own header (number, name, explanation) is repeated: hide it. */
+.step-page[data-stage] .lesson .stage > header { display: none; }
+.step-page[data-stage] .lesson .stage { grid-template-columns: minmax(0, 1fr); }
+.stage-graficas { border-left: 5px solid #a3317a; }
+.stage-graficas .stage-n { background: #fbe3f1; color: #a3317a; }
+/* Parts 4 (Gráficas) and 5 (Resultados) of a Rocket Tec phase: one screen each. */
+.stage.outcome { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px 14px; }
+.stage.outcome > .card { border: 0; box-shadow: none; padding: 0; margin: 0; background: transparent; }
+.stage.outcome > .card + .card { border-top: 1px solid var(--line); padding-top: 10px; }
+.stage.outcome .card h2 { font-size: 1rem; margin-bottom: 6px; }
+.stage.outcome.stage-resultados { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: start; gap: 0 22px; }
+.stage.outcome.stage-resultados > .card + .card { border-top: 0; padding-top: 0; padding-left: 22px; border-left: 1px solid var(--line); align-self: stretch; }
+.outcome-think { position: absolute; top: 8px; right: 12px; }
+.stage.outcome .hint { font-size: 0.8rem; margin: 0 0 6px; line-height: 1.35; }
+.stage.outcome .big-results { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 4px; }
+.stage.outcome .big-results .kpi { padding: 8px 12px; }
+.stage.outcome .big-results .kpi .value { font-size: 1.6rem; margin: 2px 0; }
+.stage.outcome .big-results .kpi .sub { font-size: 0.85rem; }
+.stage.outcome .change-table { display: none; }
+.stage.outcome .change-row { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 4px; gap: 8px; }
+.stage.outcome .change-facts:only-of-type .change-row { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.phase-charts.fill { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-height: 0; }
+.phase-charts.fill .phase-charts-head { display: flex; align-items: center; gap: 16px; }
+.phase-charts.fill .phase-charts-head h2 { font-size: 1rem; margin: 0; }
+.phase-charts.fill .chart-range { margin: 0; }
+.charts.fill { flex: 1 1 0; min-height: 0; grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+.charts.fill > .line-chart { min-height: 0; }
+
+/* A phase's note starts with when it happens in this flight (the line used to sit, cut, inside the button). */
+.note-window .note-body .note-times { font-weight: 700; color: var(--tec-blue); font-variant-numeric: tabular-nums; }
+
+/* Resultados of a phase: one row each, the results of the rocket above and what changed in the phase below, across
+   the whole width; the two rows together sit in the middle of the window, so any free space is above and below. */
+@media (min-width: 900px) {
+  .stage.outcome.stage-resultados { grid-auto-flow: row; grid-auto-rows: auto; grid-template-columns: minmax(0, 1fr); align-content: center; align-items: start; gap: 18px 0; }
+  .stage.outcome.stage-resultados > .card { grid-column: 1 / -1; }
+  .stage.outcome.stage-resultados > .card:first-of-type { grid-row: 1; }
+  /* "Para pensar" moves with the block: top right of its first row, level with the title. */
+  .stage.outcome.stage-resultados > .outcome-think { position: static; grid-row: 1; grid-column: 1; justify-self: end; z-index: 1; }
+  .stage.outcome.stage-resultados > .card { min-height: 0; }
+  .stage.outcome.stage-resultados > .card + .card { padding-left: 0; border-left: 0; border-top: 1px solid var(--line); padding-top: 14px; align-self: start; }
+  .stage.outcome.stage-resultados > .card > .big-results,
+  .stage.outcome.stage-resultados > .card > .change-facts,
+  .stage.outcome.stage-resultados > .card > .change-row { margin-block: 8px; }
+  /* The first row's title and intro stop before "Para pensar" (top right). */
+  .stage.outcome.stage-resultados > .card:first-of-type > :is(h2, .hint) { margin-right: 170px; }
+  .stage.outcome .big-results { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .stage.outcome .big-results .kpi .value { font-size: 1.9rem; }
+  .stage.outcome .change-row,
+  .stage.outcome .change-facts:only-of-type .change-row { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+  .stage.outcome .change-card .change-value { font-size: 1.7rem; }
+}
+
+
+/* The rocket in Revisión with its masses at liftoff always in view, right under it. */
+.fb-masses { flex: none; }
+.fb-masses .mass-bar { margin: 0 0 6px; }
+.fb-masses ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px 18px; font-size: 0.8rem; }
+.fb-masses li { display: flex; align-items: center; gap: 6px; min-width: 0; border-bottom: 1px solid var(--line); padding: 2px 0; }
+.fb-masses .fb-mass-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.fb-masses li b { font-variant-numeric: tabular-nums; }
+.fb-masses .fb-mass-total .fb-mass-name { color: var(--ink); font-weight: 700; }
+.fb-masses .dot { flex: none; margin: 0; }
+
+/* ───────────────────────── Navigation system ─────────────────────────
+   One scale for the three levels of navigation, so they read as a family and the eye goes from big to small:
+     steps (main row)      52 px · 1.05 rem semibold · 22 px emoji
+     sub-steps (phases)    36 px · 0.88 rem semibold · 20 px number
+     sections (tabs)       48 px inside the 58 px head · 0.92 rem title + 0.74 rem hint
+   Same radius (10 px outside, 8 px inside), same thin border, same states on all of them:
+     rest     white, hairline border
+     hover    the border and the text take the accent, a faint tint and a soft lift
+     press    a slight scale
+     focus    a 2 px ring with offset (keyboard only)
+     current  a tint of its colour, its colour as text and a 3 px bar at the bottom (never colour alone) */
+.workspace-menu { --nav-ease: 160ms cubic-bezier(.2, .7, .3, 1); --nav-ring: #0b2f80; border-color: #e3e7ef; box-shadow: 0 1px 2px rgb(15 27 61 / .04); }
+
+/* Steps */
+.menu-row.main button {
+  height: 52px; border-radius: 10px; border: 1px solid #dfe4ee; background: var(--surface); color: #1f2a44;
+  gap: 10px; padding-inline: 14px; font-weight: 600; box-shadow: 0 1px 2px rgb(15 27 61 / .05);
+  transition: border-color var(--nav-ease), background-color var(--nav-ease), box-shadow var(--nav-ease), color var(--nav-ease), scale var(--nav-ease);
+}
+.menu-row.main .tab-icon { font-size: 1.4rem; line-height: 1; }
+.menu-row.main .tab-text { font-size: 1.05rem; letter-spacing: -0.005em; }
+.menu-row.main .tab-title { gap: 2px 8px; }
+.menu-row.main button:hover { border-color: #b7c3dc; background: #f8faff; color: var(--tec-blue); box-shadow: 0 3px 10px rgb(15 27 61 / .08); }
+.menu-row.main button:active { scale: .985; }
+.menu-row.main button[aria-current] {
+  background: #f1f5fd; border-color: #9fb3dc; color: var(--tec-blue);
+  box-shadow: inset 0 -3px 0 var(--tec-blue), 0 1px 2px rgb(15 27 61 / .05);
+}
+.menu-row.main button + button::before { color: #a9b2c3; font-size: 1.3rem; }
+.menu-row.main button[data-done]::after {
+  top: -6px; right: -6px; width: 18px; height: 18px; font-size: 0.65rem; background: #1f9d55;
+  box-shadow: 0 0 0 2px var(--surface), 0 1px 3px rgb(15 27 61 / .2);
+}
+.menu-row.main .stab-chip { font-size: 0.66rem; padding: 1px 7px; font-weight: 700; }
+/* El vuelo: the one call to action keeps its green, a calmer one, with the same shape as the rest. */
+.menu-row.main .launch-btn {
+  background: linear-gradient(180deg, #22a35a, #1a8c4b); border-color: #177a41; color: #fff;
+  box-shadow: 0 1px 2px rgb(15 27 61 / .08), 0 4px 12px rgb(26 140 75 / .22);
+}
+.menu-row.main .launch-btn:hover { filter: none; transform: none; background: linear-gradient(180deg, #26ad60, #1c9550); color: #fff; border-color: #177a41; box-shadow: 0 6px 16px rgb(26 140 75 / .28); }
+.menu-row.main .launch-btn.launched { box-shadow: inset 0 -3px 0 #0f5f31, 0 1px 2px rgb(15 27 61 / .08); }
+
+/* Sub-steps */
+.menu-row.phases { padding-top: 8px; border-top-color: #edf0f5; }
+.menu-row.phases .sub-steps > button {
+  height: 36px; border-radius: 8px; border: 1px solid #e1e5ee; border-left: 1px solid #e1e5ee; background: var(--surface); color: #2a3550;
+  padding: 0 12px 0 8px; gap: 8px; font-weight: 600;
+  transition: border-color var(--nav-ease), background-color var(--nav-ease), box-shadow var(--nav-ease), color var(--nav-ease), scale var(--nav-ease);
+}
+.menu-row.phases .phase-tab-text { font-size: 0.88rem; }
+.menu-row.phases .phase-dot { width: 20px; height: 20px; font-size: 0.68rem; font-weight: 700; }
+.menu-row.phases .sub-steps > button:hover { border-color: color-mix(in srgb, var(--phase) 45%, #fff); background: color-mix(in srgb, var(--phase) 5%, #fff); color: var(--phase); box-shadow: 0 2px 8px rgb(15 27 61 / .07); }
+.menu-row.phases .sub-steps > button:active { scale: .98; }
+.menu-row.phases .sub-steps > button[aria-current] {
+  background: color-mix(in srgb, var(--phase) 9%, #fff); border-color: color-mix(in srgb, var(--phase) 50%, #fff); color: var(--phase);
+  box-shadow: inset 0 -3px 0 var(--phase);
+}
+.menu-row.phases .sub-steps > button.missing { opacity: .55; }
+
+/* Sections */
+.stage-tabs { border-color: #e1e5ee; border-radius: 10px; box-shadow: 0 1px 2px rgb(15 27 61 / .04); }
+.stage-tab { gap: 10px; padding: 6px 14px; border-left-color: #edf0f5; transition: background-color var(--nav-ease, 160ms ease), color 160ms ease; }
+.stage-tab .stage-n, .phase-head .stage-tab .stage-n { width: 26px; height: 26px; font-size: 0.82rem; font-weight: 700; background: var(--soft); color: var(--c); transition: background-color 160ms ease, color 160ms ease; }
+.stage-tab-text { line-height: 1.25; }
+.stage-tab-text b { font-size: 0.92rem; font-weight: 650; color: #1f2a44; }
+.stage-tab-text small { font-size: 0.74rem; color: #6b7487; }
+.stage-tab:hover { background: color-mix(in srgb, var(--soft) 70%, #fff); }
+.stage-tab:hover .stage-tab-text b { color: var(--c); }
+.stage-tab[aria-current="step"] { background: var(--soft); color: var(--ink); }
+.stage-tab[aria-current="step"] .stage-tab-text b { color: var(--c); }
+.stage-tab[aria-current="step"] small { color: #5b6477; }
+.stage-tab[aria-current="step"] .stage-n { background: var(--c); color: #fff; }
+.stage-tab[aria-current="step"]::after { border-bottom: 3px solid var(--c); }
+
+/* Keyboard focus: one ring for every level. */
+.menu-row.main button:focus-visible, .menu-row.phases .sub-steps > button:focus-visible { outline: 2px solid var(--nav-ring); outline-offset: 2px; }
+.stage-tab:focus-visible { outline: 2px solid var(--nav-ring, #0b2f80); outline-offset: -4px; border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .menu-row.main button, .menu-row.phases .sub-steps > button, .stage-tab, .stage-tab .stage-n { transition: none; }
+  .menu-row.main button:active, .menu-row.phases .sub-steps > button:active { scale: none; }
+}
+@media (forced-colors: active) {
+  .menu-row.main button[aria-current], .menu-row.phases .sub-steps > button[aria-current] { border: 2px solid Highlight; }
+}

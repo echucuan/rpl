@@ -109,7 +109,7 @@ function setup(d: Design, groundPressure: number, groundTemperature: number): Se
   };
 }
 
-export const NO_MOTOR = "El cohete no tiene motor: agrégalo en el menú Motor para simular el vuelo.";
+export const NO_MOTOR = "El cohete no tiene motor: elige «Con motor» en Cohete › Motor para simular el vuelo.";
 
 /**
  * Masses and stability without flying: what the Cohete tab draws, also when there is no flight (e.g. no motor).
@@ -285,7 +285,7 @@ function warnings(d: Design, r: FlightResult, lifted: boolean): Warning[] {
   }
   else if (Math.max(r.stabilityLoaded.margin, r.stabilityEmpty.margin) > 3) w.push({ level: "warning", text: "Sobreestable (más de 3 calibres): con viento tenderá a girar contra él." });
   // For the A10-3T, Estes states the limit as a maximum liftoff mass (checked below) instead of a thrust-to-weight ratio.
-  if (r.guideExit && r.guideExit.v < 10) w.push({ level: "warning", text: `Sale de la guía a solo ${r.guideExit.v.toFixed(1)} m/s; abajo de 10 m/s las aletas todavía no estabilizan bien.` });
+  if (r.guideExit && r.guideExit.v < 6) w.push({ level: "warning", text: `Sale de la guía a solo ${r.guideExit.v.toFixed(1)} m/s; abajo de 6 m/s las aletas todavía no estabilizan bien.` });
   if (d.recovery.kind === "none" || d.recovery.deployment === "none") w.push({ level: "warning", text: "Sin paracaídas: el cohete cae libremente. Revisa la zona de seguridad." });
   if (d.type === "estes" && d.recovery.kind === "parachute" && !r.ejection) w.push({ level: "error", text: "El cohete toca el suelo antes de que se active la eyección del motor." });
   if (d.type === "estes") {

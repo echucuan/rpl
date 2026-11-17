@@ -1,5 +1,5 @@
 import { useId, type CSSProperties } from "react";
-import { MASCOT_DESIGN, STAR, type MascotDesign, type MascotMood } from "./mascotDesign";
+import { DROP, MASCOT_DESIGN, STAR, type MascotDesign, type MascotMood } from "./mascotDesign";
 
 /**
  * The RPL mascot: the Rocket Tec isotipo (the logo's rocket) brought to life.
@@ -140,6 +140,11 @@ export function Mascot({ mood = "idle", size = 120, title = "Rocky, la mascota d
               <path d={STAR} />
             </g>
           ))}
+        </g>
+      )}
+      {m.extras.includes("sweat") && (
+        <g className="m-sweat" fill={c.accent} stroke={c.outline} strokeWidth={1}>
+          {deco.sweat.map((p, i) => <path key={i} d={DROP} transform={`translate(${p.x} ${p.y}) scale(${p.scale})`} />)}
         </g>
       )}
       {m.extras.includes("question") && (

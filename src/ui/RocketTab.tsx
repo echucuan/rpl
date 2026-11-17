@@ -123,7 +123,14 @@ const menuRank = (name: string) => MENU_ORDER.find(([re]) => re.test(name))?.[1]
 
 const PALETTE = ["#0039a6", "#e0701b", "#1d7a3e", "#7a4fb0", "#b3261e", "#0f8a9d", "#a35f2a", "#5b6270", "#c9a227"];
 
-function MassBudget({ items }: { items: MassItem[] }) {
+/** The masses in the order of the design menus, each with its colour (parts with no mass, e.g. no fins, left out). */
+export function massRows(items: MassItem[]) {
+  const total = items.reduce((s, i) => s + i.mass, 0);
+  const sorted = [...items].filter((i) => i.mass > 0).sort((a, b) => menuRank(a.name) - menuRank(b.name));
+  return { total, rows: sorted.map((i, k) => ({ ...i, color: PALETTE[k % PALETTE.length], share: i.mass / total })) };
+}
+
+export function MassBudget({ items }: { items: MassItem[] }) {
   const total = items.reduce((s, i) => s + i.mass, 0);
   // Same order as the design menus; parts with no mass (e.g. no fins) are left out.
   const sorted = [...items].filter((i) => i.mass > 0).sort((a, b) => menuRank(a.name) - menuRank(b.name));
