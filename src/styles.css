@@ -2120,3 +2120,11 @@ main:has(> .program-banner) { min-height: calc(100vh + 160px); }
 @media (forced-colors: active) {
   .menu-row.main button[aria-current], .menu-row.phases .sub-steps > button[aria-current] { border: 2px solid Highlight; }
 }
+
+/* Topbar that never overlaps: the tabs keep their full width in the middle (centred in the room left between
+   the two logos), and the save notice beside the Rocket Tec logo wraps to two lines before it would touch them. */
+@media (min-width: 1181px) {
+  .topbar { grid-template-columns: auto minmax(max-content, 1fr) auto; }
+}
+.topbar .topbar-end .save-status { min-width: 0; flex: 0 1 auto; }
+.topbar .topbar-end .save-pill { white-space: normal; height: auto; min-height: 28px; padding: 4px 12px; line-height: 1.2; text-wrap: balance; border-radius: 14px; }
