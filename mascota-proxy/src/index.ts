@@ -12,7 +12,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { allowedOrigin, checkBody, dayKey, studentKey, validGroup } from "./guard";
 import { SYSTEM_PROMPT } from "./prompt";
 import { TOOLS } from "./tools";
-import { THEMES_PROMPT, lastQuestion, parseEvents, readReply, saveEvents, saveRocky, summary, toCsv, turns, type D1 } from "./usage";
+import { THEMES_PROMPT, addCredit, lastQuestion, parseEvents, readReply, removeCredit, saveEvents, saveRocky, summary, toCsv, turns, type D1, type Reply } from "./usage";
 
 interface RateLimiter {
   limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -125,13 +125,14 @@ export default {
     const started = Date.now();
     const turn = request.headers.get("x-rpl-turn") ?? "";
     const logging = !!env.DB && ID.test(turn);
-    const record = (answer: string, tools: string[], inTokens: number, outTokens: number, status: string) => {
+    const record = (r: Reply, status: string) => {
       if (!logging) return;
       ctx.waitUntil(
         saveRocky(env.DB!, {
           ts: started, day: dayKey(new Date(started)), device: student.replace(/^(dev|ip):/, ""), grp: group, turn,
-          question: lastQuestion(checked.messages).slice(0, 4000), answer, tools: tools.join(" "),
-          inTokens, outTokens, ms: Date.now() - started, status,
+          question: lastQuestion(checked.messages).slice(0, 4000), answer: r.text, tools: r.tools.join(" "),
+          inTokens: r.inTokens, cacheRead: r.cacheRead, cacheWrite: r.cacheWrite, outTokens: r.outTokens, model: env.MODEL,
+          ms: Date.now() - started, status,
         }).catch((e) => console.error("usage: rocky", e)),
       );
     };
@@ -153,14 +154,14 @@ export default {
       if (logging && body) {
         const [toBrowser, toLog] = body.tee();
         body = toBrowser;
-        ctx.waitUntil(readReply(toLog).then((r) => record(r.text, r.tools, r.inTokens, r.outTokens, "ok")).catch((e) => console.error("usage: read", e)));
+        ctx.waitUntil(readReply(toLog).then((r) => record(r, "ok")).catch((e) => console.error("usage: read", e)));
       }
       return new Response(body, {
         status: upstream.status,
         headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
       });
     } catch (error) {
-      record("", [], 0, 0, "error");
+      record({ text: "", tools: [], inTokens: 0, cacheRead: 0, cacheWrite: 0, outTokens: 0 }, "error");
       if (error instanceof Anthropic.RateLimitError) return apiError(429, "Rocky está muy ocupado. Intenta en unos segundos.", cors);
       if (error instanceof Anthropic.APIError) {
         console.error("Claude API error", error.status, error.message);
@@ -196,7 +197,8 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * The teacher's data page: GET /admin/summary, /admin/turns.csv, /admin/events.csv, /admin/students.csv and
- * POST /admin/themes (Claude groups the questions into themes), for the days ?from=…&to=… (Culiacán).
+ * POST /admin/themes (Claude groups the questions into themes), for the days ?from=…&to=… (Culiacán), and
+ * POST /admin/credit to note a recharge of Claude credit ({usd, note, day}) or remove one ({remove: id}).
  */
 async function admin(request: Request, url: URL, env: Env, cors: Record<string, string>): Promise<Response> {
   if (!env.DB || !env.ADMIN_KEY) return apiError(503, "Falta configurar la base de datos de uso o la clave de datos (ADMIN_KEY).", cors);
@@ -211,7 +213,23 @@ async function admin(request: Request, url: URL, env: Env, cors: Record<string, 
 
   switch (url.pathname) {
     case "/admin/summary":
-      return Response.json(await summary(env.DB, from, to), { headers: cors });
+      return Response.json(await summary(env.DB, from, to, env.MODEL), { headers: cors });
+    case "/admin/credit": {
+      if (request.method !== "POST") return apiError(400, "Usa POST.", cors);
+      const body = (await request.json().catch(() => null)) as { usd?: unknown; note?: unknown; day?: unknown; remove?: unknown } | null;
+      if (Number.isInteger(body?.remove)) {
+        await removeCredit(env.DB, Number(body!.remove));
+        return new Response(null, { status: 204, headers: cors });
+      }
+      const usd = Number(body?.usd);
+      if (!Number.isFinite(usd) || usd <= 0 || usd > 100_000) return apiError(400, "Escribe una cantidad en dólares mayor que cero.", cors);
+      // The recharge counts from the start of its day in Culiacán (UTC−7); without a day, from now.
+      const day = typeof body?.day === "string" && DAY.test(body.day) ? body.day : null;
+      const ts = day ? Date.parse(`${day}T00:00:00-07:00`) : Date.now();
+      const note = typeof body?.note === "string" ? body.note.replace(/\s+/g, " ").trim().slice(0, 120) : "";
+      await addCredit(env.DB, Math.min(ts, Date.now()), Math.round(usd * 100) / 100, note);
+      return new Response(null, { status: 204, headers: cors });
+    }
     case "/admin/turns.csv":
       return csv((await turns(env.DB, from, to)).map((t) => ({ ...t, ts: new Date(t.ts).toISOString() })), "preguntas-rocky");
     case "/admin/events.csv": {
@@ -219,7 +237,7 @@ async function admin(request: Request, url: URL, env: Env, cors: Record<string, 
       return csv(rows.map((r) => ({ ...r, ts: new Date(Number(r.ts)).toISOString() })), "eventos");
     }
     case "/admin/students.csv":
-      return csv((await summary(env.DB, from, to)).students, "alumnos");
+      return csv((await summary(env.DB, from, to, env.MODEL)).students, "alumnos");
     case "/admin/themes": {
       if (request.method !== "POST") return apiError(400, "Usa POST.", cors);
       const qs = (await turns(env.DB, from, to)).map((t) => t.question.replace(/\s+/g, " ").slice(0, 300));
@@ -233,6 +251,14 @@ async function admin(request: Request, url: URL, env: Env, cors: Record<string, 
           system: THEMES_PROMPT,
           messages: [{ role: "user", content: `Total de preguntas: ${sample.length}\n\n${sample.map((q, i) => `${i + 1}. ${q}`).join("\n")}` }],
         });
+        // Grouping costs tokens too: kept as a Rocky row without a question, so it counts in the balance only.
+        const now = Date.now();
+        await saveRocky(env.DB, {
+          ts: now, day: dayKey(new Date(now)), device: "datos", grp: "", turn: `temas-${now}`, question: "", answer: "", tools: "",
+          inTokens: msg.usage.input_tokens + (msg.usage.cache_read_input_tokens ?? 0) + (msg.usage.cache_creation_input_tokens ?? 0),
+          cacheRead: msg.usage.cache_read_input_tokens ?? 0, cacheWrite: msg.usage.cache_creation_input_tokens ?? 0,
+          outTokens: msg.usage.output_tokens, model: env.MODEL, ms: 0, status: "temas",
+        }).catch((e) => console.error("usage: themes cost", e));
         const text = msg.content.map((b) => (b.type === "text" ? b.text : "")).join("");
         const json = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
         return Response.json({ ...json, total: sample.length, of: qs.length }, { headers: cors });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lastQuestion, normalizeQuestion, parseEvents, readReply, toCsv } from "./usage";
+import { costUsd, lastQuestion, normalizeQuestion, parseEvents, readReply, toCsv } from "./usage";
 
 const DEV = "0123456789abcdef-0001";
 const SES = "0123456789abcdef-0002";
@@ -55,7 +55,18 @@ describe("readReply", () => {
         c.close();
       },
     });
-    expect(await readReply(stream)).toEqual({ text: "Hola, piloto", tools: ["ver_diseno"], inTokens: 100, outTokens: 42 });
+    expect(await readReply(stream)).toEqual({ text: "Hola, piloto", tools: ["ver_diseno"], inTokens: 100, cacheRead: 90, cacheWrite: 0, outTokens: 42 });
+  });
+});
+
+describe("costUsd", () => {
+  it("prices plain input, cache reads (0.1×), cache writes (1.25×) and output", () => {
+    // Haiku 5.5: $0.10 in, $0.50 out per million.
+    const usd = costUsd({ model: "claude-haiku-5-5", inTokens: 3_000_000, cacheRead: 1_000_000, cacheWrite: 1_000_000, outTokens: 1_000_000 });
+    expect(usd).toBeCloseTo(0.1 + 0.01 + 0.125 + 0.5, 6);
+  });
+  it("counts an unknown model at Opus 5.5 prices", () => {
+    expect(costUsd({ model: "otro", inTokens: 1_000_000, cacheRead: 0, cacheWrite: 0, outTokens: 0 })).toBe(4);
   });
 });
 

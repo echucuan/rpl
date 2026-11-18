@@ -90,4 +90,10 @@ npm run deploy
 
 En local: `npx wrangler d1 migrations apply rpl-uso --local` y `ADMIN_KEY=…` en `.dev.vars`.
 
+Al actualizar el Worker, vuelve a correr `npx wrangler d1 migrations apply rpl-uso --remote` **antes** de `npm run deploy`: solo aplica las migraciones nuevas (por ejemplo `0002_saldo.sql`).
+
+### Saldo de Claude (estimado)
+
+Arriba de la página de datos. Anthropic no da el saldo por API, así que se estima: anota cada recarga que hagas en la consola de Claude (cantidad y día) y la página resta lo que Rocky ha gastado desde la primera, calculado con los tokens de cada respuesta (y de "Agrupar por tema") por los precios de `PRICES` en `src/usage.ts`. Muestra el saldo, el gasto de los últimos 7 días (y para cuántas semanas alcanza) y el gasto en las fechas elegidas con el costo por pregunta. No cuenta otros gastos de la misma cuenta; el saldo exacto está en console.anthropic.com → Settings → Billing. Si cambian los precios o el modelo, actualiza `PRICES`.
+
 Sin la base de datos (`DB`) el Worker sigue funcionando igual y no guarda nada. Plan gratuito de D1: 5 GB y 100 000 escrituras al día; cada alumno escribe unas pocas filas por minuto de uso.

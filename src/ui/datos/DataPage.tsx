@@ -9,9 +9,20 @@ const URL_BASE: string | undefined = import.meta.env.VITE_COPILOT_URL || undefin
 const KEY = "rpl.datos.key";
 
 type Num = number;
+interface Credit {
+  model: string;
+  recharges: { id: Num; ts: Num; usd: Num; note: string }[];
+  loaded: Num;
+  spent: Num;
+  balance: Num | null;
+  lastWeek: Num;
+  inRange: Num;
+  perQuestion: Num;
+}
 interface Summary {
   from: string;
   to: string;
+  credit: Credit;
   totals: { students: Num; sessions: Num; days: Num; seconds: Num; clicks: Num; edits: Num; questions: Num; askers: Num };
   sessions: { wall: Num; active: Num }[];
   byGroup: { grp: string; students: Num; sessions: Num; seconds: Num; clicks: Num; edits: Num; questions: Num }[];
@@ -79,6 +90,71 @@ function Tile({ value, unit, label, sub }: { value: string; unit?: string; label
   );
 }
 
+/** Dollars: cents for amounts, more digits for the tiny cost of one question. */
+const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(n) < 0.1 && n !== 0 ? 4 : 2 })}`;
+const shortDay = (ts: number) => new Date(ts).toLocaleDateString("es-MX", { timeZone: "America/Mazatlan", day: "numeric", month: "short", year: "numeric" });
+
+/** The estimated Claude balance: recharges noted here minus what Rocky spent (tokens × prices) since the first. */
+function Balance({ c, onAdd, onRemove }: { c: Credit; onAdd: (usd: number, day: string, note: string) => Promise<void>; onRemove: (id: number) => Promise<void> }) {
+  const [amount, setAmount] = useState("");
+  const [day, setDay] = useState(today);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const weeksLeft = c.balance != null && c.lastWeek > 0 ? c.balance / c.lastWeek : null;
+  const low = c.balance != null && (c.balance <= 0 || (weeksLeft != null && weeksLeft < 1));
+  return (
+    <section className={`dp-card dp-balance${low ? " low" : ""}`} aria-labelledby="dp-balance-title">
+      <h2 id="dp-balance-title">Saldo de Claude (estimado)</h2>
+      {c.balance == null ? (
+        <p className="dp-muted">Anota abajo cuánto cargaste en la consola de Claude y desde qué día: el saldo se calcula restándole lo que Rocky gasta desde entonces.</p>
+      ) : (
+        <div className="dp-tiles">
+          <Tile value={usd(c.balance)} label="Saldo estimado" sub={`${usd(c.loaded)} cargados − ${usd(c.spent)} gastados desde el ${shortDay(c.recharges[0].ts)}`} />
+          <Tile value={usd(c.lastWeek)} label="Últimos 7 días" sub={weeksLeft == null ? "sin gasto esta semana" : weeksLeft < 0 ? "saldo agotado" : `alcanza para ~${nf(weeksLeft, weeksLeft < 10 ? 1 : 0)} semanas a este ritmo`} />
+          <Tile value={usd(c.inRange)} label="En estas fechas" sub={c.perQuestion ? `${usd(c.perQuestion)} por pregunta` : "sin preguntas"} />
+        </div>
+      )}
+      {low && <p className="dp-warn">{c.balance! <= 0 ? "El saldo estimado se acabó: Rocky dejará de responder cuando se agote el crédito real." : "Queda menos de una semana de saldo al ritmo actual."} Recarga en la consola de Claude.</p>}
+      <form
+        className="dp-range dp-credit-form"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setSaving(true);
+          try {
+            await onAdd(Number(amount), day, note);
+            setAmount("");
+            setNote("");
+          } finally {
+            setSaving(false);
+          }
+        }}
+      >
+        <label>Recarga (USD) <input type="number" min="0.01" step="0.01" inputMode="decimal" required value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+        <label>Desde el día <input type="date" required value={day} max={today()} onChange={(e) => setDay(e.target.value)} /></label>
+        <label className="dp-grow">Nota <input type="text" maxLength={120} placeholder="opcional" value={note} onChange={(e) => setNote(e.target.value)} /></label>
+        <button className="btn" disabled={saving || !(Number(amount) > 0)}>{saving ? "Anotando…" : "Anotar recarga"}</button>
+      </form>
+      {c.recharges.length > 0 && (
+        <table className="dp-table">
+          <thead><tr><th>Desde</th><th>USD</th><th>Nota</th><th><span className="sr-only">Quitar</span></th></tr></thead>
+          <tbody>
+            {c.recharges.map((r) => (
+              <tr key={r.id}>
+                <td>{shortDay(r.ts)}</td><td>{usd(r.usd)}</td><td>{r.note}</td>
+                <td><button type="button" className="btn dp-small" onClick={() => onRemove(r.id)} aria-label={`Quitar la recarga de ${usd(r.usd)} del ${shortDay(r.ts)}`}>Quitar</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <p className="dp-muted">
+        Calculado con los tokens de cada respuesta de Rocky (y de "Agrupar por tema") y los precios de {c.model}. Gastos de esta cuenta fuera de Rocky no aparecen.
+        El saldo exacto está en <a href="https://console.anthropic.com/settings/billing" target="_blank" rel="noreferrer">console.anthropic.com → Settings → Billing</a>.
+      </p>
+    </section>
+  );
+}
+
 export function DataPage() {
   const [key, setKey] = useState(() => {
     try { return sessionStorage.getItem(KEY) ?? ""; } catch { return ""; }
@@ -141,6 +217,18 @@ export function DataPage() {
     }
   }
 
+  async function changeCredit(body: Record<string, unknown>) {
+    setError("");
+    const r = await fetch(`${URL_BASE}/admin/credit`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+    if (!r) return setError("No me pude conectar con el servidor de Rocky.");
+    if (!r.ok) return void (await fail(r));
+    await load();
+  }
+
   if (!URL_BASE) return <main id="datos-page" className="dp"><p>Esta copia del RPL no tiene servidor de Rocky, así que no registra datos de uso.</p></main>;
 
   if (!key)
@@ -187,6 +275,14 @@ export function DataPage() {
 
       {d && t && (
         <>
+          {d.credit && (
+            <Balance
+              c={d.credit}
+              onAdd={(usd, day, note) => changeCredit({ usd, day, note })}
+              onRemove={(id) => changeCredit({ remove: id })}
+            />
+          )}
+
           <section className="dp-card dp-quote">
             <h2>En una frase</h2>
             <p>

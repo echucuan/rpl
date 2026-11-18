@@ -63,13 +63,16 @@ export function lastQuestion(messages: unknown[]): string {
 export interface Reply {
   text: string;
   tools: string[];
+  /** All input tokens, cached or not; cacheRead and cacheWrite are the part that went through the cache. */
   inTokens: number;
+  cacheRead: number;
+  cacheWrite: number;
   outTokens: number;
 }
 
 /** What Rocky said in one streamed round (the Claude API's event stream), read as it passes to the browser. */
 export async function readReply(stream: ReadableStream<Uint8Array>): Promise<Reply> {
-  const reply: Reply = { text: "", tools: [], inTokens: 0, outTokens: 0 };
+  const reply: Reply = { text: "", tools: [], inTokens: 0, cacheRead: 0, cacheWrite: 0, outTokens: 0 };
   const decoder = new TextDecoder();
   const reader = stream.getReader();
   let buffer = "";
@@ -84,7 +87,9 @@ export async function readReply(stream: ReadableStream<Uint8Array>): Promise<Rep
     const type = ev.type;
     if (type === "message_start") {
       const u = (ev.message as { usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } })?.usage;
-      reply.inTokens = (u?.input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0);
+      reply.cacheRead = u?.cache_read_input_tokens ?? 0;
+      reply.cacheWrite = u?.cache_creation_input_tokens ?? 0;
+      reply.inTokens = (u?.input_tokens ?? 0) + reply.cacheRead + reply.cacheWrite;
     } else if (type === "content_block_start") {
       const b = ev.content_block as { type?: string; name?: string };
       if (b?.type === "tool_use" && b.name) reply.tools.push(b.name);
@@ -129,6 +134,36 @@ export function toCsv(rows: Record<string, unknown>[]): string {
   return "﻿" + [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\r\n");
 }
 
+/**
+ * Claude prices in USD per million tokens (input, output), to estimate what Rocky spends. Cache reads cost 0.1×
+ * the input and cache writes 1.25×. Update this table if the prices change; an unknown model counts as Opus 5.5
+ * (an estimate on the high side).
+ */
+export const PRICES: Record<string, { input: number; output: number }> = {
+  "claude-haiku-5-5": { input: 0.1, output: 0.5 },
+  "claude-sonnet-5-5": { input: 2, output: 10 },
+  "claude-opus-5-5": { input: 4, output: 20 },
+  "claude-haiku-4-5": { input: 1, output: 5 },
+  "claude-sonnet-5": { input: 2, output: 10 },
+  "claude-opus-5": { input: 5, output: 25 },
+};
+
+export interface TokenSums {
+  model: string;
+  /** All input tokens, cache included. */
+  inTokens: number;
+  cacheRead: number;
+  cacheWrite: number;
+  outTokens: number;
+}
+
+/** Estimated USD of some tokens of one model. */
+export function costUsd(t: TokenSums): number {
+  const p = PRICES[t.model] ?? PRICES["claude-opus-5-5"];
+  const plain = Math.max(0, t.inTokens - t.cacheRead - t.cacheWrite);
+  return (plain * p.input + t.cacheRead * p.input * 0.1 + t.cacheWrite * p.input * 1.25 + t.outTokens * p.output) / 1e6;
+}
+
 /* ---------- D1 ---------- */
 
 export interface D1Result<T> {
@@ -161,20 +196,65 @@ export interface RockyRow {
   answer: string;
   tools: string;
   inTokens: number;
+  cacheRead: number;
+  cacheWrite: number;
   outTokens: number;
+  model: string;
   ms: number;
   status: string;
 }
 
 export async function saveRocky(db: D1, r: RockyRow) {
   await db
-    .prepare("INSERT INTO rocky (ts, day, device, grp, turn, question, answer, tools, in_tokens, out_tokens, ms, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-    .bind(r.ts, r.day, r.device, r.grp, r.turn, r.question, r.answer, r.tools, r.inTokens, r.outTokens, r.ms, r.status)
+    .prepare(
+      "INSERT INTO rocky (ts, day, device, grp, turn, question, answer, tools, in_tokens, cache_read, cache_write, out_tokens, model, ms, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(r.ts, r.day, r.device, r.grp, r.turn, r.question, r.answer, r.tools, r.inTokens, r.cacheRead, r.cacheWrite, r.outTokens, r.model, r.ms, r.status)
     .run();
 }
 
 type Row = Record<string, number | string>;
 const all = async (db: D1, sql: string, ...args: unknown[]) => (await db.prepare(sql).bind(...args).all<Row>()).results;
+
+/** Estimated USD of the Rocky rows that match `where` (rows without a model used the Worker's current MODEL). */
+async function spend(db: D1, model: string, where: string, ...args: unknown[]) {
+  const rows = await all(
+    db,
+    `SELECT CASE WHEN model = '' THEN ? ELSE model END AS m, SUM(in_tokens) AS i, SUM(cache_read) AS cr, SUM(cache_write) AS cw, SUM(out_tokens) AS o
+       FROM rocky WHERE ${where} GROUP BY m`,
+    model, ...args,
+  );
+  return rows.reduce((a, r) => a + costUsd({ model: String(r.m), inTokens: Number(r.i), cacheRead: Number(r.cr), cacheWrite: Number(r.cw), outTokens: Number(r.o) }), 0);
+}
+
+const WEEK = 7 * 86_400_000;
+
+/** The estimated Claude balance: recharges noted on the data page minus what Rocky spent since the first one. */
+export async function credit(db: D1, model: string, from: string, to: string, now = Date.now()) {
+  const recharges = (await all(db, "SELECT id, ts, usd, note FROM credit ORDER BY ts")).map((r) => ({ id: Number(r.id), ts: Number(r.ts), usd: Number(r.usd), note: String(r.note) }));
+  const since = recharges[0]?.ts ?? null;
+  const loaded = recharges.reduce((a, r) => a + r.usd, 0);
+  const spent = since == null ? 0 : await spend(db, model, "ts >= ?", since);
+  const inRange = await spend(db, model, "day BETWEEN ? AND ?", from, to);
+  const [q] = await all(db, "SELECT COUNT(DISTINCT turn) AS n FROM rocky WHERE day BETWEEN ? AND ? AND question <> ''", from, to);
+  return {
+    model,
+    recharges,
+    loaded,
+    spent,
+    balance: since == null ? null : loaded - spent,
+    lastWeek: await spend(db, model, "ts >= ?", now - WEEK),
+    inRange,
+    perQuestion: Number(q?.n) ? inRange / Number(q.n) : 0,
+  };
+}
+
+export async function addCredit(db: D1, ts: number, usd: number, note: string) {
+  await db.prepare("INSERT INTO credit (ts, usd, note) VALUES (?, ?, ?)").bind(ts, usd, note).run();
+}
+export async function removeCredit(db: D1, id: number) {
+  await db.prepare("DELETE FROM credit WHERE id = ?").bind(id).run();
+}
 
 /** One Rocky turn: the question, the whole answer (all its rounds) and whether the student read it. */
 export interface Turn {
@@ -219,7 +299,7 @@ export async function turns(db: D1, from: string, to: string): Promise<Turn[]> {
 }
 
 /** Everything the data page shows, for the days from…to (Culiacán). */
-export async function summary(db: D1, from: string, to: string) {
+export async function summary(db: D1, from: string, to: string, model: string) {
   const range = [from, to];
   const [totals] = await all(
     db,
@@ -308,6 +388,7 @@ export async function summary(db: D1, from: string, to: string) {
 
   return {
     from, to,
+    credit: await credit(db, model, from, to),
     totals: { ...totals, questions: ts.length, askers: perStudent.size },
     sessions: sessions.map((s) => ({ wall: Number(s.wall), active: Number(s.active) })),
     byGroup: byGroup.map((g) => ({ ...g, questions: rockyByGroup.get(String(g.grp)) ?? 0 })),
