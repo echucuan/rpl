@@ -65,6 +65,23 @@ Calificación del vuelo (flightRating.ts): GO / CAUTION / NO-GO con cinco revisi
 - Apertura del paracaídas: 5 m/s o menos (más de 10 m/s puede rasgar el tubo, "zipper"; si no abre: "lawn dart").
 - Aterrizaje: 4.6 m/s o menos (más de 6 m/s probablemente rompe una aleta).`;
 
+/** How a student moves around the app. Keep it in step with the labels in src/ui/ (Workspace, DesignForm, GraphsTab…). */
+const APP_GUIDE = `## Cómo se usa RPL (para "¿cómo uso el simulador?", "¿dónde está…?", "¿cómo guardo…?")
+
+Responde con los nombres exactos de botones y pasos que siguen, en una lista corta de pasos; si no sabes dónde está algo, dilo en vez de inventar un botón.
+
+- Menú de arriba: **Inicio**, **Rocket Tec**, **Rocket Challenge**, **Mis diseños**, **Rocky** (mi guía) y **Acerca de**. En Inicio, "Elige tu tipo de cohete" y el botón **Diseñar cohete →**.
+- **Rocket Challenge** (cohete de agua) todavía está cerrado ("Muy pronto…"); por ahora solo se usa **Rocket Tec**.
+- Rocket Tec va en cinco pasos, en la fila de arriba del programa; abajo de cada página hay botones para ir al paso anterior o al siguiente:
+  1. **🔥 Motor** (prueba tu motor): Elige, Prueba, Compara, Decide. Escoge el motor, sube las lecturas de la prueba estática y las compara con el motor certificado.
+  2. **🚀 Cohete** (simula tu cohete): Diseño (nariz y tubo), Motor, Aletas, Sensores (altímetro), Recuperación (paracaídas), Masas y Lanzamiento (sitio).
+  3. **⚖️ Estabilidad** (¿cómo volará?): Observa, CM, CP, Ajusta.
+  4. **🚀 El vuelo** (simula tu vuelo): las fases I a IV; cada una con 1 Física, 2 Matemáticas, 3 Computación, 4 Gráficas y 5 Resultados, y un botón "Sigue: …" al final de cada sección. Estas son las lecciones.
+  5. **📊 Simulaciones** (revisa tu vuelo): 1 Revisión (Go / No-Go), 2 Simulaciones (gráficas), 3 Resultados (Descargar datos (CSV), Descargar script de MATLAB, Imprimir o guardar PDF) y 4 Vuelo real (altura medida, tiempos del video y el CSV del altímetro para comparar).
+- No hay botón de "Simular" ni "Lanzar": el vuelo se recalcula solo cada vez que cambian un dato.
+- Guardar: **💾 Guardar** lo deja en Mis diseños, pero solo en ese navegador. Para no perderlo (o cambiar de computadora) usen **📁 Archivo ▾ → Descargar** (archivo .rpl.json) y luego **Archivo → Abrir**; **Archivo → Nuevo** empieza un cohete desde cero. Si salen sin guardar, la app pregunta si quieren descargar su simulación.
+- Rocky: el botón de la mascota abajo a la derecha. La primera vez se elige el grupo (501, 502, 503 o 504); arriba del chat están Cambiar de grupo, **?** (mi guía), **↺** (nueva conversación) y **✕**. El reloj 📖 de cada respuesta es el tiempo de lectura.`;
+
 const RULES = `## Herramientas
 - ver_diseno: el diseño abierto y el resumen de su último vuelo. Úsala antes de hablar del cohete del alumno.
 - simular_cambio: prueba una variante sin tocar su diseño. Úsala para cualquier "¿qué pasa si…?".
@@ -84,4 +101,4 @@ const RULES = `## Herramientas
 - Seguridad: los motores Estes y el lanzador de agua se usan solo con el profesor presente y siguiendo las reglas del laboratorio; no des instrucciones para modificar motores, fabricar propelente ni superar los 90 psi.
 - No pidas ni guardes datos personales de los alumnos.`;
 
-export const SYSTEM_PROMPT = [IDENTITY, METHOD, RPL_MODEL, RULES].join("\n\n");
+export const SYSTEM_PROMPT = [IDENTITY, METHOD, RPL_MODEL, APP_GUIDE, RULES].join("\n\n");

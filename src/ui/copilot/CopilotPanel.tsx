@@ -42,10 +42,12 @@ interface Bubble {
   logged?: boolean;
 }
 
+// The last two of each list are about using the app (Rocky knows the screens: APP_GUIDE in the Worker's prompt).
+const HOW_TO = ["¿Cómo uso el simulador?", "¿Cómo guardo mi diseño?"];
 const SUGGESTIONS: Record<"estes" | "water" | "none", string[]> = {
-  estes: ["¿Mi cohete es estable?", "¿Qué pasa si agrando las aletas?", "¿Qué retardo de eyección me conviene?"],
-  water: ["¿Cuánta agua le pongo?", "¿Qué pasa con menos presión?", "¿Mi cohete es estable?"],
-  none: ["¿Qué es el centro de presión?", "¿Cómo funciona un motor Estes?", AVAILABLE.water ? "¿Por qué vuela un cohete de agua?" : "¿Qué es el apogeo?"],
+  estes: ["¿Mi cohete es estable?", "¿Qué pasa si agrando las aletas?", "¿Qué retardo de eyección me conviene?", ...HOW_TO],
+  water: ["¿Cuánta agua le pongo?", "¿Qué pasa con menos presión?", "¿Mi cohete es estable?", ...HOW_TO],
+  none: ["¿Qué es el centro de presión?", "¿Cómo funciona un motor Estes?", AVAILABLE.water ? "¿Por qué vuela un cohete de agua?" : "¿Qué es el apogeo?", ...HOW_TO],
 };
 
 const TOOL_LABEL: Record<string, string> = {
